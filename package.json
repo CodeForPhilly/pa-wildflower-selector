@@ -1,0 +1,29 @@
+{
+  "name": "pa-wildflower-selector",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "cd ui && npm run build && cd .. && cp -r ui/dist/ public",
+    "deploy": "npm run build && sc-deploy production"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/boutell/pa-wildflower-selector.git"
+  },
+  "author": "Tom Boutell (Code For Philly)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/boutell/pa-wildflower-selector/issues"
+  },
+  "homepage": "https://github.com/boutell/pa-wildflower-selector#readme",
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.9",
+    "csv-parse": "^4.15.4",
+    "express": "^4.17.1",
+    "mongodb": "^3.6.7",
+    "node-fetch": "^2.6.1",
+    "qs": "^6.10.1"
+  }
+}
