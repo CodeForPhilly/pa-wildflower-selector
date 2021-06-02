@@ -28,30 +28,19 @@ async function go() {
       hasImage = true;
       console.log(`${name}: already downloaded`);
     } else {
-      const url = `https://www.wikipedia.org/search-redirect.php?${qs.stringify({ search: name })}`;
-      const page = await get(url);
-      const $ = cheerio.load(page);
-      const $infobox = $('.infobox.biota');
-      let $img;
-      let imgUrl;
-      if ($infobox.length) {
-        $img = $infobox.find('img').eq(0);
-      }
-      if ($img && $img.length) {
-        imgUrl = $img.attr('src');
-        imgUrl = imgUrl.replace(/(\.(jpg|JPG|JPEG|jpeg|gif|GIF|PNG|png)).*$/, '$1');
-        imgUrl = imgUrl.replace(/\d+px\-/, '');
-        const name = imgUrl.match(/\/([^\/]+)$/)[1];
-        imgUrl = `https:${imgUrl}/800px-${name}`;
-      }
-      if (imgUrl) {
-        console.log(`${name}: ${imgUrl}`);
-        const buffer = await get(imgUrl, 'buffer');
-        fs.writeFileSync(`${__dirname}/images/${name}.jpg`, buffer);
-        hasImage = true;
-      } else {
+      const params = { q: name, page_size: 1, page: 1 };
+      const info = JSON.parse(await get(`https://api.creativecommons.engineering/v1/images?${qs.stringify(params)}`));
+      if (!(info.results && info.results[0])) {
         console.log(`${name}: NONE`);
         hasImage = false;
+      } else {
+        const result = info.results[0];
+        const buffer = await get(result.url, 'buffer');
+        console.log(`${name}: ${result.url}`);
+        fs.writeFileSync('/tmp/original.jpg', buffer);
+        spawn('convert', [ '/tmp/original.jpg', '-geometry', '1140x', `${__dirname}/images/${name}.jpg` ]);
+        clean.wikimediaData = result;
+        hasImage = true;
       }
       await pause();
     }
@@ -74,4 +63,8 @@ function pause() {
   return new Promise((resolve, reject) => {
     setTimeout(resolve, 5000);
   });
+}
+
+function spawn(cmd, args) {
+  return require('child_process').spawnSync(cmd, args);
 }
