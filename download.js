@@ -10,7 +10,7 @@ go();
 
 async function go() {
   const { plants, close } = await db();
-  const body = await get('https://docs.google.com/spreadsheets/d/1R_zhN3GUxhDEMlGFMhcPB_gAoaE9IoyWi10I_nM9f3o/export?format=csv&id=1R_zhN3GUxhDEMlGFMhcPB_gAoaE9IoyWi10I_nM9f3o&gid=1814718513');
+  const body = await get('https://docs.google.com/spreadsheets/d/1R_zhN3GUxhDEMlGFMhcPB_gAoaE9IoyWi10I_nM9f3o/export?format=csv&id=1R_zhN3GUxhDEMlGFMhcPB_gAoaE9IoyWi10I_nM9f3o&gid=1957761759');
   const records = parse(body, {
     columns: true,
     skip_empty_lines: true
@@ -28,18 +28,47 @@ async function go() {
       hasImage = true;
       console.log(`${name}: already downloaded`);
     } else {
-      const params = { q: name, page_size: 1, page: 1 };
-      const info = JSON.parse(await get(`https://api.creativecommons.engineering/v1/images?${qs.stringify(params)}`));
-      if (!(info.results && info.results[0])) {
+      const params = {
+        action: 'query',
+        prop: 'pageimages',
+        format: 'json',
+        formatversion: '2',
+        piprop: 'name',
+        titles: name,
+        // Or do this, but the results are too fuzzy
+        // list: 'search',
+        // srsearch: name
+      };
+      const info = JSON.parse(await get(`https://en.wikipedia.org/w/api.php?${qs.stringify(params)}`));
+      const pageimage = info?.query?.pages?.[0]?.pageimage;
+      let details;
+      let imageUrl;
+      if (pageimage) {
+        const detailParams = {
+          action: 'query',
+          prop: 'imageinfo',
+          format: 'json',
+          formatversion: '2',
+          titles: `File:${pageimage}`,
+          iiprop: 'url|extmetadata'
+        };
+        const response = JSON.parse(await get(`https://commons.wikimedia.org/w/api.php?${qs.stringify(detailParams)}`));
+        details = response?.query?.pages?.[0]?.imageinfo?.[0];
+        if (details) {
+          details.title = response.query.pages[0].title;
+          details.pageid = response.query.pages[0].pageid;
+          imageUrl = details.url;
+        }
+      }
+      if (!imageUrl) {
         console.log(`${name}: NONE`);
         hasImage = false;
       } else {
-        const result = info.results[0];
-        const buffer = await get(result.url, 'buffer');
-        console.log(`${name}: ${result.url}`);
+        const buffer = await get(imageUrl, 'buffer');
+        console.log(`${name}: ${imageUrl}`);
         fs.writeFileSync('/tmp/original.jpg', buffer);
         spawn('convert', [ '/tmp/original.jpg', '-geometry', '1140x', `${__dirname}/images/${name}.jpg` ]);
-        clean.wikimediaData = result;
+        clean.metadata = details;
         hasImage = true;
       }
       await pause();

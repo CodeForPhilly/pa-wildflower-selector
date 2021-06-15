@@ -1,21 +1,24 @@
 <template>
-  <form id="form" @submit.prevent="submit">
-    <fieldset>
-      <label for="q">Search</label>
-      <input v-model="q" id="q" type="search" />
-      <button type="submit">Go</button>
-    </fieldset>
-  </form>
-  <table>
-    <tr>
-      <th>Common Name</th><th>Scientific Name</th><th>Image</th>
-    </tr>
-    <tr v-for="result in results" :key="result._id">
-      <td>{{ result['Common Name'] }}</td>
-      <td>{{ result['Scientific Name'] }}</td>
-      <td><img :src="imageUrl(result)" /></td>
-    </tr>
-  </table>
+  <div>
+    <form id="form" @submit.prevent="submit">
+      <fieldset>
+        <label for="q">Search</label>
+        <input v-model="q" id="q" type="search" />
+        <button type="submit">Go</button>
+      </fieldset>
+    </form>
+    <table>
+      <tr>
+        <th>Common Name</th><th>Scientific Name</th><th>Credit</th><th>Image</th>
+      </tr>
+      <tr v-for="result in results" :key="result._id">
+        <td>{{ result['Common Name'] }}</td>
+        <td>{{ result['Scientific Name'] }}</td>
+        <td><span v-html="result.license.artist" />, <a :href="result.license.url">{{ result.license.shortName }}</a></td>
+        <td><img :src="imageUrl(result)" /></td>
+      </tr>
+    </table>
+  </div>
 </template>
 
 <script>
@@ -40,7 +43,17 @@ export default {
         q: this.q
       }));
       const data = await response.json();
-      this.results = data.results;
+      this.results = data.results.map(result => {
+        console.log(result?.metadata?.extmetadata);
+         return {
+          ...result,
+          license: {
+            artist: result?.metadata?.extmetadata?.Artist?.value,
+            url: result?.metadata?.extmetadata?.LicenseUrl?.value,
+            shortName: result?.metadata?.extmetadata?.LicenseShortName?.value
+          }
+        };
+      });
     }
   }
 }
