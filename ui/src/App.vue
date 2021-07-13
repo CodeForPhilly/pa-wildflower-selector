@@ -1,12 +1,33 @@
 <template>
   <div>
     <form id="form" @submit.prevent="submit">
+      <fieldset v-for="filter in filters" :key="filter.name">
+        <!--
+        <template v-if="filter.range">
+          <legend>{{ filter.name }}</legend>
+          <label>
+            <input type="range" min="filter.min" max="filter.max" step="1" v-model="filter.value" />
+            {{ choice }}
+          </label>
+        </template>      
+        <template v-else>
+          -->
+          <legend>{{ filter.name }}</legend>
+          <label v-for="choice in filter.choices" :key="choice">
+            <input v-model="filter.value" :value="choice" type="checkbox" />
+            {{ choice }}
+          </label>
+        <!--
+        </template>
+        -->
+      </fieldset>
       <fieldset>
         <label for="q">Search</label>
         <input v-model="q" id="q" type="search" />
-        <button type="submit">Go</button>
       </fieldset>
+      <button type="submit">Go</button>
     </form>
+    <h4>Total matches: {{ results.length }}</h4>
     <table>
       <tr>
         <th>Common Name</th><th>Scientific Name</th><th>Credit</th><th>Image</th>
@@ -22,13 +43,49 @@
 </template>
 
 <script>
+import qs from 'qs';
 
 export default {
   name: 'App',
   data() {
     return {
       results: [],
-      q: ''
+      q: '',
+      filters: [
+        {
+          name: 'Sun Exposure',
+          commaSeparated: true,
+          value: []
+        },
+        {
+          name: 'Flowering Months',
+          range: true,
+          choices: [ 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec' ],
+          min: 0,
+          max: 11,
+          value: []
+        },
+        {
+          name: 'Soil Moisture',
+          commaSeparated: true,
+          value: []
+        },
+        {
+          name: 'Plant Type',
+          value: [],
+          commaSeparated: true
+        },
+        {
+          name: 'Pollinators',
+          commaOrSemicolonSeparated: true,
+          value: [],
+
+        },
+        {
+          name: 'Common Family',
+          value: []
+        }
+      ]
     };
   },
   mounted() {
@@ -39,12 +96,18 @@ export default {
       return `/images/${result._id}.jpg`;
     },
     async submit() {
-      const response = await fetch('/plants?' + new URLSearchParams({
+      const params = {
+        ...Object.fromEntries(this.filters.map(filter => [ filter.name, filter.value ])),
         q: this.q
-      }));
+      };
+      const response = await fetch('/plants?' + qs.stringify(params));
       const data = await response.json();
+      console.log('CHOICES:', data.choices);
+      for (const filter of this.filters) {
+        filter.choices = data.choices[filter.name];
+      }
       this.results = data.results.map(result => {
-        console.log(result?.metadata?.extmetadata);
+        // console.log(result?.metadata?.extmetadata);
          return {
           ...result,
           license: {
