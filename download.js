@@ -24,10 +24,16 @@ async function go() {
     let name = clean['Scientific Name'];
     clean._id = name;
     let hasImage = false;
+    const existing = await plants.findOne({
+      _id: name
+    });
+    clean.metadata = existing?.metadata;
+    let hasMetadata = !!clean.metadata;
     if (fs.existsSync(`${__dirname}/images/${name}.jpg`)) {
       hasImage = true;
       console.log(`${name}: already downloaded`);
-    } else {
+    }
+    if (!hasImage || !hasMetadata) {
       const params = {
         action: 'query',
         prop: 'pageimages',
@@ -58,18 +64,20 @@ async function go() {
           details.title = response.query.pages[0].title;
           details.pageid = response.query.pages[0].pageid;
           imageUrl = details.url;
+          clean.metadata = details;
         }
       }
       if (!imageUrl) {
         console.log(`${name}: NONE`);
         hasImage = false;
       } else {
-        const buffer = await get(imageUrl, 'buffer');
-        console.log(`${name}: ${imageUrl}`);
-        fs.writeFileSync('/tmp/original.jpg', buffer);
-        spawn('convert', [ '/tmp/original.jpg', '-geometry', '1140x', `${__dirname}/images/${name}.jpg` ]);
-        clean.metadata = details;
-        hasImage = true;
+        if (!hasImage) {
+          const buffer = await get(imageUrl, 'buffer');
+          console.log(`${name}: ${imageUrl}`);
+          fs.writeFileSync('/tmp/original.jpg', buffer);
+          spawn('convert', [ '/tmp/original.jpg', '-geometry', '1140x', `${__dirname}/images/${name}.jpg` ]);
+          hasImage = true;
+        }
       }
       await pause();
     }
