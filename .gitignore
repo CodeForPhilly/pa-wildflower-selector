@@ -3,3 +3,5 @@
 /images
 .DS_Store
 node_modules
+/service-account.json
+/settings.json

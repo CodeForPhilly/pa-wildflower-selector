@@ -35,7 +35,7 @@
       <tr v-for="result in results" :key="result._id">
         <td>{{ result['Common Name'] }}</td>
         <td>{{ result['Scientific Name'] }}</td>
-        <td><span v-html="result.license.artist" />, <a :href="result.license.url">{{ result.license.shortName }}</a></td>
+        <td><span v-html="result.attribution" /></td>
         <td><img :src="imageUrl(result)" /></td>
       </tr>
     </table>
@@ -106,17 +106,7 @@ export default {
       for (const filter of this.filters) {
         filter.choices = data.choices[filter.name];
       }
-      this.results = data.results.map(result => {
-        // console.log(result?.metadata?.extmetadata);
-         return {
-          ...result,
-          license: {
-            artist: result?.metadata?.extmetadata?.Artist?.value,
-            url: result?.metadata?.extmetadata?.LicenseUrl?.value,
-            shortName: result?.metadata?.extmetadata?.LicenseShortName?.value
-          }
-        };
-      });
+      this.results = data.results;
     }
   }
 }

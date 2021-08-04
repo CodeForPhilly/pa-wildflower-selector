@@ -10,14 +10,11 @@ async function go() {
     let [ from, to ] = plant['Flowering Months'].split('–');
     from = months.indexOf(from);
     to = months.indexOf(to);
-    console.log(from, to);
     if ((from > -1) && (to > -1)) {
-      console.log('hello');
       const matching = [];
       for (let i = from; (i <= to); i++) {
         matching.push(i);
       }
-      console.log('>>', matching);
       await plants.updateOne({
         _id: plant._id
       }, {
@@ -33,6 +30,30 @@ async function go() {
           'Flowering Months By Number': 1
         }
       });
+    }
+    if (plant?.metadata?.url && (!plant.imageUrl)) {
+      await plants.updateOne({
+        _id: plant._id
+      }, {
+        $set: {
+          imageUrl: plant.metadata.url
+        }
+      });
+    }
+    if (!plant.source || (plant.source === 'wikimediaPageSearch')) {
+      if (plant?.metadata?.extmetadata) {
+        const artist = plant?.metadata?.extmetadata?.Artist?.value || 'Unknown';
+        const licenseUrl = plant?.metadata?.extmetadata?.LicenseUrl?.value;
+        const licenseShortName = plant?.metadata?.extmetadata?.LicenseShortName?.value;
+        await plants.updateOne({
+          _id: plant._id
+        }, {
+          $set: {
+            source: 'wikimediaPageSearch',
+            attribution: `${artist}, ${licenseUrl ? `<a href="${licenseUrl}">` : ''}${licenseShortName}${licenseUrl ? '</a>' : ''}`
+          }
+        });
+      }
     }
   }
   await close();

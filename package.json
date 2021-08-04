@@ -19,12 +19,16 @@
   },
   "homepage": "https://github.com/boutell/pa-wildflower-selector#readme",
   "dependencies": {
+    "boring": "^1.1.1",
     "cheerio": "^1.0.0-rc.9",
     "csv-parse": "^4.15.4",
     "express": "^4.17.1",
+    "google-spreadsheet": "^3.1.15",
+    "limiter": "^2.1.0",
     "mongodb": "^3.6.7",
     "node-fetch": "^2.6.1",
     "qs": "^6.10.1",
-    "regexp-quote": "0.0.0"
+    "regexp-quote": "0.0.0",
+    "sluggo": "^0.3.1"
   }
 }
