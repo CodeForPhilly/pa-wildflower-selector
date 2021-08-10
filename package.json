@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "cd ui && npm run build && cd .. && cp -r ui/dist/ public",
-    "deploy": "npm run build && sc-deploy production"
+    "deploy": "npm run build && sc-deploy production",
+    "sync-up": "./scripts/sync-up"
   },
   "repository": {
     "type": "git",
