@@ -5,6 +5,13 @@ go();
 async function go() {
   const { plants, close } = await db();
   const values = await plants.find().toArray();
+  const names = values.filter(plant => plant['Scientific Name'].match(/ [a-z]/)).map(plant => plant['Scientific Name']);
+  await plants.removeMany({
+    'Scientific Name': {
+      $in: names
+    }
+  });
+  process.exit(0);
   for (const plant of values) {
     const months = [ 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec' ];
     let [ from, to ] = plant['Flowering Months'].split('–');
