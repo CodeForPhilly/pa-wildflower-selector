@@ -2,24 +2,17 @@
   <div>
     <form id="form" @submit.prevent="submit">
       <fieldset v-for="filter in filters" :key="filter.name">
-        <!--
         <template v-if="filter.range">
           <legend>{{ filter.name }}</legend>
-          <label>
-            <input type="range" min="filter.min" max="filter.max" step="1" v-model="filter.value" />
-            {{ choice }}
-          </label>
-        </template>      
+          <DoubleRange :choices="filter.choices" :min="filter.min" :max="filter.max" v-model="filter.value" />
+        </template>
         <template v-else>
-          -->
           <legend>{{ filter.name }}</legend>
           <label v-for="choice in filter.choices" :key="choice">
             <input v-model="filter.value" :value="choice" type="checkbox" />
             {{ choice }}
           </label>
-        <!--
         </template>
-        -->
       </fieldset>
       <fieldset>
         <label for="q">Search</label>
@@ -44,9 +37,13 @@
 
 <script>
 import qs from 'qs';
+import DoubleRange from './components/DoubleRange.vue';
 
 export default {
   name: 'App',
+  components: {
+    DoubleRange
+  },
   data() {
     return {
       results: [],
@@ -63,7 +60,10 @@ export default {
           choices: [ 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec' ],
           min: 0,
           max: 11,
-          value: []
+          value: {
+            min: 0,
+            max: 11
+          }
         },
         {
           name: 'Soil Moisture',
@@ -136,5 +136,20 @@ table {
 td, th {
   padding: 1em;
   border: 1px solid #def;
+}
+
+.range span.min, .range span.max {
+  display: inline-block;
+  border-radius: 1em;
+  width: 1em;
+  height: 1em;
+  color: blue;
+  cursor: pointer;
+}
+.range span.between {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  color: gray;
 }
 </style>
