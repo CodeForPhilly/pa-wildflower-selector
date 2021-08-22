@@ -1,14 +1,22 @@
 <template>
-  <div class="range" ref="el">
-    <div class="labels">
-      <span v-for="(choice, i) in choices" :key="choice" :style="labelStyle(i)">
-        {{ choice }}
-      </span>
-    </div>
-    <div class="controls">
+  <div class="range">
+    <div class="controls" ref="controls">
       <span class="end min" :style="style('min')" tabindex="0" @keyup.left="nudge('min', -1)" @keyup.right="nudge('min', 1)" @pointerdown="down('min', $event)" @pointermove="move('min', $event)" @pointerup="up('min', $event)"></span>
       <!-- <span class="between"></span> -->
       <span class="end max" :style="style('max')" tabindex="0" @keyup.left="nudge('max', -1)" @keyup.right="nudge('max', 1)" @pointerdown="down('max', $event)" @pointermove="move('max', $event)" @pointerup="up('max', $event)"></span>
+    </div>
+    <div class="labels">
+      <ul :style="labelListStyle('min')">
+        <li v-for="(choice, i) in choices" :key="choice" :class="labelItemStyle('min', i)">
+          {{ choice }}
+        </li>
+      </ul>
+      <div class="between">to</div>
+      <ul :style="labelListStyle('max')">
+        <li v-for="(choice, i) in choices" :key="choice" :class="labelItemStyle('max', i)">
+          {{ choice }}
+        </li>
+      </ul>
     </div>
   </div>
 </template>
@@ -41,10 +49,9 @@ export default {
     };
   },
   mounted() {
-    console.log('setting clientWidth');
-    this.clientWidth = this.$el.clientWidth;
+    this.clientWidth = this.$refs.controls.clientWidth;
     this.observer = new ResizeObserver(() => {
-      this.clientWidth = this.$el.clientWidth;
+      this.clientWidth = this.$refs.controls.clientWidth;
     }).observe(this.$el);
   },
   methods: {
@@ -59,9 +66,18 @@ export default {
         left: this.valueToCss(i)
       };
     },
+    labelListStyle(which) {
+      const i = this.modelValue[which];
+      return {
+        transform: `translate(0, -${i * 2}em)`
+      }
+    },
+    // eslint-disable-next-line
+    labelItemStyle(which, i) {
+      return {};
+    },
     valueToCss(value) {
-      const px = (value - this.min) / (this.max - this.min) * this.clientWidth;
-      return `calc(${px}px - 0.5em)`;
+      return (value - this.min) / (this.max - this.min) * this.clientWidth + 'px';
     },
     nudge(which, delta) {
       let value = this.modelValue[which] + delta;
@@ -127,32 +143,41 @@ export default {
   }
 };
 </script>
-<style>
+<style scoped>
   .range {
-    position: relative;
     width: 100%;
     display: block;
   }
   .controls {
-    height: 1em;
+    position: relative;
+    height: 2em;
+    margin: auto;
+    width: calc(100% - 2em);
   }
-  .end {
+  .controls .end {
     position: absolute;
     width: 1em;
     border: 1px solid #eee;
     border-radius: 0.5em;
     background-color: blue;
+    transform: translate(-50%);
   }
-  .between {
+  .controls .between {
     position: absolute;
   }
   .labels {
-    position: relative;
-    height: 1em;
-    padding-bottom: 1em;
+    height: 1.5em;
+    overflow: hidden;
+    display: flex;
+    justify-content: space-between;
   }
-  .labels span {
-    position: absolute;
-    display: block;
+  .labels ul {
+    padding: 0;
+    margin: 0;
+    transition: transform 0.25s;
+  }
+  .labels li {
+    height: 2em;
+    list-style: none;
   }
 </style>
