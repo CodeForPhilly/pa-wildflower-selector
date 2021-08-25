@@ -47,6 +47,38 @@ async function go() {
         }
       });
     }
+    const height = plant['Height (feet)'];
+    if (height) {
+      let matching = [];
+      if (height.includes('–')) {
+        let [ from, to ] = height.split('–').map(parseFloat);
+        if (!isNaN(from) && !isNaN(to)) {
+          from = Math.floor(from);
+          to = Math.floor(to);
+          for (let i = from; (i <= to); i++) {
+            matching.push(i);
+          }
+        }
+      } else {
+        matching.push(Math.floor(parseFloat(height)));
+      }
+      console.log(matching);
+      await plants.updateOne({
+        _id: plant._id
+      }, {
+        $set: {
+          'Height (feet) By Number': matching
+        }
+      });
+    } else {
+      await plants.updateOne({
+        _id: plant._id
+      }, {
+        $unset: {
+          'Height (feet) By Number': 1
+        }
+      });
+    }
     if (plant?.metadata?.url && (!plant.imageUrl)) {
       await plants.updateOne({
         _id: plant._id
