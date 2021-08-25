@@ -1,0 +1,24 @@
+#!/bin/bash
+
+dbName=pa-wildflower-selector
+projectName=pa-wildflower-selector
+USER=boutell
+SERVER=boutell.dev
+SSH_PORT=22
+
+#Enter the SSH username/url for the remote server.
+remoteSSH="-p $SSH_PORT $USER@$SERVER"
+rsyncTransport="ssh -p $SSH_PORT"
+rsyncDestination="$USER@$SERVER"
+
+echo "Syncing MongoDB"
+ssh $remoteSSH mongodump -d $dbName -o /tmp/mongodump.$dbName &&
+rsync -av -e "$rsyncTransport" $rsyncDestination:/tmp/mongodump.$dbName/ /tmp/mongodump.$dbName &&
+ssh $remoteSSH rm -rf /tmp/mongodump.$dbName &&
+# noIndexRestore increases compatibility between 3.x and 2.x
+mongorestore --noIndexRestore --drop -d $dbName /tmp/mongodump.$dbName/$dbName &&
+rm -rf /tmp/mongodump.$dbName &&
+echo "Syncing Files" &&
+rsync -av --delete -e "$rsyncTransport" $rsyncDestination:/opt/stagecoach/apps/$projectName/images/ ./images &&
+echo "Synced dowm from $TARGET"
+echo "YOU MUST RESTART THE APP LOCALLY TO REBUILD THE MONGODB INDEXES."
