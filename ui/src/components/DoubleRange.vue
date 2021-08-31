@@ -96,7 +96,6 @@ export default {
       this.isDown = true;
       this.startClientX = e.clientX;
       e.target.setPointerCapture(e.pointerId);
-      console.log('capturing');
     },
     move(which, e) {
       if (!e.isPrimary) {
@@ -105,7 +104,6 @@ export default {
       if (!this.isDown) {
         return;
       }
-      console.log('moved');
       this.acceptValue(which, e);
     },
     up(which, e) {
@@ -113,7 +111,6 @@ export default {
         return;
       }
       this.isDown = false;
-      console.log('up');
       this.acceptValue(which, e);
     },
     preventCrossover(which, value) {
@@ -131,7 +128,6 @@ export default {
     acceptValue(which, e) {
       const offset = e.target.parentNode.getBoundingClientRect().x;
       let value = Math.round((e.clientX - offset) / this.clientWidth * (this.max - this.min) + this.min);
-      console.log(which, value);
       value = Math.max(value, this.min);
       value = Math.min(value, this.max);
       value = this.preventCrossover(which, value);

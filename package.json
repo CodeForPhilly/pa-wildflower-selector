@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "cd ui && npm run build && cd .. && cp -r ui/dist/ public",
     "deploy": "npm run build && sc-deploy production",
-    "sync-up": "./scripts/sync-up"
+    "sync-up": "./scripts/sync-up",
+    "dev": "PORT=3001 node app & (cd ui && npm run serve)"
   },
   "repository": {
     "type": "git",

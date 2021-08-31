@@ -3,11 +3,11 @@
     <form id="form" @submit.prevent="submit">
       <fieldset v-for="filter in filters" :key="filter.name">
         <template v-if="filter.range">
-          <legend>{{ filter.name }}</legend>
+          <legend>{{ filter.label || filter.name }}</legend>
           <DoubleRange :choices="filter.choices" :min="filter.min" :max="filter.max" v-model="filter.value" />
         </template>
         <template v-else>
-          <legend>{{ filter.name }}</legend>
+          <legend>{{ filter.label || filter.name }}</legend>
           <label v-for="choice in filter.choices" :key="choice">
             <input v-model="filter.value" :value="choice" type="checkbox" />
             {{ choice }}
@@ -46,6 +46,7 @@ export default {
   },
   data() {
     return {
+      initializing: true,
       results: [],
       q: '',
       filters: [
@@ -63,6 +64,17 @@ export default {
           value: {
             min: 0,
             max: 11
+          }
+        },
+        {
+          name: 'Height (feet)',
+          range: true,
+          choices: [],
+          min: 0,
+          max: 0,
+          value: {
+            min: 0,
+            max: 0
           }
         },
         {
@@ -102,11 +114,19 @@ export default {
       };
       const response = await fetch('/plants?' + qs.stringify(params));
       const data = await response.json();
-      console.log('CHOICES:', data.choices);
       for (const filter of this.filters) {
         filter.choices = data.choices[filter.name];
       }
       this.results = data.results;
+      if (this.initializing) {
+        const height = this.filters.find(filter => filter.name === 'Height (feet)');
+        height.min = 0;
+        const heights = data.choices['Height (feet)'];
+        height.max = heights[heights.length - 1];
+        height.value.min = 0;
+        height.value.max = height.max;
+        this.initializing = false;
+      }
     }
   }
 }
