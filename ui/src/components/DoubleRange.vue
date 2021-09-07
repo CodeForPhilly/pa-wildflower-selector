@@ -77,7 +77,7 @@ export default {
       return {};
     },
     valueToCss(value) {
-      return (value - this.min) / (this.max - this.min) * this.clientWidth + 'px';
+      return this.valueToPixels(value) + 'px';
     },
     nudge(which, delta) {
       let value = this.modelValue[which] + delta;
@@ -127,14 +127,24 @@ export default {
     },
     acceptValue(which, e) {
       const offset = e.target.parentNode.getBoundingClientRect().x;
-      let value = Math.round((e.clientX - offset) / this.clientWidth * (this.max - this.min) + this.min);
+      const p = e.clientX - offset;
+      let value = this.pixelsToValue(p);
       value = Math.max(value, this.min);
       value = Math.min(value, this.max);
+      value = Math.round(value);
       value = this.preventCrossover(which, value);
       this.$emit('update:modelValue', {
         ...this.modelValue,
         [which]: value
       });
+    },
+    pixelsToValue(p) {
+      const linearUnit = p / this.clientWidth;
+      return Math.pow(linearUnit, 3) * (this.max - this.min) + this.min;
+    },
+    valueToPixels(value) {
+      const linearUnit = (value - this.min) / (this.max - this.min);
+      return Math.pow(linearUnit, 1 / 3) * this.clientWidth;
     }
   }
 };
