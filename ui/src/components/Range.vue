@@ -1,9 +1,9 @@
 <template>
   <div class="range">
     <div class="controls" ref="controls">
-      <span class="end min" :style="style('min')" tabindex="0" @keyup.left="nudge('min', -1)" @keyup.right="nudge('min', 1)" @pointerdown="down('min', $event)" @pointermove="move('min', $event)" @pointerup="up('min', $event)"></span>
+      <span v-if="double" class="end min" :style="style('min')" tabindex="0" @keydown.left="nudge('min', -1)" @keydown.right="nudge('min', 1)" @pointerdown="down('min', $event)" @pointermove="move('min', $event)" @pointerup="up('min', $event)"></span>
       <!-- <span class="between"></span> -->
-      <span class="end max" :style="style('max')" tabindex="0" @keyup.left="nudge('max', -1)" @keyup.right="nudge('max', 1)" @pointerdown="down('max', $event)" @pointermove="move('max', $event)" @pointerup="up('max', $event)"></span>
+      <span class="end max" :style="style('max')" tabindex="0" @keydown.left="nudge('max', -1)" @keydown.right="nudge('max', 1)" @pointerdown="down('max', $event)" @pointermove="move('max', $event)" @pointerup="up('max', $event)"></span>
     </div>
     <div class="labels">
       <ul :style="labelListStyle('min')">
@@ -39,6 +39,14 @@ export default {
     choices: {
       type: Array,
       required: true
+    },
+    exponent: {
+      type: Number,
+      default: 1.0
+    },
+    double: {
+      type: Boolean,
+      default: false
     }
   },
   emits: [ 'update:modelValue' ],
@@ -53,6 +61,14 @@ export default {
     this.observer = new ResizeObserver(() => {
       this.clientWidth = this.$refs.controls.clientWidth;
     }).observe(this.$el);
+    if (!this.double) {
+      if (this.modelValue.min !== this.min) {
+        this.$emit('update:modelValue', {
+          ...this.modelValue,
+          min: this.min
+        });
+      }
+    }
   },
   methods: {
     style(which) {
@@ -114,13 +130,15 @@ export default {
       this.acceptValue(which, e);
     },
     preventCrossover(which, value) {
-      if (which === 'min') {
-        if (value >= this.modelValue.max) {
-          value = this.modelValue.max - 1;
-        }
-      } else if (which === 'max') {
-        if (value <= this.modelValue.min) {
-          value = this.modelValue.min + 1;
+      if (this.double) {
+        if (which === 'min') {
+          if (value >= this.modelValue.max) {
+            value = this.modelValue.max - 1;
+          }
+        } else if (which === 'max') {
+          if (value <= this.modelValue.min) {
+            value = this.modelValue.min + 1;
+          }
         }
       }
       return value;
@@ -140,11 +158,11 @@ export default {
     },
     pixelsToValue(p) {
       const linearUnit = p / this.clientWidth;
-      return Math.pow(linearUnit, 3) * (this.max - this.min) + this.min;
+      return Math.pow(linearUnit, this.exponent) * (this.max - this.min) + this.min;
     },
     valueToPixels(value) {
       const linearUnit = (value - this.min) / (this.max - this.min);
-      return Math.pow(linearUnit, 1 / 3) * this.clientWidth;
+      return Math.pow(linearUnit, 1 / this.exponent) * this.clientWidth;
     }
   }
 };

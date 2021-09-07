@@ -4,7 +4,7 @@
       <fieldset v-for="filter in filters" :key="filter.name">
         <template v-if="filter.range">
           <legend>{{ filter.label || filter.name }}</legend>
-          <DoubleRange :choices="filter.choices" :min="filter.min" :max="filter.max" v-model="filter.value" />
+          <Range :double="filter.double" :exponent="filter.exponent" :choices="filter.choices" :min="filter.min" :max="filter.max" v-model="filter.value" />
         </template>
         <template v-else>
           <legend>{{ filter.label || filter.name }}</legend>
@@ -37,12 +37,12 @@
 
 <script>
 import qs from 'qs';
-import DoubleRange from './components/DoubleRange.vue';
+import Range from './components/Range.vue';
 
 export default {
   name: 'App',
   components: {
-    DoubleRange
+    Range
   },
   data() {
     return {
@@ -58,23 +58,26 @@ export default {
         {
           name: 'Flowering Months',
           range: true,
+          double: true,
           choices: [ 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec' ],
           min: 0,
           max: 11,
+          exponent: 1.0,
           value: {
             min: 0,
             max: 11
-          }
+          },
         },
         {
           name: 'Height (feet)',
           range: true,
+          double: false,
           choices: [],
-          min: 0,
-          max: 0,
+          min: 1,
+          max: 1,
+          exponent: 3.0,
           value: {
-            min: 0,
-            max: 0
+            max: 1
           }
         },
         {
@@ -120,10 +123,9 @@ export default {
       this.results = data.results;
       if (this.initializing) {
         const height = this.filters.find(filter => filter.name === 'Height (feet)');
-        height.min = 0;
+        height.min = 1;
         const heights = data.choices['Height (feet)'];
         height.max = heights[heights.length - 1];
-        height.value.min = 0;
         height.value.max = height.max;
         this.initializing = false;
       }
