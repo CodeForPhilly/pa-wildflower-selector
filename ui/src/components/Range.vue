@@ -1,8 +1,8 @@
 <template>
   <div class="range">
     <div class="controls" ref="controls">
+      <span class="between" :style="betweenStyle()"></span>
       <span v-if="double" class="end min" :style="style('min')" tabindex="0" @keydown.left="nudge('min', -1)" @keydown.right="nudge('min', 1)" @pointerdown="down('min', $event)" @pointermove="move('min', $event)" @pointerup="up('min', $event)"></span>
-      <!-- <span class="between"></span> -->
       <span class="end max" :style="style('max')" tabindex="0" @keydown.left="nudge('max', -1)" @keydown.right="nudge('max', 1)" @pointerdown="down('max', $event)" @pointermove="move('max', $event)" @pointerup="up('max', $event)"></span>
     </div>
     <div class="labels">
@@ -76,6 +76,12 @@ export default {
         left: this.valueToCss(this.modelValue[which])
       }
       return result;
+    },
+    betweenStyle() {
+      return {
+        left: this.valueToCss(this.modelValue.min),
+        width: this.valueToPixels(this.modelValue.max) - this.valueToPixels(this.modelValue.min) + 'px'
+      };
     },
     labelStyle(i) {
       return {
@@ -188,6 +194,9 @@ export default {
   }
   .controls .between {
     position: absolute;
+    border-radius: 0.5em;
+    border: 1px solid #aaa;
+    background-color: black;
   }
   .labels {
     height: 1.5em;
