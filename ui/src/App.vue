@@ -121,6 +121,10 @@ export default {
         ...Object.fromEntries(this.filters.map(filter => [ filter.name, filter.value ])),
         q: this.q
       };
+      if (this.initializing) {
+        // Don't send a bogus query for min 0 max 0
+        delete params['Height (feet)'];
+      }
       const response = await fetch('/plants?' + qs.stringify(params));
       const data = await response.json();
       for (const filter of this.filters) {
