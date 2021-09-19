@@ -23,64 +23,80 @@ const terms = {
 
 go();
 
+let plants = null;
+let close = null;
+
 async function go() {
   try {
-    const limiter = new RateLimiter({ tokensPerInterval: 1, interval: "second" });
-    const { plants, close } = await db();
-    const body = await get(settings.masterCsvUrl);
-    const doc = new GoogleSpreadsheet(settings.imageUrlsSheetId);
-    await doc.useServiceAccountAuth({
-      client_email: serviceAccount.client_email,
-      private_key: serviceAccount.private_key
+    const info = await db();
+    plants = info.plants;
+    close = info.close;
+    await downloadMain();
+    await downloadSuperplants();
+    await close();
+  } catch (e) {
+    console.error(e);
+    process.exit(1);
+  }
+}
+
+async function downloadMain() {
+  const limiter = new RateLimiter({ tokensPerInterval: 1, interval: "second" });
+  const body = await get(settings.masterCsvUrl);
+  const doc = new GoogleSpreadsheet(settings.imageUrlsSheetId);
+  await doc.useServiceAccountAuth({
+    client_email: serviceAccount.client_email,
+    private_key: serviceAccount.private_key
+  });
+  await limiter.removeTokens(1);
+  await doc.loadInfo();
+  const sheet = doc.sheetsByIndex[0];
+  await limiter.removeTokens(1);
+  const rows = await sheet.getRows();
+  const rowsByName = {};
+  const knownImages = {};
+  for (const row of rows) {
+    const name = row['Scientific Name'];
+    rowsByName[name] = row;
+  }
+  const records = parse(body, {
+    columns: true,
+    skip_empty_lines: true
+  });
+  let i = 0;
+  for (const record of records) {
+    i++;
+    const clean = Object.fromEntries(
+      Object.entries(record).map(([ key, value ]) => {
+        return [ key.trim(), value.trim() ];
+      })
+    );
+    let name = clean['Scientific Name'];
+    console.log(`${name} (${i} of ${records.length})`);
+    clean._id = name;
+    let hasImage = false;
+    const existing = await plants.findOne({
+      _id: name
     });
-    await limiter.removeTokens(1);
-    await doc.loadInfo();
-    const sheet = doc.sheetsByIndex[0];
-    await limiter.removeTokens(1);
-    const rows = await sheet.getRows();
-    const rowsByName = {};
-    const knownImages = {};
-    for (const row of rows) {
-      const name = row['Scientific Name'];
-      rowsByName[name] = row;
+    clean.metadata = existing?.metadata;
+    clean.imageUrl = existing?.imageUrl;
+    knownImages[name] = rowsByName?.[name]?.['Manual File URL'] || existing?.imageUrl;
+
+    if (fs.existsSync(`${__dirname}/images/${name}.jpg`)) {
+      hasImage = true;
     }
-    const records = parse(body, {
-      columns: true,
-      skip_empty_lines: true
-    });
-    let i = 0;
-    for (const record of records) {
-      i++;
-      const clean = Object.fromEntries(
-        Object.entries(record).map(([ key, value ]) => {
-          return [ key.trim(), value.trim() ];
-        })
-      );
-      let name = clean['Scientific Name'];
-      console.log(`${name} (${i} of ${records.length})`);
-      clean._id = name;
-      let hasImage = false;
-      const existing = await plants.findOne({
-        _id: name
-      });
-      clean.metadata = existing?.metadata;
-      clean.imageUrl = existing?.imageUrl;
-      knownImages[name] = rowsByName?.[name]?.['Manual File URL'] || existing?.imageUrl;
 
-      if (fs.existsSync(`${__dirname}/images/${name}.jpg`)) {
-        hasImage = true;
-      }
+    // If knownImages[name] && !hasImage -> fetch image, set imageUrl property
+    // If knownImages[name] && !imageUrl -> fetch image, set imageUrl property
+    // If knownImages[name] && imageUrl !== knownImages[name] -> fetch image, set imageUrl property
+    // If !knownImages[name] -> try to discover, fetch image, set imageUrl property,
+    //   set crawled image URL
 
-      // If knownImages[name] && !hasImage -> fetch image, set imageUrl property
-      // If knownImages[name] && !imageUrl -> fetch image, set imageUrl property
-      // If knownImages[name] && imageUrl !== knownImages[name] -> fetch image, set imageUrl property
-      // If !knownImages[name] -> try to discover, fetch image, set imageUrl property,
-      //   set crawled image URL
+    const known = knownImages[name];
+    const imageUrl = clean.imageUrl;
+    let discovered;
 
-      const known = knownImages[name];
-      const imageUrl = clean.imageUrl;
-      let discovered;
-
+    if (!argv['skip-images']) {
       if (known && (!hasImage || !imageUrl || (imageUrl !== known))) {
         await fetchImage(clean, name, known);
         await update(plants, clean);
@@ -96,37 +112,54 @@ async function go() {
           }
         }
       }
+    }
+    const row = rowsByName[name];
+    if (row && row['Manual File URL']) {
+      const start = row['Manual Attribution URL'] ? `<a href="${row['Manual Attribution URL']}">` : '';
+      const end = row['Manual Attribution URL'] ? '</a>' : '';
+      clean.source = 'manual';
+      clean.attribution = `${start}${row['Manual Attribution']}${end}`;
+      await update(plants, clean);
+    }
+    if (!rowsByName[name]) {
+      await limiter.removeTokens(1);
+      await sheet.addRow({
+        'Scientific Name': name,
+        'Crawler URL': discovered || ''
+      });
+    } else {
       const row = rowsByName[name];
-      if (row && row['Manual File URL']) {
-        const start = row['Manual Attribution URL'] ? `<a href="${row['Manual Attribution URL']}">` : '';
-        const end = row['Manual Attribution URL'] ? '</a>' : '';
-        clean.source = 'manual';
-        clean.attribution = `${start}${row['Manual Attribution']}${end}`;
-        await update(plants, clean);
-      }
-      if (!rowsByName[name]) {
-        await limiter.removeTokens(1);
-        await sheet.addRow({
-          'Scientific Name': name,
-          'Crawler URL': discovered || ''
-        });
-      } else {
-        const row = rowsByName[name];
-        if ((row['Crawler URL'] || '') !== (clean.imageUrl || '')) {
-          if (discovered) {
-            row['Crawler URL'] = clean.imageUrl;
-          } else if (row['Manual File URL'] !== clean.imageUrl) {
-            console.error(`That's strange, ${clean.imageUrl} does not equal ${row['Manual File URL']} for ${name} seven though it was not discovered automatically`);
-          }
-          await limiter.removeTokens(1);
-          await row.save();
+      if ((row['Crawler URL'] || '') !== (clean.imageUrl || '')) {
+        if (discovered) {
+          row['Crawler URL'] = clean.imageUrl;
+        } else if (row['Manual File URL'] !== clean.imageUrl) {
+          // TODO figure out if we care about this
         }
+        await limiter.removeTokens(1);
+        await row.save();
       }
     }
-    await close();
-  } catch (e) {
-    console.error(e);
-    process.exit(1);
+  }
+}
+
+async function downloadSuperplants() {
+  const body = await get(settings.superplantsCsvUrl);
+  const records = parse(body, {
+    columns: true,
+    skip_empty_lines: true
+  });
+  for (const row of records) {
+    console.log(`>>`, row);
+    let _id = row['Scientific Name'] || row['Scientific Name '];
+    // Must be consistent with capitalization in main tab
+    _id = _id.split(' ').map(word => capitalize(word)).join(' ');
+    const plant = await plants.findOne({ _id });
+    if (plant) {
+      plant.Superplant = true;
+      await update(plants, plant);
+    } else {
+      console.log(`could not find superplant ${_id}`);
+    }
   }
 }
   
@@ -256,4 +289,8 @@ function has(o, k) {
 
 function getTerms(s) {
   return terms[slugify(s)] || s;
+}
+
+function capitalize(word) {
+  return word.charAt(0).toUpperCase() + word.slice(1);
 }

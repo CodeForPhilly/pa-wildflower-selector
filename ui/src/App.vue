@@ -86,9 +86,9 @@ export default {
           value: []
         },
         {
-          name: 'Plant Type',
+          name: 'Plant Type Flags',
+          label: 'Plant Type',
           value: [],
-          commaSeparated: true
         },
         {
           name: 'Pollinators',
@@ -98,6 +98,11 @@ export default {
         },
         {
           name: 'Common Family',
+          value: []
+        },
+        {
+          name: 'Superplant',
+          choices: [ true ],
           value: []
         }
       ]

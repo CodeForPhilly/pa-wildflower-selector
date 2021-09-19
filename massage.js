@@ -103,6 +103,26 @@ async function go() {
         });
       }
     }
+    let plantTypeFlags = [];
+    const plantType = plant['Plant Type'];
+    const matches = plantType.match(/^(.*?)(\(.*?\))?$/);
+    if (!matches) {
+      console.error(`Don't know how to handle ${plantType}`);
+    } else {
+      plantTypeFlags = matches[1].split(/, /);
+      if (matches[2]) {
+        plantTypeFlags = [ ...plantTypeFlags, ...matches[2].split(/ or /) ]; 
+      }
+      plantTypeFlags = plantTypeFlags.map(flag => flag.trim().replace('(', '').replace(')', ''));
+      console.log(plantTypeFlags);
+      await plants.updateOne({
+        _id: plant._id
+      }, {
+        $set: {
+          'Plant Type Flags': plantTypeFlags
+        }
+      });
+    }
   }
   await close();
 }
