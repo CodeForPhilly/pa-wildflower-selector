@@ -73,11 +73,12 @@ export default {
           range: true,
           double: false,
           choices: [],
-          min: 1,
-          max: 1,
+          min: 0,
+          max: 0,
           exponent: 3.0,
           value: {
-            max: 1
+            min: 0,
+            max: 0
           }
         },
         {
@@ -128,7 +129,7 @@ export default {
       this.results = data.results;
       if (this.initializing) {
         const height = this.filters.find(filter => filter.name === 'Height (feet)');
-        height.min = 1;
+        height.min = 0;
         const heights = data.choices['Height (feet)'];
         height.max = heights[heights.length - 1];
         height.value.max = height.max;
