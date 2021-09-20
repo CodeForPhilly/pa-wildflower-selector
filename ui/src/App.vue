@@ -20,7 +20,7 @@
       </fieldset>
       <button type="submit">Go</button>
     </form>
-    <h4>Total matches: {{ results.length }}</h4>
+    <h4>Total matches: {{ total }}</h4>
     <table>
       <tr>
         <th>Common Name</th><th>Scientific Name</th><th>Credit</th><th>Image</th>
@@ -29,9 +29,10 @@
         <td>{{ result['Common Name'] }}</td>
         <td>{{ result['Scientific Name'] }}</td>
         <td><span v-html="result.attribution" /></td>
-        <td><img :src="imageUrl(result)" /></td>
+        <td><img class="photo" :src="imageUrl(result)" /></td>
       </tr>
     </table>
+    <div ref="afterTable"></div>
   </div>
 </template>
 
@@ -48,6 +49,7 @@ export default {
     return {
       initializing: true,
       results: [],
+      total: 0,
       q: '',
       filters: [
         {
@@ -110,6 +112,8 @@ export default {
     };
   },
   mounted() {
+    const observer = new IntersectionObserver(this.loadMoreIfNeeded);
+    observer.observe(this.$refs.afterTable);
     this.submit();
   },
   methods: {
@@ -117,9 +121,18 @@ export default {
       return `/images/${result._id}.jpg`;
     },
     async submit() {
+      this.page = 1;
+      this.loadedAll = false;
+      this.results = [];
+      this.total = 0;
+      return this.fetchPage();
+    },
+    async fetchPage() {
+      this.loading = true;
       const params = {
         ...Object.fromEntries(this.filters.map(filter => [ filter.name, filter.value ])),
-        q: this.q
+        q: this.q,
+        page: this.page
       };
       if (this.initializing) {
         // Don't send a bogus query for min 0 max 0
@@ -130,7 +143,11 @@ export default {
       for (const filter of this.filters) {
         filter.choices = data.choices[filter.name];
       }
-      this.results = data.results;
+      if (!data.results.length) {
+        this.loadedAll = true;
+      }
+      data.results.forEach(datum => this.results.push(datum));
+      this.total = data.total;
       if (this.initializing) {
         const height = this.filters.find(filter => filter.name === 'Height (feet)');
         height.min = 0;
@@ -138,6 +155,16 @@ export default {
         height.max = heights[heights.length - 1];
         height.value.max = height.max;
         this.initializing = false;
+      }
+      this.loading = false;
+      // In case one page doesn't fill the screen
+      setTimeout(this.loadMoreIfNeeded, 500);
+    },
+    async loadMoreIfNeeded() {
+      if (!this.loadedAll && !this.loading && (window.scrollY + window.innerHeight > document.body.clientHeight)) {
+        // this.$refs.afterTable.getBoundingClientRect().top)) {
+        this.page++;
+        await this.fetchPage();
       }
     }
   }
@@ -183,5 +210,8 @@ td, th {
   width: 1em;
   height: 1em;
   color: gray;
+}
+.photo {
+  height: 150px;
 }
 </style>
