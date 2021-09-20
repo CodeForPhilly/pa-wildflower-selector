@@ -53,9 +53,10 @@ export default {
       q: '',
       filters: [
         {
-          name: 'Sun Exposure',
-          commaSeparated: true,
-          value: []
+          name: 'Sun Exposure Flags',
+          label: 'Sun Exposure',
+          value: [],
+          array: true
         },
         {
           name: 'Flowering Months',
@@ -98,10 +99,6 @@ export default {
           commaOrSemicolonSeparated: true,
           value: [],
 
-        },
-        {
-          name: 'Common Family',
-          value: []
         },
         {
           name: 'Superplant',

@@ -62,7 +62,6 @@ async function go() {
       } else {
         matching.push(Math.floor(parseFloat(height)));
       }
-      console.log(matching);
       await plants.updateOne({
         _id: plant._id
       }, {
@@ -114,7 +113,6 @@ async function go() {
         plantTypeFlags = [ ...plantTypeFlags, ...matches[2].split(/ or /) ]; 
       }
       plantTypeFlags = plantTypeFlags.map(flag => flag.trim().replace('(', '').replace(')', ''));
-      console.log(plantTypeFlags);
       await plants.updateOne({
         _id: plant._id
       }, {
@@ -123,6 +121,18 @@ async function go() {
         }
       });
     }
+    const sunExposureFlags = plant['Sun Exposure'].split(', ').map(capitalize);
+    await plants.updateOne({
+      _id: plant._id
+    }, {
+      $set: {
+        'Sun Exposure Flags': sunExposureFlags
+      }
+    });
   }
   await close();
+}
+
+function capitalize(s) {
+  return s.split(' ').map(s => s.charAt(0).toUpperCase() + s.substring(1)).join(' ');
 }
