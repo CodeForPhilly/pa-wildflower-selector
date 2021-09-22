@@ -112,7 +112,7 @@ async function go() {
       if (matches[2]) {
         plantTypeFlags = [ ...plantTypeFlags, ...matches[2].split(/ or /) ]; 
       }
-      plantTypeFlags = plantTypeFlags.map(flag => flag.trim().replace('(', '').replace(')', ''));
+      plantTypeFlags = plantTypeFlags.map(flag => flag.trim().replace('(', '').replace(')', '')).map(capitalize);
       await plants.updateOne({
         _id: plant._id
       }, {
@@ -121,12 +121,28 @@ async function go() {
         }
       });
     }
-    const sunExposureFlags = plant['Sun Exposure'].split(', ').map(capitalize);
+    const sunExposureFlags = plant['Sun Exposure'].split(', ').map(capitalize).filter(flag => flag.length > 0);
     await plants.updateOne({
       _id: plant._id
     }, {
       $set: {
         'Sun Exposure Flags': sunExposureFlags
+      }
+    });
+    const soilMoistureFlags = plant['Soil Moisture'].split(', ').map(capitalize).filter(flag => flag.length > 0);
+    await plants.updateOne({
+      _id: plant._id
+    }, {
+      $set: {
+        'Soil Moisture Flags': soilMoistureFlags
+      }
+    });
+    const pollinatorFlags = plant['Pollinators'].split(/\s*(?:,|;)+\s*/).map(capitalize).filter(flag => flag.length > 0);
+    await plants.updateOne({
+      _id: plant._id
+    }, {
+      $set: {
+        'Pollinator Flags': pollinatorFlags
       }
     });
   }

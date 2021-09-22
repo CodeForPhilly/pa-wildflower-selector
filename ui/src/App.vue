@@ -85,20 +85,22 @@ export default {
           }
         },
         {
-          name: 'Soil Moisture',
-          commaSeparated: true,
-          value: []
+          name: 'Soil Moisture Flags',
+          label: 'Soil Moisture',
+          value: [],
+          array: true
         },
         {
           name: 'Plant Type Flags',
           label: 'Plant Type',
           value: [],
+          array: true
         },
         {
-          name: 'Pollinators',
-          commaOrSemicolonSeparated: true,
+          name: 'Pollinator Flags',
+          label: 'Pollinators',
           value: [],
-
+          array: true
         },
         {
           name: 'Superplant',
