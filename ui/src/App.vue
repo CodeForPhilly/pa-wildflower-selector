@@ -141,13 +141,17 @@ export default {
     }
   },
   watch: {
-    filterValues: {
-      handler() {
-        this.submit();
-      },
-      deep: true
+    sort() {
+      this.submit();
     }
   },
+  // If we decide to autosubmit on all changes, we can deep watch filterValues
+  // filterValues: {
+  //   handler() {
+  //     this.submit();
+  //   },
+  //   deep: true
+  // }
   mounted() {
     const observer = new IntersectionObserver(this.loadMoreIfNeeded);
     observer.observe(this.$refs.afterTable);
