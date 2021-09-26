@@ -195,7 +195,7 @@ export default {
         height.min = 0;
         const heights = data.choices['Height (feet)'];
         height.max = heights[heights.length - 1];
-        this.filterValues.height.max = height.max;
+        this.filterValues['Height (feet)'].max = height.max;
         this.initializing = false;
       }
       this.loading = false;
