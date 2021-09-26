@@ -10,6 +10,8 @@
           <option>Sort by Flower Color</option>
           <option>Sort by Height (L-H)</option>
           <option>Sort by Height (H-L)</option>
+          <option>Sort by Soil Moisture (Dry to Wet)</option>
+          <option>Sort by Soil Moisture (Wet to Dry)</option>
         </select>
       </fieldset>
       <fieldset v-for="filter in filters" :key="filter.name">
@@ -35,7 +37,7 @@
     <p v-if="sortFilterLabel">Only plants whose {{ sortFilterLabel }} is known are included. To see all matching plants, sort by name.</p>
     <table>
       <tr>
-        <th>Common Name</th><th>Scientific Name</th><th>Credit</th><th>Flower Color</th><th>Average Height (ft)</th><th>Image</th>
+        <th>Common Name</th><th>Scientific Name</th><th>Credit</th><th>Flower Color</th><th>Average Height (ft)</th><th>Soil Moisture</th><th>Image</th>
       </tr>
       <tr v-for="result in results" :key="result._id">
         <td>{{ result['Common Name'] }}</td>
@@ -43,6 +45,7 @@
         <td><span v-html="result.attribution" /></td>
         <td>{{ result['Flower Color'] }}</td>
         <td>{{ result['Average Height'] }}</td>
+        <td>{{ result['Soil Moisture'] }}</td>
         <td><img class="photo" :src="imageUrl(result)" /></td>
       </tr>
     </table>
@@ -136,7 +139,9 @@ export default {
       return {
         'Sort by Flower Color': 'flower color',
         'Sort by Height (L-H)': 'height',
-        'Sort by Height (H-L)': 'height'
+        'Sort by Height (H-L)': 'height',
+        'Sort by Soil Moisture (Dry to Wet)': 'soil moisture',
+        'Sort by Soil Moisture (Wet to Dry)': 'soil moisture'
       }[this.sort];
     }
   },

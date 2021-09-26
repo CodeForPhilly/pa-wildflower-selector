@@ -143,13 +143,23 @@ async function go() {
       }
     });
     const soilMoistureFlags = plant['Soil Moisture'].split(', ').map(capitalize).filter(flag => flag.length > 0);
-    await plants.updateOne({
-      _id: plant._id
-    }, {
-      $set: {
-        'Soil Moisture Flags': soilMoistureFlags
-      }
-    });
+    if (soilMoistureFlags.length) {
+      await plants.updateOne({
+        _id: plant._id
+      }, {
+        $set: {
+          'Soil Moisture Flags': soilMoistureFlags
+        }
+      });
+    } else {
+      await plants.updateOne({
+        _id: plant._id
+      }, {
+        $unset: {
+          'Soil Moisture Flags': 1
+        }
+      });
+    }
     const pollinatorFlags = plant['Pollinators'].split(/\s*(?:,|;)+\s*/).map(capitalize).filter(flag => flag.length > 0);
     await plants.updateOne({
       _id: plant._id
