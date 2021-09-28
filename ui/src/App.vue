@@ -109,6 +109,12 @@ export default {
         array: true
       },
       {
+        name: 'Life Cycle Flags',
+        label: 'Life Cycle',
+        value: [],
+        array: true
+      },
+      {
         name: 'Pollinator Flags',
         label: 'Pollinators',
         value: [],

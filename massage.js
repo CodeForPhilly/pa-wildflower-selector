@@ -126,11 +126,15 @@ async function go() {
         plantTypeFlags = [ ...plantTypeFlags, ...matches[2].split(/ or /) ]; 
       }
       plantTypeFlags = plantTypeFlags.map(flag => flag.trim().replace('(', '').replace(')', '')).map(capitalize);
+      const lifeCycles = [ 'Annual', 'Biennial', 'Perennial' ];
+      const lifeCycleFlags = plantTypeFlags.filter(plantType => lifeCycles.includes(plantType));
+      plantTypeFlags = plantTypeFlags.filter(plantType => !lifeCycles.includes(plantType));
       await plants.updateOne({
         _id: plant._id
       }, {
         $set: {
-          'Plant Type Flags': plantTypeFlags
+          'Plant Type Flags': plantTypeFlags,
+          'Life Cycle Flags': lifeCycleFlags
         }
       });
     }
