@@ -1,15 +1,28 @@
 <template>
   <div>
     <form id="form" @submit.prevent="submit">
+      <fieldset>
+        <select v-model="sort">
+          <option>Sort by Common Name (A-Z)</option>
+          <option>Sort by Common Name (Z-A)</option>
+          <option>Sort by Scientific Name (A-Z)</option>
+          <option>Sort by Scientific Name (Z-A)</option>
+          <option>Sort by Flower Color</option>
+          <option>Sort by Height (L-H)</option>
+          <option>Sort by Height (H-L)</option>
+          <option>Sort by Soil Moisture (Dry to Wet)</option>
+          <option>Sort by Soil Moisture (Wet to Dry)</option>
+        </select>
+      </fieldset>
       <fieldset v-for="filter in filters" :key="filter.name">
         <template v-if="filter.range">
           <legend>{{ filter.label || filter.name }}</legend>
-          <Range :double="filter.double" :exponent="filter.exponent" :choices="filter.choices" :min="filter.min" :max="filter.max" v-model="filter.value" />
+          <Range :double="filter.double" :exponent="filter.exponent" :choices="filter.choices" :min="filter.min" :max="filter.max" v-model="filterValues[filter.name]" />
         </template>
         <template v-else>
           <legend>{{ filter.label || filter.name }}</legend>
           <label v-for="choice in filter.choices" :key="choice">
-            <input v-model="filter.value" :value="choice" type="checkbox" />
+            <input v-model="filterValues[filter.name]" :value="choice" type="checkbox" />
             {{ choice }}
           </label>
         </template>
@@ -21,14 +34,18 @@
       <button type="submit">Go</button>
     </form>
     <h4>Total matches: {{ total }}</h4>
+    <p v-if="sortFilterLabel">Only plants whose {{ sortFilterLabel }} is known are included. To see all matching plants, sort by name.</p>
     <table>
       <tr>
-        <th>Common Name</th><th>Scientific Name</th><th>Credit</th><th>Image</th>
+        <th>Common Name</th><th>Scientific Name</th><th>Credit</th><th>Flower Color</th><th>Average Height (ft)</th><th>Soil Moisture</th><th>Image</th>
       </tr>
       <tr v-for="result in results" :key="result._id">
         <td>{{ result['Common Name'] }}</td>
         <td>{{ result['Scientific Name'] }}</td>
         <td><span v-html="result.attribution" /></td>
+        <td>{{ result['Flower Color'] }}</td>
+        <td>{{ result['Average Height'] }}</td>
+        <td>{{ result['Soil Moisture'] }}</td>
         <td><img class="photo" :src="imageUrl(result)" /></td>
       </tr>
     </table>
@@ -46,76 +63,106 @@ export default {
     Range
   },
   data() {
+    const filters = [
+      {
+        name: 'Sun Exposure Flags',
+        label: 'Sun Exposure',
+        value: [],
+        array: true
+      },
+      {
+        name: 'Flowering Months',
+        range: true,
+        double: true,
+        choices: [ 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec' ],
+        min: 0,
+        max: 11,
+        exponent: 1.0,
+        value: {
+          min: 0,
+          max: 11
+        },
+      },
+      {
+        name: 'Height (feet)',
+        range: true,
+        double: false,
+        choices: [],
+        min: 0,
+        max: 0,
+        exponent: 3.0,
+        value: {
+          min: 0,
+          max: 0
+        }
+      },
+      {
+        name: 'Soil Moisture Flags',
+        label: 'Soil Moisture',
+        value: [],
+        array: true
+      },
+      {
+        name: 'Plant Type Flags',
+        label: 'Plant Type',
+        value: [],
+        array: true
+      },
+      {
+        name: 'Life Cycle Flags',
+        label: 'Life Cycle',
+        value: [],
+        array: true
+      },
+      {
+        name: 'Pollinator Flags',
+        label: 'Pollinators',
+        value: [],
+        array: true
+      },
+      {
+        name: 'Superplant',
+        choices: [ true ],
+        value: []
+      }
+    ];
     return {
       initializing: true,
       results: [],
       total: 0,
       q: '',
-      filters: [
-        {
-          name: 'Sun Exposure Flags',
-          label: 'Sun Exposure',
-          value: [],
-          array: true
-        },
-        {
-          name: 'Flowering Months',
-          range: true,
-          double: true,
-          choices: [ 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec' ],
-          min: 0,
-          max: 11,
-          exponent: 1.0,
-          value: {
-            min: 0,
-            max: 11
-          },
-        },
-        {
-          name: 'Height (feet)',
-          range: true,
-          double: false,
-          choices: [],
-          min: 0,
-          max: 0,
-          exponent: 3.0,
-          value: {
-            min: 0,
-            max: 0
-          }
-        },
-        {
-          name: 'Soil Moisture Flags',
-          label: 'Soil Moisture',
-          value: [],
-          array: true
-        },
-        {
-          name: 'Plant Type Flags',
-          label: 'Plant Type',
-          value: [],
-          array: true
-        },
-        {
-          name: 'Life Cycle Flags',
-          label: 'Life Cycle',
-          value: [],
-          array: true
-        },
-        {
-          name: 'Pollinator Flags',
-          label: 'Pollinators',
-          value: [],
-          array: true
-        },
-        {
-          name: 'Superplant',
-          choices: [ true ],
-          value: []
-        }
-      ]
+      sort: 'Sort by Common Name (A-Z)',
+      filters,
+      filterValues: Object.fromEntries(filters.map(filter => {
+        const value = [ filter.name, filter.value ];
+        delete filter.value;
+        return value;
+      }))
     };
   },
+  computed: {
+    sortFilterLabel() {
+      return {
+        'Sort by Flower Color': 'flower color',
+        'Sort by Height (L-H)': 'height',
+        'Sort by Height (H-L)': 'height',
+        'Sort by Soil Moisture (Dry to Wet)': 'soil moisture',
+        'Sort by Soil Moisture (Wet to Dry)': 'soil moisture'
+      }[this.sort];
+    }
+  },
+  watch: {
+    sort() {
+      this.submit();
+    }
+  },
+  // If we decide to autosubmit on all changes, we can deep watch filterValues
+  // filterValues: {
+  //   handler() {
+  //     this.submit();
+  //   },
+  //   deep: true
+  // }
   mounted() {
     const observer = new IntersectionObserver(this.loadMoreIfNeeded);
     observer.observe(this.$refs.afterTable);
@@ -135,8 +182,9 @@ export default {
     async fetchPage() {
       this.loading = true;
       const params = {
-        ...Object.fromEntries(this.filters.map(filter => [ filter.name, filter.value ])),
+        ...this.filterValues,
         q: this.q,
+        sort: this.sort,
         page: this.page
       };
       if (this.initializing) {
@@ -158,7 +206,7 @@ export default {
         height.min = 0;
         const heights = data.choices['Height (feet)'];
         height.max = heights[heights.length - 1];
-        height.value.max = height.max;
+        this.filterValues['Height (feet)'].max = height.max;
         this.initializing = false;
       }
       this.loading = false;

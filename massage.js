@@ -1,6 +1,7 @@
 const db = require('./lib/db');
 const fs = require('fs');
 const path = require('path');
+const { match } = require('assert');
 
 go();
 
@@ -62,11 +63,13 @@ async function go() {
       } else {
         matching.push(Math.floor(parseFloat(height)));
       }
+      const average = matching.length > 1 ? matching[Math.floor(matching.length / 2)] : matching[0];
       await plants.updateOne({
         _id: plant._id
       }, {
         $set: {
-          'Height (feet) By Number': matching
+          'Height (feet) By Number': matching,
+          'Average Height': average
         }
       });
     } else {
@@ -75,6 +78,16 @@ async function go() {
       }, {
         $unset: {
           'Height (feet) By Number': 1
+        }
+      });
+    }
+    if (plant['Flower Color'] === '') {
+      // Handle null values consistently for fields we sort on
+      await plants.updateOne({
+        _id: plant._id
+      }, {
+        $unset: {
+          'Flower Color': 1
         }
       });
     }
@@ -134,13 +147,23 @@ async function go() {
       }
     });
     const soilMoistureFlags = plant['Soil Moisture'].split(', ').map(capitalize).filter(flag => flag.length > 0);
-    await plants.updateOne({
-      _id: plant._id
-    }, {
-      $set: {
-        'Soil Moisture Flags': soilMoistureFlags
-      }
-    });
+    if (soilMoistureFlags.length) {
+      await plants.updateOne({
+        _id: plant._id
+      }, {
+        $set: {
+          'Soil Moisture Flags': soilMoistureFlags
+        }
+      });
+    } else {
+      await plants.updateOne({
+        _id: plant._id
+      }, {
+        $unset: {
+          'Soil Moisture Flags': 1
+        }
+      });
+    }
     const pollinatorFlags = plant['Pollinators'].split(/\s*(?:,|;)+\s*/).map(capitalize).filter(flag => flag.length > 0);
     await plants.updateOne({
       _id: plant._id
