@@ -22,8 +22,8 @@
         <template v-else>
           <legend>{{ filter.label || filter.name }}</legend>
           <label v-for="choice in filter.choices" :key="choice">
-            <input v-model="filterValues[filter.name]" :value="choice" type="checkbox" />
-            {{ choice }}
+            <input :disabled="!filterCounts[filter.name][choice]" v-model="filterValues[filter.name]" :value="choice" type="checkbox" />
+            {{ choice }} ({{ filterCounts[filter.name][choice] || 0 }})
           </label>
         </template>
       </fieldset>
@@ -68,7 +68,8 @@ export default {
         name: 'Sun Exposure Flags',
         label: 'Sun Exposure',
         value: [],
-        array: true
+        array: true,
+        counts: {}
       },
       {
         name: 'Flowering Months',
@@ -81,7 +82,7 @@ export default {
         value: {
           min: 0,
           max: 11
-        },
+        }
       },
       {
         name: 'Height (feet)',
@@ -100,30 +101,35 @@ export default {
         name: 'Soil Moisture Flags',
         label: 'Soil Moisture',
         value: [],
-        array: true
+        array: true,
+        counts: {}
       },
       {
         name: 'Plant Type Flags',
         label: 'Plant Type',
         value: [],
-        array: true
+        array: true,
+        counts: {}
       },
       {
         name: 'Life Cycle Flags',
         label: 'Life Cycle',
         value: [],
-        array: true
+        array: true,
+        counts: {}
       },
       {
         name: 'Pollinator Flags',
         label: 'Pollinators',
         value: [],
-        array: true
+        array: true,
+        counts: {}
       },
       {
         name: 'Superplant',
         choices: [ true ],
-        value: []
+        value: [],
+        counts: {}
       }
     ];
     return {
@@ -137,7 +143,8 @@ export default {
         const value = [ filter.name, filter.value ];
         delete filter.value;
         return value;
-      }))
+      })),
+      filterCounts: Object.fromEntries(filters.map(filter => [ filter.name, {} ]))
     };
   },
   computed: {
@@ -154,15 +161,14 @@ export default {
   watch: {
     sort() {
       this.submit();
+    },
+    filterValues: {
+      handler() {
+        this.updateCounts();
+      },
+      deep: true
     }
   },
-  // If we decide to autosubmit on all changes, we can deep watch filterValues
-  // filterValues: {
-  //   handler() {
-  //     this.submit();
-  //   },
-  //   deep: true
-  // }
   mounted() {
     const observer = new IntersectionObserver(this.loadMoreIfNeeded);
     observer.observe(this.$refs.afterTable);
@@ -179,6 +185,19 @@ export default {
       this.total = 0;
       return this.fetchPage();
     },
+    async updateCounts() {
+      const params = {
+        ...this.filterValues,
+        q: this.q,
+        sort: this.sort
+      };
+      if (this.initializing) {
+        return;
+      }
+      const response = await fetch('/plants?' + qs.stringify(params));
+      const data = await response.json();
+      this.filterCounts = data.counts;
+    },
     async fetchPage() {
       this.loading = true;
       const params = {
@@ -193,6 +212,7 @@ export default {
       }
       const response = await fetch('/plants?' + qs.stringify(params));
       const data = await response.json();
+      this.filterCounts = data.counts;
       for (const filter of this.filters) {
         filter.choices = data.choices[filter.name];
       }

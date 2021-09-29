@@ -172,6 +172,14 @@ async function go() {
         'Pollinator Flags': pollinatorFlags
       }
     });
+    const propagationFlags = plant['Propagation'].split(/\s*(?:,|;)+\s*/).map(capitalize).filter(flag => flag.length > 0);
+    await plants.updateOne({
+      _id: plant._id
+    }, {
+      $set: {
+        'Propagation Flags': propagationFlags
+      }
+    });
   }
   await close();
 }
