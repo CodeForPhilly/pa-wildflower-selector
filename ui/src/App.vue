@@ -534,6 +534,7 @@ button.text {
 
 menu {
   position: absolute;
+  z-index: 100;
   background-color: #FCF9F4;
   display: flex;
   flex-direction: column;
