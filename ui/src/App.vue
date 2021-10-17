@@ -45,6 +45,18 @@
       </form>
       <h4>Total matches: {{ total }}</h4>
       <p v-if="sortFilterLabel">Only plants whose {{ sortFilterLabel }} is known are included. To see all matching plants, sort by name.</p>
+      <article class="plants">
+        <article v-for="result in results" :key="result._id" class="plant-preview">
+          <img class="photo" :src="imageUrl(result)" />
+          <h4 class="common-name">{{ result['Common Name'] }}</h4>
+          <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
+          <div class="plant-controls">
+            <button class="text"><span class="material-icons material-align">info</span> More Info</button>
+            <button class="text"><span class="material-icons material-align">favorite</span></button>
+          </div>
+        </article>
+      </article>
+<!--        
       <table>
         <tr>
           <th>Common Name</th><th>Scientific Name</th><th>Credit</th><th>Flower Color</th><th>Average Height (ft)</th><th>Soil Moisture</th><th>Image</th>
@@ -56,10 +68,11 @@
           <td>{{ result['Flower Color'] }}</td>
           <td>{{ result['Average Height'] }}</td>
           <td>{{ result['Soil Moisture'] }}</td>
-          <td><img class="photo" :src="imageUrl(result)" /></td>
+          <td></td>
         </tr>
       </table>
-      <div ref="afterTable"></div>
+-->
+    <div ref="next"></div>
     </main>
   </div>
 </template>
@@ -240,7 +253,7 @@ export default {
   },
   mounted() {
     const observer = new IntersectionObserver(this.loadMoreIfNeeded);
-    observer.observe(this.$refs.afterTable);
+    observer.observe(this.$refs.next);
     this.submit();
   },
   methods: {
@@ -320,7 +333,8 @@ export default {
       setTimeout(this.loadMoreIfNeeded, 500);
     },
     async loadMoreIfNeeded() {
-      if (!this.loadedAll && !this.loading && (window.scrollY + window.innerHeight > document.body.clientHeight)) {
+      // Stay a full screen ahead
+      if (!this.loadedAll && !this.loading && (window.scrollY + window.innerHeight * 2 > document.body.clientHeight)) {
         // this.$refs.afterTable.getBoundingClientRect().top)) {
         this.page++;
         await this.fetchPage();
@@ -456,9 +470,13 @@ export default {
   font-size: 120%;
 }
 
+.material-align {
+  display: inline-flex;
+  vertical-align: bottom;  
+}
+
 #app {
   font-family: Roboto;
-  max-width: 800px;
   margin: auto;
   background-color: #FCF9F4;
   padding: 32px;
@@ -481,6 +499,8 @@ button.primary {
 button.text {
   background-color: inherit;
   color: inherit;
+  font-family: inherit;
+  font-size: inherit;
   border: none;
   padding: 5px;
   border-radius: 0;
@@ -576,6 +596,7 @@ input {
 }
 img {
   max-width: 500px;
+  display: block;
 }
 table {
   margin-top: 2em;
@@ -599,7 +620,70 @@ td, th {
   height: 1em;
   color: gray;
 }
-.photo {
-  height: 150px;
+.plants {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+  flex-direction: column;
 }
+.plant-preview {
+  position: relative;
+  border-radius: 8px;
+}
+.photo {
+  object-fit: cover;
+  width: 100%;
+  aspect-ratio: 1/1;
+  border-radius: 8px 8px 0 0;
+}
+.common-name {
+  position: absolute;
+  bottom: 68px;
+  left: 16px;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  font-weight: normal;
+  font-family: Roboto;
+  color: white;
+}
+.scientific-name {
+  position: absolute;
+  bottom: 52px;
+  left: 16px;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+  font-style: italic;
+  font-weight: normal;
+  font-family: Roboto;
+  color: white;
+}
+.plant-controls {
+  font-family: Lato;
+  font-size: 14px;
+  border: 1px solid #B74D15;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  color: #B74D15;
+  padding: 4px 16px 8px;
+  display: flex;
+  justify-content: space-between;
+}
+
+@media all and (max-width: 480px) {
+  #app {
+    padding: 0;
+  }
+  .plant-controls {
+    font-size: 12px;
+  }
+  .plants {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+    flex-direction: column;
+  }
+}
+
 </style>
