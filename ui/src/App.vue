@@ -1,55 +1,66 @@
 <template>
   <div>
-    <form id="form" @submit.prevent="submit">
-      <fieldset>
-        <select v-model="sort">
-          <option>Sort by Common Name (A-Z)</option>
-          <option>Sort by Common Name (Z-A)</option>
-          <option>Sort by Scientific Name (A-Z)</option>
-          <option>Sort by Scientific Name (Z-A)</option>
-          <option>Sort by Flower Color</option>
-          <option>Sort by Height (L-H)</option>
-          <option>Sort by Height (H-L)</option>
-          <option>Sort by Soil Moisture (Dry to Wet)</option>
-          <option>Sort by Soil Moisture (Wet to Dry)</option>
-        </select>
-      </fieldset>
-      <fieldset v-for="filter in filters" :key="filter.name">
-        <template v-if="filter.range">
-          <legend>{{ filter.label || filter.name }}</legend>
-          <Range :double="filter.double" :exponent="filter.exponent" :choices="filter.choices" :min="filter.min" :max="filter.max" v-model="filterValues[filter.name]" />
-        </template>
-        <template v-else>
-          <legend>{{ filter.label || filter.name }}</legend>
-          <label v-for="choice in filter.choices" :key="choice">
-            <input :disabled="!filterCounts[filter.name][choice]" v-model="filterValues[filter.name]" :value="choice" type="checkbox" />
-            {{ choice }} ({{ filterCounts[filter.name][choice] || 0 }})
-          </label>
-        </template>
-      </fieldset>
-      <fieldset>
-        <label for="q">Search</label>
-        <input v-model="q" id="q" type="search" />
-      </fieldset>
-      <button type="submit">Go</button>
-    </form>
-    <h4>Total matches: {{ total }}</h4>
-    <p v-if="sortFilterLabel">Only plants whose {{ sortFilterLabel }} is known are included. To see all matching plants, sort by name.</p>
-    <table>
-      <tr>
-        <th>Common Name</th><th>Scientific Name</th><th>Credit</th><th>Flower Color</th><th>Average Height (ft)</th><th>Soil Moisture</th><th>Image</th>
-      </tr>
-      <tr v-for="result in results" :key="result._id">
-        <td>{{ result['Common Name'] }}</td>
-        <td>{{ result['Scientific Name'] }}</td>
-        <td><span v-html="result.attribution" /></td>
-        <td>{{ result['Flower Color'] }}</td>
-        <td>{{ result['Average Height'] }}</td>
-        <td>{{ result['Soil Moisture'] }}</td>
-        <td><img class="photo" :src="imageUrl(result)" /></td>
-      </tr>
-    </table>
-    <div ref="afterTable"></div>
+    <header>
+      <h1>Choose Native Plants PA</h1>
+    </header>
+    <main>
+      <div v-if="!filtersOpen">
+        <button class="primary primary-bar" @click=openFilters>Filter</button>
+        <div class="chips" v-if="activeFilters.length">
+          <button class="chip" v-for="chip in chips" v-bind:key="chip.key" @click="removeChip(chip)">
+            {{ chip.label }} <span class="material-icons">close</span>
+          </button>
+          <button class="text clear" @click="removeAll">Clear all</button>
+        </div>
+        <div class="sort">
+          <button @click="toggleSort" class="list-button">
+            <span class="label">Sort By</span>
+            <span class="value">{{ sortLabel(sort) }}</span>
+            <span class="material-icons">{{ sortOpen ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
+          </button>
+          <menu :style="{ visibility: sortOpen ? 'visible' : 'hidden' }" class="list-menu">
+            <li v-for="sort in sorts" v-bind:key="sort.value" @click="setSort(sort)" @keydown.enter="setSort(sort)" tabindex="0">{{ sort.label }}</li>
+          </menu>
+        </div>
+      </div>
+      <form v-if="filtersOpen" id="form" @submit.prevent="submit">
+        <button class="primary primary-bar" type="submit">Apply</button>
+        <fieldset v-for="filter in filters" :key="filter.name">
+          <template v-if="filter.range">
+            <legend>{{ filter.label || filter.name }}</legend>
+            <Range :double="filter.double" :exponent="filter.exponent" :choices="filter.choices" :min="filter.min" :max="filter.max" v-model="filterValues[filter.name]" />
+          </template>
+          <template v-else>
+            <legend>{{ filter.label || filter.name }}</legend>
+            <label v-for="choice in filter.choices" :key="choice">
+              <input :disabled="!filterCounts[filter.name][choice]" v-model="filterValues[filter.name]" :value="choice" type="checkbox" />
+              {{ choice }} ({{ filterCounts[filter.name][choice] || 0 }})
+            </label>
+          </template>
+        </fieldset>
+        <fieldset>
+          <label for="q">Search</label>
+          <input v-model="q" id="q" type="search" />
+        </fieldset>
+      </form>
+      <h4>Total matches: {{ total }}</h4>
+      <p v-if="sortFilterLabel">Only plants whose {{ sortFilterLabel }} is known are included. To see all matching plants, sort by name.</p>
+      <table>
+        <tr>
+          <th>Common Name</th><th>Scientific Name</th><th>Credit</th><th>Flower Color</th><th>Average Height (ft)</th><th>Soil Moisture</th><th>Image</th>
+        </tr>
+        <tr v-for="result in results" :key="result._id">
+          <td>{{ result['Common Name'] }}</td>
+          <td>{{ result['Scientific Name'] }}</td>
+          <td><span v-html="result.attribution" /></td>
+          <td>{{ result['Flower Color'] }}</td>
+          <td>{{ result['Average Height'] }}</td>
+          <td>{{ result['Soil Moisture'] }}</td>
+          <td><img class="photo" :src="imageUrl(result)" /></td>
+        </tr>
+      </table>
+      <div ref="afterTable"></div>
+    </main>
   </div>
 </template>
 
@@ -129,9 +140,19 @@ export default {
         name: 'Superplant',
         choices: [ true ],
         value: [],
+        array : true,
         counts: {}
       }
     ];
+    const sorts = Object.entries({
+        'Sort by Common Name (A-Z)': 'Common Name (A-Z)',
+        'Sort by Common Name (Z-A)': 'Common Name (Z-A)',
+        'Sort by Flower Color': 'Color',
+        'Sort by Height (L-H)': 'Height (L-H)',
+        'Sort by Height (H-L)': 'Height (H-L)',
+        'Sort by Soil Moisture (Dry to Wet)': 'Soil Moisture (Dry to Wet)',
+        'Sort by Soil Moisture (Wet to Dry)': 'Soil Moisture (Wet to Dry)'
+      }).map(([ value, label ]) => ({ value, label }));
     return {
       initializing: true,
       results: [],
@@ -141,10 +162,15 @@ export default {
       filters,
       filterValues: Object.fromEntries(filters.map(filter => {
         const value = [ filter.name, filter.value ];
+        filter.default = filter.value;
         delete filter.value;
         return value;
       })),
-      filterCounts: Object.fromEntries(filters.map(filter => [ filter.name, {} ]))
+      filterCounts: Object.fromEntries(filters.map(filter => [ filter.name, {} ])),
+      filtersOpen: false,
+      updatingCounts: false,
+      sorts,
+      sortOpen: false
     };
   },
   computed: {
@@ -156,6 +182,49 @@ export default {
         'Sort by Soil Moisture (Dry to Wet)': 'soil moisture',
         'Sort by Soil Moisture (Wet to Dry)': 'soil moisture'
       }[this.sort];
+    },
+    chips() {
+      const chips = [];
+      for (const filter of this.activeFilters) {
+        const value = this.filterValues[filter.name];
+        if (filter.array) {
+          value.forEach(item => {
+            chips.push({
+              name: filter.name,
+              label: item,
+              key: filter.name + ':' + item
+            });
+          })
+        } else if (filter.range) {
+          chips.push({
+            name: filter.name,
+            label: filter.label || filter.name,
+            key: filter.name
+          });
+        } else {
+          chips.push({
+            name: filter.name,
+            label: value,
+            key: filter.name
+          });
+        }
+      }
+      return chips;
+    },
+    activeFilters() {
+      const result = this.filters.filter(filter => {
+        const value = this.filterValues[filter.name];
+        if (filter.range) {
+          if ((value.min !== filter.min) || (value.max !== filter.max)) {
+            return true;
+          }
+        } else if (filter.array) {
+          return value.length > 0;
+        } else {
+          return value !== filter.default;
+        }
+      });
+      return result;
     }
   },
   watch: {
@@ -178,25 +247,42 @@ export default {
     imageUrl(result) {
       return `/images/${result._id}.jpg`;
     },
+    openFilters() {
+      this.filtersOpen = true;
+    },
     async submit() {
       this.page = 1;
       this.loadedAll = false;
       this.results = [];
       this.total = 0;
-      return this.fetchPage();
+      await this.fetchPage();
+      this.filtersOpen = false;
     },
     async updateCounts() {
-      const params = {
-        ...this.filterValues,
-        q: this.q,
-        sort: this.sort
-      };
-      if (this.initializing) {
+      // Debounce so we don't refresh like mad when dragging a range end
+      if (this.updatingCounts) {
+        if (this.updatingCountsTimeout) {
+          clearTimeout(this.updatingCountsTimeout);
+        }
+        this.updatingCountsTimeout = setTimeout(() => this.updateCounts(), 250);
         return;
       }
-      const response = await fetch('/plants?' + qs.stringify(params));
-      const data = await response.json();
-      this.filterCounts = data.counts;
+      this.updatingCounts = true;
+      try {
+        const params = {
+          ...this.filterValues,
+          q: this.q,
+          sort: this.sort
+        };
+        if (this.initializing) {
+          return;
+        }
+        const response = await fetch('/plants?' + qs.stringify(params));
+        const data = await response.json();
+        this.filterCounts = data.counts;
+      } finally {
+        this.updatingCounts = false;
+      }
     },
     async fetchPage() {
       this.loading = true;
@@ -239,17 +325,246 @@ export default {
         this.page++;
         await this.fetchPage();
       }
+    },
+    removeChip(chip) {
+      const filter = this.filters.find(filter => filter.name === chip.name);
+      if (filter.array) {
+        this.filterValues[chip.name] = this.filterValues[chip.name].filter(value => value !== chip.label);
+      } else {
+        this.filterValues[chip.name] = filter.default;
+      }
+      this.submit();
+    },
+    removeAll() {
+      for (const filter of this.filters) {
+        this.filterValues[filter.name] = filter.default;
+      }
+      this.submit();
+    },
+    toggleSort() {
+      this.sortOpen = !this.sortOpen;
+    },
+    setSort(sort) {
+      this.sort = sort.value;
+      this.sortOpen = false;
+    },
+    sortLabel(sort) {
+      return this.sorts.find(_sort => _sort.value === sort).label;
     }
   }
 }
+
 </script>
 
 <style>
+@font-face {
+  font-family: Arvo;
+  src: url("/fonts/Arvo-Regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: Arvo;
+  font-weight: 700;
+  font-style: normal;
+  src: url("/fonts/Arvo-Bold.ttf") format("truetype");
+}
+@font-face {
+  font-family: Arvo;
+  font-style: italic;
+  src: url("/fonts/Arvo-Italic.ttf") format("truetype");
+}
+@font-face {
+  font-family: Arvo;
+  font-weight: 700;
+  font-style: italic;
+  src: url("/fonts/Arvo-BoldItalic.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: Roboto;
+  src: url("/fonts/Roboto-Regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: Roboto;
+  font-weight: 700;
+  font-style: normal;
+  src: url("/fonts/Roboto-Bold.ttf") format("truetype");
+}
+@font-face {
+  font-family: Roboto;
+  font-style: italic;
+  src: url("/fonts/Roboto-Italic.ttf") format("truetype");
+}
+@font-face {
+  font-family: Roboto;
+  font-weight: 700;
+  font-style: italic;
+  src: url("/fonts/Roboto-BoldItalic.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: Lato;
+  src: url("/fonts/Lato-Regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: Lato;
+  font-weight: 700;
+  font-style: normal;
+  src: url("/fonts/Lato-Bold.ttf") format("truetype");
+}
+@font-face {
+  font-family: Lato;
+  font-style: italic;
+  src: url("/fonts/Lato-Italic.ttf") format("truetype");
+}
+@font-face {
+  font-family: Lato;
+  font-weight: 700;
+  font-style: italic;
+  src: url("/fonts/Lato-BoldItalic.ttf") format("truetype");
+}
+@font-face {
+  font-family: 'Material Icons';
+  font-style: normal;
+  font-weight: 400;
+  src: url("/fonts/MaterialIcons-Regular.ttf") format("truetype");
+}
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Support for IE. */
+  font-feature-settings: 'liga';
+
+  vertical-align: middle;
+  
+  font-size: 120%;
+}
+
 #app {
-  font-family: Helvetica;
+  font-family: Roboto;
   max-width: 800px;
   margin: auto;
+  background-color: #FCF9F4;
+  padding: 32px;
 }
+
+button {
+  background-color: #FCF9F4;
+  color: #B74D15;
+  border: 1px solid #B74D15;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 17px;
+}
+
+button.primary {
+  background-color: #B74D15;
+  color: #FCF9F4;
+}
+
+button.text {
+  background-color: inherit;
+  color: inherit;
+  border: none;
+  padding: 5px;
+  border-radius: 0;
+}
+
+.primary-bar {
+  display: block;
+  width: 100%;
+  margin-bottom: 11px;
+}
+
+.sort {
+  /* Shrinkwrap the contents */
+  display: inline-block;
+}
+
+.list-button {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+}
+
+.list-button .label {
+  position: absolute;
+  font-size: 80%;
+  top: calc(-8px + -0.25em);
+  padding: 4px;
+  background-color: #FCF9F4;
+}
+
+menu {
+  position: absolute;
+  background-color: #FCF9F4;
+  display: flex;
+  flex-direction: column;
+  padding-inline-start: 0;
+  color: #B74D15;
+  border: 1px solid #b74e15;
+  border-radius: 8px;
+  font-size: 17px;
+  margin: 0;
+}
+
+menu li {
+  cursor: pointer;
+  list-style: none;
+  line-height: 2;
+  color: black;
+  padding: 0 12px;
+}
+
+menu li:first-child {
+  border-radius: 9px 9px 0 0;
+  background-clip: padding-box;
+}
+
+menu li:last-child {
+  border-radius: 0 0 9px 9px;
+  background-clip: padding-box;
+}
+
+menu li:focus {
+  color: #B74D15;
+  background-color: #ffebcc;
+}
+
+menu li:hover {
+  color: #B74D15;
+  background-color: #ffebcc;
+}
+
+.chip {
+  border-radius: 30px;
+  margin-right: 8px;
+}
+
+h1 {
+  font-family: Arvo;
+  font-weight: 400;
+  font-size: 20px;
+  text-align: center; 
+}
+
 label {
   display: inline-block;
   margin-right: 2em;
