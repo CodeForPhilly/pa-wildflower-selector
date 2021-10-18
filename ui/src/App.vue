@@ -23,24 +23,25 @@
           </menu>
         </div>
       </div>
-      <form v-if="filtersOpen" id="form" @submit.prevent="submit">
+      <form v-if="filtersOpen" class="filters" id="form" @submit.prevent="submit">
+        <input v-model="q" id="q" type="search" class="search" placeholder="🔎" />
         <button class="primary primary-bar" type="submit">Apply</button>
-        <fieldset v-for="filter in filters" :key="filter.name">
-          <template v-if="filter.range">
-            <legend>{{ filter.label || filter.name }}</legend>
-            <Range :double="filter.double" :exponent="filter.exponent" :choices="filter.choices" :min="filter.min" :max="filter.max" v-model="filterValues[filter.name]" />
+        <fieldset v-for="filter in filters" :key="filter.name" :class="filterClass(filter)">
+          <h3 @click="toggleFilter(filter)">
+            {{ filter.label || filter.name }}
+            <span class="material-icons">{{ filterIsOpen[filter.name] ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
+          </h3>
+          <template v-if="filterIsOpen[filter.name]">
+            <template v-if="filter.range">
+              <Range :double="filter.double" :exponent="filter.exponent" :choices="filter.choices" :min="filter.min" :max="filter.max" v-model="filterValues[filter.name]" />
+            </template>
+            <template v-else>
+              <label v-for="choice in filter.choices" :key="choice">
+                <input :disabled="!filterCounts[filter.name][choice]" v-model="filterValues[filter.name]" :value="choice" type="checkbox" />
+                {{ choice }} ({{ filterCounts[filter.name][choice] || 0 }})
+              </label>
+            </template>
           </template>
-          <template v-else>
-            <legend>{{ filter.label || filter.name }}</legend>
-            <label v-for="choice in filter.choices" :key="choice">
-              <input :disabled="!filterCounts[filter.name][choice]" v-model="filterValues[filter.name]" :value="choice" type="checkbox" />
-              {{ choice }} ({{ filterCounts[filter.name][choice] || 0 }})
-            </label>
-          </template>
-        </fieldset>
-        <fieldset>
-          <label for="q">Search</label>
-          <input v-model="q" id="q" type="search" />
         </fieldset>
       </form>
       <h4>Total matches: {{ total }}</h4>
@@ -88,6 +89,13 @@ export default {
   },
   data() {
     const filters = [
+      {
+        name: 'Superplant',
+        choices: [ true ],
+        value: [],
+        array : true,
+        counts: {}
+      },
       {
         name: 'Sun Exposure Flags',
         label: 'Sun Exposure',
@@ -148,23 +156,13 @@ export default {
         value: [],
         array: true,
         counts: {}
-      },
-      {
-        name: 'Superplant',
-        choices: [ true ],
-        value: [],
-        array : true,
-        counts: {}
       }
     ];
     const sorts = Object.entries({
         'Sort by Common Name (A-Z)': 'Common Name (A-Z)',
         'Sort by Common Name (Z-A)': 'Common Name (Z-A)',
-        'Sort by Flower Color': 'Color',
-        'Sort by Height (L-H)': 'Height (L-H)',
-        'Sort by Height (H-L)': 'Height (H-L)',
-        'Sort by Soil Moisture (Dry to Wet)': 'Soil Moisture (Dry to Wet)',
-        'Sort by Soil Moisture (Wet to Dry)': 'Soil Moisture (Wet to Dry)'
+        'Sort by Scientific Name (A-Z)': 'Scientific Name (A-Z)',
+        'Sort by Scientific Name (Z-A)': 'Scientific Name (Z-A)'
       }).map(([ value, label ]) => ({ value, label }));
     return {
       initializing: true,
@@ -179,6 +177,9 @@ export default {
         delete filter.value;
         return value;
       })),
+      filterIsOpen: Object.fromEntries(filters.map(filter => [
+        filter.name, false
+      ])),
       filterCounts: Object.fromEntries(filters.map(filter => [ filter.name, {} ])),
       filtersOpen: false,
       updatingCounts: false,
@@ -364,6 +365,16 @@ export default {
     },
     sortLabel(sort) {
       return this.sorts.find(_sort => _sort.value === sort).label;
+    },
+    filterClass(filter) {
+      if (this.filterIsOpen[filter.name]) {
+        return 'active';
+      } else {
+        return null;
+      }
+    },
+    toggleFilter(filter) {
+      this.filterIsOpen[filter.name] = !this.filterIsOpen[filter.name];
     }
   }
 }
@@ -574,6 +585,10 @@ menu li:hover {
   background-color: #ffebcc;
 }
 
+.chips {
+  margin-bottom: 32px;
+}
+
 .chip {
   border-radius: 30px;
   margin-right: 8px;
@@ -588,12 +603,11 @@ h1 {
 
 label {
   display: inline-block;
-  margin-right: 2em;
+  font-size: 17px;
+  margin: 1em 2em 1em 0;
 }
 input {
   display: inline-block;
-  margin-right: 2em;
-  height: 2em;
 }
 img {
   max-width: 500px;
@@ -671,7 +685,69 @@ td, th {
   display: flex;
   justify-content: space-between;
 }
+.filters {
+  display: flex;
+  flex-direction: column;
+  max-width: 350px;
+  margin: auto;
+}
+.filters fieldset {
+  background-color: white;
+  display: flex;
+  flex-direction: column;
+  color: #1D2E26;
+  border: 1px solid #1D2E26;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  padding: 16px 10px;
+}
+.filters fieldset:last-child {
+  margin-bottom: 0;
+}
+.filters fieldset {
+  background-color: #FBECD0;
+}
 
+.filters fieldset.active {
+  background-color: white;
+}
+
+.filters fieldset h3 {
+  font-size: 18px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  font-family: Lato;
+  margin: 0;
+  letter-spacing: 0.1em;
+  font-weight: normal;
+}
+.filters fieldset.active h3 {
+  color: #1D2E26;
+  font-weight: bold;
+  margin-bottom: 24px;
+}
+.filters fieldset input {
+  border: 0;
+  padding: 0;
+  font-size: inherit;
+}
+.filters fieldset input[type="checkbox"] {
+  width: 25px;
+  height: 25px;
+  margin-right: 8px;
+  border: 1px solid #1D2E26;
+  border-radius: 0;
+  background-color: inherit;
+  transform: translate(0, 0.25em);
+}
+.search {
+  display: block;
+  height: 64px;
+  font-size: 24px;
+  padding: 16px;
+  margin-bottom: 8px;
+}
 @media all and (max-width: 480px) {
   #app {
     padding: 0;

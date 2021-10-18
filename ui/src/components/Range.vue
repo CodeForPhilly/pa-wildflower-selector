@@ -182,21 +182,27 @@ export default {
     position: relative;
     height: 2em;
     margin: auto;
+    margin-bottom: 32px;
+    font-size: 17px;
+    transform: translate(0, 24px);
     width: calc(100% - 2em);
   }
   .controls .end {
     position: absolute;
-    width: 1em;
+    width: 48px;
+    height: 48px;
     border: 1px solid #eee;
-    border-radius: 0.5em;
-    background-color: blue;
-    transform: translate(-50%);
+    border-radius: 24px;
+    background-color: #B74D15;
+    transform: translate(-50%, -50%);
+    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);    
   }
   .controls .between {
     position: absolute;
     border-radius: 0.5em;
     border: 1px solid #aaa;
-    background-color: black;
+    background-color: #B74D15;
+    transform: translate(0, -50%);
   }
   .labels {
     height: 1.5em;
