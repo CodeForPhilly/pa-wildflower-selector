@@ -24,8 +24,10 @@
         </div>
       </div>
       <form v-if="filtersOpen" class="filters" id="form" @submit.prevent="submit">
-        <input v-model="q" id="q" type="search" class="search" placeholder="🔎" />
-        <button class="primary primary-bar" type="submit">Apply</button>
+        <div class="controls">
+          <input v-model="q" id="q" type="search" class="search" placeholder="🔎" />
+          <button class="primary primary-bar" type="submit">Apply</button>
+        </div>
         <fieldset v-for="filter in filters" :key="filter.name" :class="filterClass(filter)">
           <h3 @click="toggleFilter(filter)">
             {{ filter.label || filter.name }}
@@ -45,7 +47,6 @@
         </fieldset>
       </form>
       <h4>Total matches: {{ total }}</h4>
-      <p v-if="sortFilterLabel">Only plants whose {{ sortFilterLabel }} is known are included. To see all matching plants, sort by name.</p>
       <article class="plants">
         <article v-for="result in results" :key="result._id" class="plant-preview">
           <img class="photo" :src="imageUrl(result)" />
@@ -104,32 +105,6 @@ export default {
         counts: {}
       },
       {
-        name: 'Flowering Months',
-        range: true,
-        double: true,
-        choices: [ 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec' ],
-        min: 0,
-        max: 11,
-        exponent: 1.0,
-        value: {
-          min: 0,
-          max: 11
-        }
-      },
-      {
-        name: 'Height (feet)',
-        range: true,
-        double: false,
-        choices: [],
-        min: 0,
-        max: 0,
-        exponent: 3.0,
-        value: {
-          min: 0,
-          max: 0
-        }
-      },
-      {
         name: 'Soil Moisture Flags',
         label: 'Soil Moisture',
         value: [],
@@ -156,6 +131,39 @@ export default {
         value: [],
         array: true,
         counts: {}
+      },
+      {
+        name: 'Flower Color Flags',
+        label: 'Flower Color',
+        value: [],
+        array: true,
+        counts: {}
+      },
+      {
+        name: 'Flowering Months',
+        range: true,
+        double: true,
+        choices: [ 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec' ],
+        min: 0,
+        max: 11,
+        exponent: 1.0,
+        value: {
+          min: 0,
+          max: 11
+        }
+      },
+      {
+        name: 'Height (feet)',
+        range: true,
+        double: false,
+        choices: [],
+        min: 0,
+        max: 0,
+        exponent: 3.0,
+        value: {
+          min: 0,
+          max: 0
+        }
       }
     ];
     const sorts = Object.entries({
@@ -188,15 +196,6 @@ export default {
     };
   },
   computed: {
-    sortFilterLabel() {
-      return {
-        'Sort by Flower Color': 'flower color',
-        'Sort by Height (L-H)': 'height',
-        'Sort by Height (H-L)': 'height',
-        'Sort by Soil Moisture (Dry to Wet)': 'soil moisture',
-        'Sort by Soil Moisture (Wet to Dry)': 'soil moisture'
-      }[this.sort];
-    },
     chips() {
       const chips = [];
       for (const filter of this.activeFilters) {
@@ -493,6 +492,14 @@ export default {
   padding: 32px;
 }
 
+.controls {
+  position: sticky;
+  z-index: 100;
+  /* Sticky offset */
+  top: 0;
+  background-color: #FCF9F4;
+}
+
 button {
   background-color: #FCF9F4;
   color: #B74D15;
@@ -747,6 +754,7 @@ td, th {
   font-size: 24px;
   padding: 16px;
   margin-bottom: 8px;
+  width: 100%;
 }
 @media all and (max-width: 480px) {
   #app {

@@ -180,6 +180,15 @@ async function go() {
         'Propagation Flags': propagationFlags
       }
     });
+    const flowerColorFlags = (plant['Flower Color'] || '').split(/\s*[-—–,]\s*/).map(capitalize).filter(flag => flag.length > 0);
+    await plants.updateOne({
+      _id: plant._id
+    }, {
+      $set: {
+        'Flower Color Flags': flowerColorFlags
+      }
+    });
+
   }
   await close();
 }

@@ -15,7 +15,7 @@
     "url": "git+https://github.com/boutell/pa-wildflower-selector.git"
   },
   "author": "Tom Boutell (Code For Philly)",
-  "license": "MIT",
+  "license": "GPL-3.0",
   "bugs": {
     "url": "https://github.com/boutell/pa-wildflower-selector/issues"
   },
