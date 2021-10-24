@@ -39,8 +39,11 @@
             </template>
             <template v-else>
               <label v-for="choice in filter.choices" :key="choice">
-                <input :disabled="!filterCounts[filter.name][choice]" v-model="filterValues[filter.name]" :value="choice" type="checkbox" />
-                {{ choice }} ({{ filterCounts[filter.name][choice] || 0 }})
+                <span class="filter-contents">
+                  <Checkbox :disabled="!filterCounts[filter.name][choice]" v-model="filterValues[filter.name]" :value="choice" />
+                  <span class="text">{{ choice }} ({{ filterCounts[filter.name][choice] || 0 }})</span>
+                </span>
+                <span v-if="filter.color" :style="flowerColorStyle(choice)" class="color-example" />
               </label>
             </template>
           </template>
@@ -82,20 +85,23 @@
 <script>
 import qs from 'qs';
 import Range from './components/Range.vue';
+import Checkbox from './components/Checkbox.vue';
 
 export default {
   name: 'App',
   components: {
-    Range
+    Range, Checkbox
   },
   data() {
     const filters = [
       {
         name: 'Superplant',
-        choices: [ true ],
+        label: 'Super Plant',
+        choices: [ 'Super Plant' ],
         value: [],
-        array : true,
-        counts: {}
+        array: true,
+        counts: {},
+        initiallyOpen: true
       },
       {
         name: 'Sun Exposure Flags',
@@ -137,7 +143,8 @@ export default {
         label: 'Flower Color',
         value: [],
         array: true,
-        counts: {}
+        counts: {},
+        color: true
       },
       {
         name: 'Flowering Months',
@@ -186,7 +193,7 @@ export default {
         return value;
       })),
       filterIsOpen: Object.fromEntries(filters.map(filter => [
-        filter.name, false
+        filter.name, filter.initiallyOpen || false
       ])),
       filterCounts: Object.fromEntries(filters.map(filter => [ filter.name, {} ])),
       filtersOpen: false,
@@ -374,6 +381,11 @@ export default {
     },
     toggleFilter(filter) {
       this.filterIsOpen[filter.name] = !this.filterIsOpen[filter.name];
+    },
+    flowerColorStyle(choice) {
+      return {
+        'background-color': choice
+      };
     }
   }
 }
@@ -608,6 +620,14 @@ h1 {
   text-align: center; 
 }
 
+.color-example {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 1px solid black;
+  border-radius: 12px;
+}
+
 label {
   display: inline-block;
   font-size: 17px;
@@ -708,6 +728,10 @@ td, th {
   margin-bottom: 24px;
   padding: 16px 10px;
 }
+.filters fieldset label {
+  display: flex;
+  justify-content: space-between;
+}
 .filters fieldset:last-child {
   margin-bottom: 0;
 }
@@ -739,15 +763,6 @@ td, th {
   padding: 0;
   font-size: inherit;
 }
-.filters fieldset input[type="checkbox"] {
-  width: 25px;
-  height: 25px;
-  margin-right: 8px;
-  border: 1px solid #1D2E26;
-  border-radius: 0;
-  background-color: inherit;
-  transform: translate(0, 0.25em);
-}
 .search {
   display: block;
   height: 64px;
@@ -755,6 +770,12 @@ td, th {
   padding: 16px;
   margin-bottom: 8px;
   width: 100%;
+}
+.text {
+  display: inline-block;
+  transform: translateY(-0.3em);
+  margin-left: 8px;
+  user-select: none;
 }
 @media all and (max-width: 480px) {
   #app {
