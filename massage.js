@@ -3,26 +3,52 @@ const fs = require('fs');
 const path = require('path');
 const { match } = require('assert');
 
-go();
+// Work around lack of top level await while still reporting errors properly
+go().then(() => {
+  // All done
+}).catch(e => {
+  console.error(e);
+  process.exit(1);
+});
 
 async function go() {
   const { plants, close } = await db();
-  const values = await plants.find().toArray();
-  // Remove wrongly cased plants
-  // const names = values.filter(plant => plant['Scientific Name'].match(/ [a-z]/)).map(plant => plant['Scientific Name']);
-  // await plants.removeMany({
-  //   'Scientific Name': {
-  //     $in: names
-  //   }
-  // });
-  // Rename wrongly-cased images
-  // const files = fs.readdirSync('./images');
-  // const plantList = await plants.find().toArray();
-  // files.filter(file => file.match(/ [a-z]/)).map(file => {
-  //   const plant = plantList.find(plant => plant['Scientific Name'].toLowerCase() === file.toLowerCase().replace(/\..*$/, ''));
-  //   fs.renameSync(`images/${file}`, `images/${plant['Scientific Name']}.jpg`);
-  // });
+  let values = await plants.find().toArray();
+
+  // Fix a small set of plants that already had duplicate records
+  // when case was not taken into account. They were all
+  // x-class (hybrids)
+  const seen = new Set();
   for (const plant of values) {
+    if (seen.has(plant._id.toLowerCase())) {
+      await plants.removeOne({ _id: plant._id });
+      values = values.filter(value => value._id !== plant._id);
+    } else {
+      seen.add(plant._id.toLowerCase());
+    }
+  }
+
+  for (let i = 0; (i < values.length); i++) {
+    let plant = values[i];
+
+    // Fix plants whose scientific names did not follow the canonical case pattern
+    const name = plant._id;
+    const renamed = name.substring(0, 1) + name.substring(1).toLowerCase();
+    if (name.match(/[A-Z].*?[A-Z]/)) {
+      console.log(`Renaming ${name} to ${renamed}`);
+      plant = {
+        ...plant,
+        _id: renamed,
+        'Scientific Name': renamed
+      };
+      await plants.insert(plant);
+      await plants.removeOne({
+       _id: name
+      });
+      fs.renameSync(`${__dirname}/images/${name}.jpg`, `${__dirname}/images/${renamed}.jpg`);
+    }
+
+    // Process Flowering Months into an array of flags
     const months = [ 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec' ];
     let [ from, to ] = plant['Flowering Months'].split('–');
     from = months.indexOf(from);
@@ -48,6 +74,8 @@ async function go() {
         }
       });
     }
+
+    // Process height ranges into an array of flags (lazy querying, consider a better representation)
     const height = plant['Height (feet)'];
     if (height) {
       let matching = [];
@@ -81,6 +109,7 @@ async function go() {
         }
       });
     }
+
     if (plant['Flower Color'] === '') {
       // Handle null values consistently for fields we sort on
       await plants.updateOne({
