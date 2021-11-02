@@ -86,6 +86,7 @@
 import qs from 'qs';
 import Range from './components/Range.vue';
 import Checkbox from './components/Checkbox.vue';
+import colors from './lib/colors.js';
 
 export default {
   name: 'App',
