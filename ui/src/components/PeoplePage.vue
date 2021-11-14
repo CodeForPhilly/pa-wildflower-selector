@@ -23,14 +23,18 @@
       <li><a href="#the-tools">The tools</a></li>
       <li><a href="#the-method">The method</a></li>
     </menu>
-    <article class="page-facing">
-      <h3 id="the-team">The team</h3>
-      <p>
-        The team consisted of 3 UX Designers fresh from bootcamp/flex programs,
-        a seasoned developer, a new developer, a technical CPA, and a data
-        engineer. So many varied backgrounds and side interests in this bunch.
-        What a great team to work with.
-      </p>
+    <article>
+      <div class="facing">
+        <h3 id="the-team">The team</h3>
+        <div>
+          <p>
+            The team consisted of 3 UX Designers fresh from bootcamp/flex programs,
+            a seasoned developer, a new developer, a technical CPA, and a data
+            engineer. So many varied backgrounds and side interests in this bunch.
+            What a great team to work with.
+          </p>
+        </div>
+      </div>
       <section class="people-grid">
         <Person image="zach-leahan" alt="Photo of Zach Leahan">
           <h4>Project Sponsor &amp; Data Guru</h4>
@@ -103,7 +107,7 @@
         </Person>
       </section>
     </article>
-    <article class="page-running">
+    <article>
       <h3 id="the-tools">The tools</h3>
       <p>
         Here is a short list of the tools used to keep us organized and get
@@ -120,38 +124,40 @@
         <li>MongoDB</li>
       </ul>
     </article>
-    <article class="page-facing">
-      <h3 id="the-method">The method</h3>
-      <ul>
-        <li>We began meeting April 12, 2021</li>
-        <li>Many discussions and sketches ensued</li>
-        <li>
-          A Survey was created and sent out to many Facebook groups an
-          subreddits to help define what functionality would be included in the
-          MVP
-        </li>
-        <li>
-          An analysis of the data was completed and functionality was determined
-        </li>
-        <li>Wireframes were crafted in Figma</li>
-        <li>
-          A competitive analysis was completed and existing plant finders were
-          analyzed
-        </li>
-        <li>The database was discussed and explained</li>
-        <li>A style guide was decided upon</li>
-        <li>A high fidelity prototype was completed</li>
-        <li>
-          A Maze test was completed by testers from the facebook groups and
-          subredits
-        </li>
-        <li>Many iterations of hi-fi prototype design were completed</li>
-        <li>The responsive mobile-first website design was coded</li>
-        <li>
-          The project was launched on [insert date] in time for Spring planting
-          season in Pennsylvania.
-        </li>
-      </ul>
+    <article>
+      <div class="facing">
+        <h3 id="the-method">The method</h3>
+        <ul>
+          <li>We began meeting April 12, 2021</li>
+          <li>Many discussions and sketches ensued</li>
+          <li>
+            A Survey was created and sent out to many Facebook groups an
+            subreddits to help define what functionality would be included in the
+            MVP
+          </li>
+          <li>
+            An analysis of the data was completed and functionality was determined
+          </li>
+          <li>Wireframes were crafted in Figma</li>
+          <li>
+            A competitive analysis was completed and existing plant finders were
+            analyzed
+          </li>
+          <li>The database was discussed and explained</li>
+          <li>A style guide was decided upon</li>
+          <li>A high fidelity prototype was completed</li>
+          <li>
+            A Maze test was completed by testers from the facebook groups and
+            subredits
+          </li>
+          <li>Many iterations of hi-fi prototype design were completed</li>
+          <li>The responsive mobile-first website design was coded</li>
+          <li>
+            The project was launched on [insert date] in time for Spring planting
+            season in Pennsylvania.
+          </li>
+        </ul>
+      </div>
     </article>
   </Page>
 </template>

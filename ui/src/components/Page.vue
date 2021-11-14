@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="page">
     <main>
       <h1>{{ title }}</h1>
       <slot></slot>
@@ -15,6 +15,39 @@ export default {
 };
 </script>
 
-<style scoped>
-  
+<style>
+  .page {
+    font-family: "Roboto";
+    font-size: 20px;
+    font-weight: 400;
+    color: #1D2E26;
+    line-height: 2;
+  }
+  .page a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid #1D2E26;
+  }
+  .page h1 {
+    font-family: "Arvo";
+    font-weight: 300;
+    font-size: 64px;
+  }
+  .page menu {
+    font-size: 32px;
+    font-weight: normal;
+  }
+  .page h3 {
+    font-size: 64px;
+  }
+  .facing {
+    display: flex;
+  }
+  .facing > * {
+    flex-basis: 0;
+    flex-grow: 1.0;
+  }
+  .page .wave {
+    stroke: blue;
+  }
 </style>
