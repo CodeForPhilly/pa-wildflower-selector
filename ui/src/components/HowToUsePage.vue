@@ -285,7 +285,8 @@ export default {
   }
   svg.top {
     transform-origin: 50% 50%;
-    transform: scale(-1,-1);  
+    transform: scale(-1,-1);
+    overflow: visible;
   }
   .tone svg {
     fill: #FA9271;
