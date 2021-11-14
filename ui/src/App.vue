@@ -119,10 +119,9 @@ body {
 }
 
 #app {
-  margin: auto;
   margin-top: 24px;
-  max-width: 1024px;
 }
+
 .material-icons {
   font-family: 'Material Icons';
   font-weight: normal;

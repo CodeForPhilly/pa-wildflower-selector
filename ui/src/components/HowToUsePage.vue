@@ -273,14 +273,19 @@ export default {
     background-color: #FA9271;
     display: flex;
     flex-direction: column;
+    max-width: 100%;
+  }
+  .tone > * {
+    margin: auto;
+    max-width: 1024px;
   }
   .tone svg {
+    max-width: 100%;
     background-color: #fcf9f4;
   }
   svg.top {
     transform-origin: 50% 50%;
-    /* Slight distortion to prevent fractional lines */
-    transform: scale(-1,-1.1);  
+    transform: scale(-1,-1);  
   }
   .tone svg {
     fill: #FA9271;

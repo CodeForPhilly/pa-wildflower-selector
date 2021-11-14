@@ -23,6 +23,10 @@ export default {
     color: #1D2E26;
     line-height: 2;
   }
+  .page main > * {
+    margin: auto;
+    max-width: 1024px;
+  }
   .page a {
     color: inherit;
     text-decoration: none;
