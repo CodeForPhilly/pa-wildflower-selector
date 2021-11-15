@@ -274,14 +274,17 @@ export default {
     display: flex;
     flex-direction: column;
     max-width: 100%;
+    padding: 0;
   }
   .tone > * {
     margin: auto;
     max-width: 1024px;
+    padding: 0 16px;
   }
   .tone svg {
     max-width: 100%;
     background-color: #fcf9f4;
+    padding: 0;
   }
   svg.top {
     transform-origin: 50% 50%;

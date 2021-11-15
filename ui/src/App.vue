@@ -23,6 +23,11 @@ export default {
       navIsOpen: false
     };
   },
+  watch:{
+    $route () {
+      this.closeNav();
+    }
+  },
   methods: {
     openNav() {
       this.navIsOpen = true;
@@ -116,6 +121,8 @@ html {
 
 body {
   background-color: #fcf9f4;
+  padding: 0;
+  margin: 0;
 }
 
 #app {
@@ -156,7 +163,7 @@ body {
 }
 
 header {
-  padding-bottom: 32px;
+  padding: 0 16px 32px;
   border-bottom: 2px solid #d3d3d3;
 }
 

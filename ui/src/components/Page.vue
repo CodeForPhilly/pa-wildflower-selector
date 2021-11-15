@@ -26,6 +26,7 @@ export default {
   .page main > * {
     margin: auto;
     max-width: 1024px;
+    padding: 0 16px;
   }
   .page a {
     color: inherit;
