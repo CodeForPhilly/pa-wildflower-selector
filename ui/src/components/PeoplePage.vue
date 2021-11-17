@@ -45,7 +45,7 @@
             gardener to support wildlife, especially birds and bees.
           </p>
         </Person>
-        <Person image="cristina-zanoni" alt="Photo of Cristina Zanoni">
+        <Person class="person" image="cristina-zanoni" alt="Photo of Cristina Zanoni">
           <h4>Design - UX/UI</h4>
           <p>
             Cristina Zanoni is a Brazilian UX Designer based in Philadelphia.
@@ -58,7 +58,7 @@
             >.
           </p>
         </Person>
-        <Person image="anne-marie-lloyd" alt="Photo of Anne-Marie Lloyd">
+        <Person class="person" image="anne-marie-lloyd" alt="Photo of Anne-Marie Lloyd">
           <h4>Design - UX/UI</h4>
           <p>
             Anne-Marie Lloyd is a UX Designer with CapTech with a background in
@@ -70,7 +70,7 @@
             <a href="https://annemarielloyd.com">annemarielloyd.com</a>.
           </p>
         </Person>
-        <Person image="roxanne-g" alt="Photo of Roxanne G">
+        <Person class="person" image="roxanne-g" alt="Photo of Roxanne G">
           <h4>Design - UX/UI</h4>
           <p>
             Roxanne G is a full-time UX/UI designer with Assetworks, LLC and a
@@ -81,7 +81,7 @@
             <a href="https://roxanneg.design">roxanneg.design</a>.
           </p>
         </Person>
-        <Person image="tom-boutell" alt="Photo of Tom Boutell">
+        <Person class="person" image="tom-boutell" alt="Photo of Tom Boutell">
           <h4>Development / Code Engineer</h4>
           <p>
             Tom Boutell is the CTO of
@@ -95,7 +95,7 @@
             <a href="https://twitter.com/boutell" target="_blank">Twitter</a>.
           </p>
         </Person>
-        <Person image="ella-heron" alt="Photo of Ella Heron">
+        <Person class="person" image="ella-heron" alt="Photo of Ella Heron">
           <h4>Development / Code Engineer</h4>
           <p>
             Ella Heron is a sound artist, educator, software engineer, and
@@ -174,3 +174,12 @@ export default {
 };
 
 </script>
+
+<style scoped>
+.person {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 8px;
+  flex-direction: column;
+}
+</style>
