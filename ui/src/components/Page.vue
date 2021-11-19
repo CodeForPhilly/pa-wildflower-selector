@@ -28,6 +28,11 @@ export default {
     max-width: 1024px;
     padding: 0 16px;
   }
+  @media screen and (max-width: 799px) {
+    .page main > * {
+      padding: 0;
+    }
+  }
   .page a {
     color: inherit;
     text-decoration: none;
