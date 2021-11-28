@@ -86,9 +86,20 @@ html {
 }
 @font-face {
   font-family: Roboto;
-  font-weight: 700;
+  src: url("/fonts/Roboto-Regular.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: Roboto;
+  font-weight: 300;
+  font-style: normal;
+  src: url("/fonts/Roboto-Light.ttf") format("truetype");
+}
+@font-face {
+  font-family: Roboto;
+  font-weight: 300;
   font-style: italic;
-  src: url("/fonts/Roboto-BoldItalic.ttf") format("truetype");
+  src: url("/fonts/Roboto-LightItalic.ttf") format("truetype");
 }
 
 @font-face {

@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <main>
-      <h1>{{ title }}</h1>
+      <h1>{{ h1 || title }}</h1>
       <slot></slot>
     </main>
   </div>
@@ -10,7 +10,8 @@
 <script>
 export default {
   props: {
-    title: String
+    title: String,
+    h1: String
   }
 };
 </script>
@@ -30,7 +31,7 @@ export default {
   }
   @media screen and (max-width: 799px) {
     .page main > * {
-      padding: 0;
+      padding: 8px;
     }
   }
   .page a {
@@ -43,12 +44,24 @@ export default {
     font-weight: 300;
     font-size: 64px;
   }
+  @media screen and (max-width: 799px) {
+    .page h1 {
+      line-height: 1;
+      font-size: 48px;
+    }
+  }
   .page menu {
+    margin-top: 48px;
     font-size: 32px;
     font-weight: normal;
   }
   .page h3 {
     font-size: 64px;
+  }
+  @media screen and (max-width: 799px) {
+    .page h3 {
+      font-size: 48px;
+    }
   }
   .facing {
     display: flex;
@@ -57,7 +70,18 @@ export default {
     flex-basis: 0;
     flex-grow: 1.0;
   }
+  @media screen and (max-width: 799px) {
+    .facing {
+      display: block;
+    }
+  }
   .page .wave {
     stroke: blue;
+  }
+  p {
+    font-weight: 300;
+  }
+  .page h4 {
+    text-transform: uppercase;
   }
 </style>

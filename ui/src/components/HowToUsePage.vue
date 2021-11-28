@@ -3,7 +3,7 @@
     <p>
       This page provides a lot of information about how to get the most out of
       using this website. If you run into difficulty, please
-      <a href="contact@choosenativeplants.com">reach out</a> to us.
+      <a href="mailto:contact@choosenativeplants.com">reach out</a> to us.
     </p>
     <menu>
       <li><a href="#the-purpose">The purpose</a></li>

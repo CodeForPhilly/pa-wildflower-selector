@@ -23,116 +23,120 @@
       <li><a href="#the-tools">The tools</a></li>
       <li><a href="#the-method">The method</a></li>
     </menu>
-    <article>
-      <div class="facing">
-        <h3 id="the-team">The team</h3>
-        <div>
-          <p>
-            The team consisted of 3 UX Designers fresh from bootcamp/flex programs,
-            a seasoned developer, a new developer, a technical CPA, and a data
-            engineer. So many varied backgrounds and side interests in this bunch.
-            What a great team to work with.
-          </p>
+    <div class="tone">
+      <Wave class="top" />
+      <article>
+        <div class="facing">
+          <h3 id="the-team">The team</h3>
+          <div>
+            <p>
+              The team consisted of 3 UX Designers fresh from bootcamp/flex programs,
+              a seasoned developer, a new developer, a technical CPA, and a data
+              engineer. So many varied backgrounds and side interests in this bunch.
+              What a great team to work with.
+            </p>
+          </div>
         </div>
-      </div>
-      <section class="people-grid">
-        <Person image="zach-leahan" alt="Photo of Zach Leahan">
-          <h4>Project Sponsor &amp; Data Guru</h4>
-          <p>
-            Zach Leahan is a Senior Manager within Product Development at PwC
-            Digital. Zach looks for opportunities to leverage his tech skills
-            outside of work for the common good. Zach is an avid native plant
-            gardener to support wildlife, especially birds and bees.
-          </p>
-        </Person>
-        <Person image="cristina-zanoni" alt="Photo of Cristina Zanoni">
-          <h4>Design - UX/UI</h4>
-          <p>
-            Cristina Zanoni is a Brazilian UX Designer based in Philadelphia.
-            Empathy, curiosity, and inclusion play a significant role in her
-            day-to-day life. She volunteers with @ibelongphilly to increase
-            immigrant visibility. When not working, she loves walking around
-            discovering art hidden around Philly. Reach her at
-            <a href="https://cristinazanoni.com" target="_blank"
-              >cristinazanoni.com</a
-            >.
-          </p>
-        </Person>
-        <Person image="anne-marie-lloyd" alt="Photo of Anne-Marie Lloyd">
-          <h4>Design - UX/UI</h4>
-          <p>
-            Anne-Marie Lloyd is a UX Designer with CapTech with a background in
-            market research. She's an advocate for accessible and ethical
-            product design, and uses her cross-disciplinary knowledge to bring
-            fresh perspectives to her design work. In her free time she enjoys
-            skiing, hiking, and playing with her rescue dog. Drop her a line and
-            check out her work at
-            <a href="https://annemarielloyd.com">annemarielloyd.com</a>.
-          </p>
-        </Person>
-        <Person image="roxanne-g" alt="Photo of Roxanne G">
-          <h4>Design - UX/UI</h4>
-          <p>
-            Roxanne G is a full-time UX/UI designer with Assetworks, LLC and a
-            freelance WordPress website creator who is also an avid gardener,
-            crafter, and mother of 2. Roxanne believes technology should be used
-            for the greater good; to serve humanity and the planet. Check out
-            her work at
-            <a href="https://roxanneg.design">roxanneg.design</a>.
-          </p>
-        </Person>
-        <Person image="tom-boutell" alt="Photo of Tom Boutell">
-          <h4>Development / Code Engineer</h4>
-          <p>
-            Tom Boutell is the CTO of
-            <a href="https://apostrophecms.com" target="_blank"
-              >Apostrophe Technologies</a
-            >. As a longtime developer he enjoys the mentorship aspect of his
-            job most, as well as software architecture and hands-on programming.
-            He's fond of classic video games, matcha lattes and pedaling around
-            Philadelphia. You can drop him a line at
-            <a href="https://boutell.dev" target="_blank">boutell.dev</a> or on
-            <a href="https://twitter.com/boutell" target="_blank">Twitter</a>.
-          </p>
-        </Person>
-        <Person image="ella-heron" alt="Photo of Ella Heron">
-          <h4>Development / Code Engineer</h4>
-          <p>
-            Ella Heron is a sound artist, educator, software engineer, and
-            aspiring agrarian living on occupied Lenapehoking. She wants to
-            cultivate interdependence and put chestnut trees back on Chestnut
-            Street. Check out her work at
-            <a href="https://diaphanous.cloud/">diaphanous.cloud</a>.
-          </p>
-        </Person>
-        <Person image="anthony-hopkins" alt="Photo of Anthony Hopkins">
-          <h4>Data Engineer</h4>
-          <p>
-            Anthony Hopkins is a budding data engineer/scientist and amateur baker. When he
-            isn't trying out a new recipe for scones or muffins, he's building his knowledge
-            of data. Anthony is particularly interested in data justice and the growing
-            conversations around biases in data algorithms.
-          </p>
-        </Person>
-      </section>
-    </article>
-    <article>
-      <h3 id="the-tools">The tools</h3>
-      <p>
-        Here is a short list of the tools used to keep us organized and get
-        things going.
-      </p>
-      <ul>
-        <li>Notion</li>
-        <li>Figma</li>
-        <li>Slack</li>
-        <li>Maze</li>
-        <li>Github</li>
-        <li>Javascript</li>
-        <li>Vue</li>
-        <li>MongoDB</li>
-      </ul>
-    </article>
+        <section class="people-grid">
+          <Person image="zach-leahan" alt="Photo of Zach Leahan">
+            <h4>Project Sponsor &amp; Data Guru</h4>
+            <p>
+              Zach Leahan is a Senior Manager within Product Development at PwC
+              Digital. Zach looks for opportunities to leverage his tech skills
+              outside of work for the common good. Zach is an avid native plant
+              gardener to support wildlife, especially birds and bees.
+            </p>
+          </Person>
+          <Person image="cristina-zanoni" alt="Photo of Cristina Zanoni">
+            <h4>Design - UX/UI</h4>
+            <p>
+              Cristina Zanoni is a Brazilian UX Designer based in Philadelphia.
+              Empathy, curiosity, and inclusion play a significant role in her
+              day-to-day life. She volunteers with @ibelongphilly to increase
+              immigrant visibility. When not working, she loves walking around
+              discovering art hidden around Philly. Reach her at
+              <a href="https://cristinazanoni.com" target="_blank"
+                >cristinazanoni.com</a
+              >.
+            </p>
+          </Person>
+          <Person image="anne-marie-lloyd" alt="Photo of Anne-Marie Lloyd">
+            <h4>Design - UX/UI</h4>
+            <p>
+              Anne-Marie Lloyd is a UX Designer with CapTech with a background in
+              market research. She's an advocate for accessible and ethical
+              product design, and uses her cross-disciplinary knowledge to bring
+              fresh perspectives to her design work. In her free time she enjoys
+              skiing, hiking, and playing with her rescue dog. Drop her a line and
+              check out her work at
+              <a href="https://annemarielloyd.com">annemarielloyd.com</a>.
+            </p>
+          </Person>
+          <Person image="roxanne-g" alt="Photo of Roxanne G">
+            <h4>Design - UX/UI</h4>
+            <p>
+              Roxanne G is a full-time UX/UI designer with Assetworks, LLC and a
+              freelance WordPress website creator who is also an avid gardener,
+              crafter, and mother of 2. Roxanne believes technology should be used
+              for the greater good; to serve humanity and the planet. Check out
+              her work at
+              <a href="https://roxanneg.design">roxanneg.design</a>.
+            </p>
+          </Person>
+          <Person image="tom-boutell" alt="Photo of Tom Boutell">
+            <h4>Development / Code Engineer</h4>
+            <p>
+              Tom Boutell is the CTO of
+              <a href="https://apostrophecms.com" target="_blank"
+                >Apostrophe Technologies</a
+              >. As a longtime developer he enjoys the mentorship aspect of his
+              job most, as well as software architecture and hands-on programming.
+              He's fond of classic video games, matcha lattes and pedaling around
+              Philadelphia. You can drop him a line at
+              <a href="https://boutell.dev" target="_blank">boutell.dev</a> or on
+              <a href="https://twitter.com/boutell" target="_blank">Twitter</a>.
+            </p>
+          </Person>
+          <Person image="ella-heron" alt="Photo of Ella Heron">
+            <h4>Development / Code Engineer</h4>
+            <p>
+              Ella Heron is a sound artist, educator, software engineer, and
+              aspiring agrarian living on occupied Lenapehoking. She wants to
+              cultivate interdependence and put chestnut trees back on Chestnut
+              Street. Check out her work at
+              <a href="https://diaphanous.cloud/">diaphanous.cloud</a>.
+            </p>
+          </Person>
+          <Person image="anthony-hopkins" alt="Photo of Anthony Hopkins">
+            <h4>Data Engineer</h4>
+            <p>
+              Anthony Hopkins is a budding data engineer/scientist and amateur baker. When he
+              isn't trying out a new recipe for scones or muffins, he's building his knowledge
+              of data. Anthony is particularly interested in data justice and the growing
+              conversations around biases in data algorithms.
+            </p>
+          </Person>
+        </section>
+      </article>
+      <article>
+        <h3 id="the-tools">The tools</h3>
+        <p>
+          Here is a short list of the tools used to keep us organized and get
+          things going.
+        </p>
+        <ul>
+          <li>Notion</li>
+          <li>Figma</li>
+          <li>Slack</li>
+          <li>Maze</li>
+          <li>Github</li>
+          <li>Javascript</li>
+          <li>Vue</li>
+          <li>MongoDB</li>
+        </ul>
+      </article>
+      <Wave />
+    </div>
     <article>
       <div class="facing">
         <h3 id="the-method">The method</h3>
@@ -168,17 +172,21 @@
         </ul>
       </div>
     </article>
+    <div class="tone">
+      <Wave class="top" />
+    </div>
   </Page>
 </template>
 
 <script>
 import Page from './Page.vue';
 import Person from './Person.vue';
+import Wave from './Wave.vue';
 
 export default {
   name: 'PeoplePage',
   components: {
-    Page, Person
+    Page, Person, Wave
   }
 };
 
@@ -190,5 +198,31 @@ export default {
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 8px;
   flex-direction: column;
+}
+.tone {
+  background-color: #B74D15;
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  padding: 0;
+  color: white;
+}
+.tone > * {
+  margin: auto;
+  max-width: 1024px;
+  padding: 0 16px;
+}
+.tone svg {
+  max-width: 100%;
+  background-color: #fcf9f4;
+  padding: 0;
+}
+svg.top {
+  transform-origin: 50% 50%;
+  transform: scale(-1,-1);
+  overflow: visible;
+}
+.tone svg {
+  fill: #B74D15;
 }
 </style>
