@@ -214,6 +214,8 @@ header {
   color: #54595f;
   text-transform: uppercase;
   text-decoration: none;
+  /* Match background to take up same space as on hover */
+  border-bottom: 3px solid #fcf9f4;
 }
 
 .router-button {
