@@ -207,7 +207,7 @@ header {
 .main-nav menu {
   display: flex;
   margin: 0;
-  padding: 0;
+  padding-right: 16px;
 }
 
 .main-nav menu {
@@ -220,7 +220,6 @@ header {
   padding: 34px 18px;
   margin: 2px;
   color: #54595f;
-  text-transform: uppercase;
   text-decoration: none;
   /* Match background to take up same space as on hover */
   border-bottom: 3px solid #fcf9f4;
@@ -272,6 +271,7 @@ header {
     top: 96px;
     background-color: #fcf9f4;
     width: 100%;
+    padding: 0;
   }
   .main-nav.mobile-visible menu a {
     display: block;
