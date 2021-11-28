@@ -2,9 +2,11 @@
   <div>
     <header>
       <nav :class="{ 'main-nav': true, 'mobile-visible': navIsOpen }">
-        <router-link class="logo-parent" to="/"><img class="logo" src="/assets/images/logo.png" alt="Choose Native Plants PA" /></router-link>
-        <button @click="openNav" class="material-icons router-button open-nav">menu</button>
-        <button @click="closeNav" class="material-icons router-button close-nav">close</button>
+        <div class="custom-nav">
+          <router-link class="logo-parent" to="/"><img class="logo" src="/assets/images/logo.png" alt="Choose Native Plants PA" /></router-link>
+          <button @click="openNav" class="material-icons router-button open-nav">menu</button>
+          <button @click="closeNav" class="material-icons router-button close-nav">close</button>
+        </div>
         <menu>
           <router-link to="/people-page">People Page</router-link>
           <router-link to="/how-to-use">How to Use</router-link>
@@ -174,13 +176,20 @@ body {
 }
 
 header {
-  padding: 0 16px 32px;
+  padding-bottom: 32px;
   border-bottom: 2px solid #d3d3d3;
 }
 
 .main-nav {
   display: flex;
   justify-content: space-between;
+}
+
+.custom-nav {
+  padding: 0 16px;
+  display: flex;
+  justify-content: space-between;
+  flex-grow: 1.0;
 }
 
 .logo-parent {
@@ -202,10 +211,9 @@ header {
 }
 
 .main-nav menu {
-  font-family: "Lato", "Sans-Serif";
+  font-family: Roboto;
   font-weight: 400;
-  letter-spacing: 2.4px;
-  font-size: 14px;
+  font-size: 20px;
 }
 
 .main-nav menu a {
@@ -268,9 +276,13 @@ header {
   .main-nav.mobile-visible menu a {
     display: block;
     margin: 0;
-    padding: 8px;
+    padding: 16px;
+    font-size: 16px;
     background-color: #fcf9f4;
     border-bottom: none;
+    text-transform: none;
+    text-align: center;
+    border-bottom: 1px solid #aaa;
   }
   .main-nav.mobile-visible a.router-link-exact-active {
     border-bottom: none;
