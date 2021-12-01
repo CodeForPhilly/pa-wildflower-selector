@@ -1,10 +1,8 @@
 <template>
   <div>
-    <header>
-      <h1>Choose Native Plants PA</h1>
-    </header>
-    <main>
-      <div v-if="!filtersOpen">
+    <h1>Choose Native Plants PA</h1>
+    <main :class="{ 'filters-open': filtersOpen }">
+      <div class="filter-toggle-and-sort">
         <button class="primary primary-bar" @click=openFilters>Filter</button>
         <div class="chips" v-if="activeFilters.length">
           <button class="chip" v-for="chip in chips" v-bind:key="chip.key" @click="removeChip(chip)">
@@ -23,7 +21,7 @@
           </menu>
         </div>
       </div>
-      <form v-if="filtersOpen" class="filters" id="form" @submit.prevent="submit">
+      <form class="filters" id="form" @submit.prevent="submit">
         <div class="controls">
           <input v-model="q" id="q" type="search" class="search" placeholder="🔎" />
           <button class="primary primary-bar" type="submit">Apply</button>
@@ -436,12 +434,14 @@ button.text {
 .primary-bar {
   display: block;
   width: 100%;
+  max-width: 350px;
+  margin: auto;
   margin-bottom: 11px;
 }
 
 .sort {
-  /* Shrinkwrap the contents */
-  display: inline-block;
+  max-width: 350px;
+  margin: auto;
 }
 
 .list-button {
@@ -513,8 +513,9 @@ menu li:hover {
 h1 {
   font-family: Arvo;
   font-weight: 400;
-  font-size: 20px;
-  text-align: center; 
+  font-size: 32px;
+  text-align: center;
+  margin-bottom: 2em;
 }
 
 .color-example {
@@ -610,7 +611,6 @@ td, th {
   justify-content: space-between;
 }
 .filters {
-  display: flex;
   flex-direction: column;
   max-width: 350px;
   margin: auto;
@@ -673,6 +673,15 @@ td, th {
   transform: translateY(-0.3em);
   margin-left: 8px;
   user-select: none;
+}
+.filters {
+  display: none;
+}
+.filters-open .filter-toggle-and-sort {
+  display: none;
+}
+.filters-open .filters {
+  display: flex;
 }
 @media all and (max-width: 480px) {
   #app {
