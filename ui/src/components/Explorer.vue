@@ -625,7 +625,7 @@ td, th {
   border-top: none;
   border-radius: 0 0 8px 8px;
   color: #B74D15;
-  padding: 4px 16px 8px;
+  padding: 8px 16px;
   display: flex;
   justify-content: space-between;
 }
