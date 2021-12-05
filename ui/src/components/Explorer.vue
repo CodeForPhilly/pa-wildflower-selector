@@ -57,8 +57,8 @@
           <h4 class="common-name">{{ result['Common Name'] }}</h4>
           <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
           <div class="plant-controls">
-            <button class="text"><span class="material-icons material-align">info</span> More Info</button>
-            <button class="text"><span class="material-icons material-align">favorite</span></button>
+            <button class="text"><span class="material-icons material-align">info_outline</span> More Info</button>
+            <button class="text"><span class="material-icons material-align">favorite_outline</span></button>
           </div>
         </article>
       </article>
