@@ -98,11 +98,18 @@ export default {
     max-width: 1024px;
     padding: 0 16px;
   }
-  .tone > .wave {
-    object-fit: cover;
-    display: block;
-    padding: 0;
-    max-width: 100%;
+  .tone > .carrier-wave {
+    display: flex;
     width: 100%;
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    max-width: 100%;
+  }
+  @media screen and (max-width: 799px) {
+    .tone > .carrier-wave .wave {
+      width: 200%;
+    }
   }
 </style>

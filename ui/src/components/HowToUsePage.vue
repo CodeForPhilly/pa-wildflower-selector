@@ -12,7 +12,9 @@
       <li><a href="#the-terms">The terms</a></li>
     </menu>
     <div class="tone light">
-      <img src="/assets/images/wave-top-light.png" class="wave" />
+      <div class="carrier-wave">
+        <img src="/assets/images/wave-top-light.png" class="wave" />
+      </div>
       <article>
         <div class="facing">
           <h3 id="the-purpose">The purpose</h3>
@@ -201,7 +203,9 @@
           </li>
         </ul>
       </article>
-      <img src="/assets/images/wave-bottom-light.png" class="wave" />
+      <div class="carrier-wave">
+        <img src="/assets/images/wave-bottom-light.png" class="wave" />
+      </div>
     </div>
     <article>
       <h3 id="the-terms">The terms</h3>
@@ -251,6 +255,11 @@
       </p>
       <p>Copyright 2021 ChooseNativePlants.com</p>
     </article>
+    <div class="tone">
+      <div class="carrier-wave">
+        <img src="/assets/images/wave-top-light.png" class="wave" />
+      </div>
+    </div>
   </Page>
 </template>
 

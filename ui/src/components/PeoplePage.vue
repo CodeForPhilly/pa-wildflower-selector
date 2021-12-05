@@ -24,7 +24,9 @@
       <li><a href="#the-method">The method</a></li>
     </menu>
     <div class="tone">
-      <img src="/assets/images/wave-top-dark.png" class="wave" />
+      <div class="carrier-wave">
+        <img src="/assets/images/wave-top-dark.png" class="wave" />
+      </div>
       <article>
         <div class="facing">
           <h3 id="the-team">The team</h3>
@@ -135,7 +137,9 @@
           <li>MongoDB</li>
         </ul>
       </article>
-      <img src="/assets/images/wave-bottom-dark.png" class="wave" />
+      <div class="carrier-wave">
+        <img src="/assets/images/wave-bottom-dark.png" class="wave" />
+      </div>
     </div>
     <article>
       <div class="facing">
@@ -173,7 +177,9 @@
       </div>
     </article>
     <div class="tone">
-      <img src="/assets/images/wave-top-dark.png" class="wave" />
+      <div class="carrier-wave">
+        <img src="/assets/images/wave-top-dark.png" class="wave" />
+      </div>
     </div>
   </Page>
 </template>
