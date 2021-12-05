@@ -56,9 +56,11 @@
           <img class="photo" :src="imageUrl(result)" />
           <h4 class="common-name">{{ result['Common Name'] }}</h4>
           <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
-          <div class="plant-controls">
-            <button class="text"><span class="material-icons material-align">info_outline</span> More Info</button>
-            <button class="text"><span class="material-icons material-align">favorite_outline</span></button>
+          <div class="plant-controls-wrapper">
+            <div class="plant-controls">
+              <button class="text"><span class="material-icons material-align">info_outline</span> More Info</button>
+              <button class="text"><span class="material-icons material-align">favorite_outline</span></button>
+            </div>
           </div>
         </article>
       </article>
@@ -618,16 +620,27 @@ td, th {
   font-family: Roboto;
   color: white;
 }
+.plant-controls-wrapper {
+  position: absolute;
+  width: 100%;
+  bottom: 0px;
+  background-color: white;
+}
 .plant-controls {
+  width: 100%;
   font-family: Lato;
   font-size: 14px;
   border: 1px solid #B74D15;
   border-top: none;
   border-radius: 0 0 8px 8px;
   color: #B74D15;
-  padding: 8px 16px;
+  padding: 8px 8px 2px;
   display: flex;
   justify-content: space-between;
+}
+.plant-controls .text {
+  margin: 0;
+  letter-spacing: 0.1em;
 }
 .filters {
   flex-direction: column;

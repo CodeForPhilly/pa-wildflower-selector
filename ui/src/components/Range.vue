@@ -1,6 +1,6 @@
 <template>
   <div class="range">
-    <div class="controls" ref="controls">
+    <div class="range-controls" ref="controls">
       <span class="between" :style="betweenStyle()"></span>
       <span v-if="double" class="end min" :style="style('min')" tabindex="0" @keydown.left="nudge('min', -1)" @keydown.right="nudge('min', 1)" @pointerdown="down('min', $event)" @pointermove="move('min', $event)" @pointerup="up('min', $event)"></span>
       <span class="end max" :style="style('max')" tabindex="0" @keydown.left="nudge('max', -1)" @keydown.right="nudge('max', 1)" @pointerdown="down('max', $event)" @pointermove="move('max', $event)" @pointerup="up('max', $event)"></span>
@@ -177,8 +177,10 @@ export default {
   .range {
     width: 100%;
     display: block;
+    /* So we can drag the ranges */
+    touch-action: none;
   }
-  .controls {
+  .range-controls {
     position: relative;
     height: 2em;
     margin: auto;
@@ -187,7 +189,7 @@ export default {
     transform: translate(0, 24px);
     width: calc(100% - 2em);
   }
-  .controls .end {
+  .range-controls .end {
     position: absolute;
     width: 48px;
     height: 48px;
@@ -197,7 +199,7 @@ export default {
     transform: translate(-50%, -50%);
     box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);    
   }
-  .controls .between {
+  .range-controls .between {
     position: absolute;
     border-radius: 0.5em;
     border: 1px solid #aaa;
