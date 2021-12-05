@@ -24,7 +24,7 @@
       <li><a href="#the-method">The method</a></li>
     </menu>
     <div class="tone">
-      <Wave class="top" />
+      <img src="/assets/images/wave-top-dark.png" class="wave" />
       <article>
         <div class="facing">
           <h3 id="the-team">The team</h3>
@@ -135,7 +135,7 @@
           <li>MongoDB</li>
         </ul>
       </article>
-      <Wave />
+      <img src="/assets/images/wave-bottom-dark.png" class="wave" />
     </div>
     <article>
       <div class="facing">
@@ -173,7 +173,7 @@
       </div>
     </article>
     <div class="tone">
-      <Wave class="top" />
+      <img src="/assets/images/wave-top-dark.png" class="wave" />
     </div>
   </Page>
 </template>
@@ -181,12 +181,11 @@
 <script>
 import Page from './Page.vue';
 import Person from './Person.vue';
-import Wave from './Wave.vue';
 
 export default {
   name: 'PeoplePage',
   components: {
-    Page, Person, Wave
+    Page, Person
   }
 };
 
@@ -198,31 +197,5 @@ export default {
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 8px;
   flex-direction: column;
-}
-.tone {
-  background-color: #B74D15;
-  display: flex;
-  flex-direction: column;
-  max-width: 100%;
-  padding: 0;
-  color: white;
-}
-.tone > * {
-  margin: auto;
-  max-width: 1024px;
-  padding: 0 16px;
-}
-.tone svg {
-  max-width: 100%;
-  background-color: #fcf9f4;
-  padding: 0;
-}
-svg.top {
-  transform-origin: 50% 50%;
-  transform: scale(-1,-1);
-  overflow: visible;
-}
-.tone svg {
-  fill: #B74D15;
 }
 </style>

@@ -75,13 +75,34 @@ export default {
       display: block;
     }
   }
-  .page .wave {
-    stroke: blue;
-  }
   p {
     font-weight: 300;
   }
   .page h4 {
     text-transform: uppercase;
+  }
+  .page main > .tone {
+    background-color: #B74D15;
+    display: flex;
+    flex-direction: column;
+    max-width: 100%;
+    padding: 0;
+    color: white;
+  }
+  .page main > .tone.light {
+    background-color: #FA9271;
+    color: #1D2E26;
+  }
+  .tone > * {
+    margin: auto;
+    max-width: 1024px;
+    padding: 0 16px;
+  }
+  .tone > .wave {
+    object-fit: cover;
+    display: block;
+    padding: 0;
+    max-width: 100%;
+    width: 100%;
   }
 </style>

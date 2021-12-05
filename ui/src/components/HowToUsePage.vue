@@ -11,8 +11,8 @@
       <li><a href="#the-directions">The directions</a></li>
       <li><a href="#the-terms">The terms</a></li>
     </menu>
-    <div class="tone">
-      <Wave class="top" />
+    <div class="tone light">
+      <img src="/assets/images/wave-top-light.png" class="wave" />
       <article>
         <div class="facing">
           <h3 id="the-purpose">The purpose</h3>
@@ -201,7 +201,7 @@
           </li>
         </ul>
       </article>
-      <Wave />
+      <img src="/assets/images/wave-bottom-light.png" class="wave" />
     </div>
     <article>
       <h3 id="the-terms">The terms</h3>
@@ -256,42 +256,12 @@
 
 <script>
 import Page from './Page.vue';
-import Wave from './Wave.vue';
 
 export default {
   name: 'HowToUsePage',
   components: {
-    Page,
-    Wave
+    Page
   }
 };
 
 </script>
-
-<style scoped>
-  .tone {
-    background-color: #FA9271;
-    display: flex;
-    flex-direction: column;
-    max-width: 100%;
-    padding: 0;
-  }
-  .tone > * {
-    margin: auto;
-    max-width: 1024px;
-    padding: 0 16px;
-  }
-  .tone svg {
-    max-width: 100%;
-    background-color: #fcf9f4;
-    padding: 0;
-  }
-  svg.top {
-    transform-origin: 50% 50%;
-    transform: scale(-1,-1);
-    overflow: visible;
-  }
-  .tone svg {
-    fill: #FA9271;
-  }
-</style>
