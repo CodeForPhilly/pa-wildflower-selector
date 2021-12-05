@@ -2,52 +2,55 @@
   <div>
     <h1>Choose Native Plants PA</h1>
     <main :class="{ 'filters-open': filtersOpen }">
-      <div class="filter-toggle-and-sort">
-        <button class="primary primary-bar" @click=openFilters>Filter</button>
-        <div class="chips" v-if="activeFilters.length">
-          <button class="chip" v-for="chip in chips" v-bind:key="chip.key" @click="removeChip(chip)">
-            {{ chip.label }} <span class="material-icons">close</span>
-          </button>
-          <button class="text clear" @click="removeAll">Clear all</button>
+      <div class="controls">
+        <div class="filter-toggle-and-sort">
+          <button class="primary primary-bar filter" @click=openFilters>Filter</button>
+          <div class="chips" v-if="activeFilters.length">
+            <button class="chip" v-for="chip in chips" v-bind:key="chip.key" @click="removeChip(chip)">
+              {{ chip.label }} <span class="material-icons">close</span>
+            </button>
+            <button class="text clear" @click="removeAll">Clear all</button>
+          </div>
+          <div class="sort">
+            <button @click="toggleSort" class="list-button">
+              <span class="label">Sort By</span>
+              <span class="value">{{ sortLabel(sort) }}</span>
+              <span class="material-icons">{{ sortOpen ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
+            </button>
+            <menu :style="{ visibility: sortOpen ? 'visible' : 'hidden' }" class="list-menu">
+              <li v-for="sort in sorts" v-bind:key="sort.value" @click="setSort(sort)" @keydown.enter="setSort(sort)" tabindex="0">{{ sort.label }}</li>
+            </menu>
+          </div>
         </div>
-        <div class="sort">
-          <button @click="toggleSort" class="list-button">
-            <span class="label">Sort By</span>
-            <span class="value">{{ sortLabel(sort) }}</span>
-            <span class="material-icons">{{ sortOpen ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
-          </button>
-          <menu :style="{ visibility: sortOpen ? 'visible' : 'hidden' }" class="list-menu">
-            <li v-for="sort in sorts" v-bind:key="sort.value" @click="setSort(sort)" @keydown.enter="setSort(sort)" tabindex="0">{{ sort.label }}</li>
-          </menu>
-        </div>
+        <form class="filters" id="form" @submit.prevent="submit">
+          <div class="inner-controls">
+            <input v-model="q" id="q" type="search" class="search" placeholder="🔎" />
+            <button class="primary primary-bar apply" type="submit">Apply</button>
+            <button class="primary primary-bar search-submit" type="submit">Search</button>
+          </div>
+          <fieldset v-for="filter in filters" :key="filter.name" :class="filterClass(filter)">
+            <h3 @click="toggleFilter(filter)">
+              {{ filter.label || filter.name }}
+              <span class="material-icons">{{ filterIsOpen[filter.name] ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
+            </h3>
+            <template v-if="filterIsOpen[filter.name]">
+              <template v-if="filter.range">
+                <Range :double="filter.double" :exponent="filter.exponent" :choices="filter.choices" :min="filter.min" :max="filter.max" v-model="filterValues[filter.name]" />
+              </template>
+              <template v-else>
+                <label v-for="choice in filter.choices" :key="choice">
+                  <span class="filter-contents">
+                    <Checkbox :disabled="!filterCounts[filter.name][choice]" v-model="filterValues[filter.name]" :value="choice" />
+                    <span class="text">{{ choice }} ({{ filterCounts[filter.name][choice] || 0 }})</span>
+                  </span>
+                  <span v-if="filter.color" :style="flowerColorStyle(choice)" class="color-example" />
+                </label>
+              </template>
+            </template>
+          </fieldset>
+        </form>
+        <h4>Total matches: {{ total }}</h4>
       </div>
-      <form class="filters" id="form" @submit.prevent="submit">
-        <div class="controls">
-          <input v-model="q" id="q" type="search" class="search" placeholder="🔎" />
-          <button class="primary primary-bar" type="submit">Apply</button>
-        </div>
-        <fieldset v-for="filter in filters" :key="filter.name" :class="filterClass(filter)">
-          <h3 @click="toggleFilter(filter)">
-            {{ filter.label || filter.name }}
-            <span class="material-icons">{{ filterIsOpen[filter.name] ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
-          </h3>
-          <template v-if="filterIsOpen[filter.name]">
-            <template v-if="filter.range">
-              <Range :double="filter.double" :exponent="filter.exponent" :choices="filter.choices" :min="filter.min" :max="filter.max" v-model="filterValues[filter.name]" />
-            </template>
-            <template v-else>
-              <label v-for="choice in filter.choices" :key="choice">
-                <span class="filter-contents">
-                  <Checkbox :disabled="!filterCounts[filter.name][choice]" v-model="filterValues[filter.name]" :value="choice" />
-                  <span class="text">{{ choice }} ({{ filterCounts[filter.name][choice] || 0 }})</span>
-                </span>
-                <span v-if="filter.color" :style="flowerColorStyle(choice)" class="color-example" />
-              </label>
-            </template>
-          </template>
-        </fieldset>
-      </form>
-      <h4>Total matches: {{ total }}</h4>
       <article class="plants">
         <article v-for="result in results" :key="result._id" class="plant-preview">
           <img class="photo" :src="imageUrl(result)" />
@@ -75,8 +78,8 @@
         </tr>
       </table>
 -->
-    <div ref="next"></div>
     </main>
+    <div ref="next"></div>
   </div>
 </template>
 
@@ -399,7 +402,7 @@ export default {
   padding: 32px;
 }
 
-.controls {
+.inner-controls {
   position: sticky;
   z-index: 100;
   /* Sticky offset */
@@ -695,6 +698,60 @@ td, th {
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 8px;
     flex-direction: column;
+  }
+}
+.search-submit {
+  /* Mobile and medium use all in one apply button */
+  display: none;
+}
+@media all and (min-width: 1024px) {
+  main {
+    display: flex;
+    justify-content: space-between;
+    gap: 32px;
+    padding: 0 16px;
+  }
+  .apply {
+    display: none;
+  }
+  .search-submit {
+    /* At large size this button is just for the search field
+      (in appearance — does the same darn thing but there's
+      autosubmit at this size too) */
+    display: block;
+    margin-bottom: 24px;
+  }
+  main .controls {
+    width: 320px;
+  }
+  .inner-controls {
+    position: static;
+    z-index: auto;
+    top: auto;
+  }
+  main .plants {
+    flex-grow: 1.0;
+    gap: 32px;
+  }
+  .filter {
+    display: none;
+  }
+  .filter-toggle-and-sort {
+    padding: 0 0 24px;
+  }
+  .filters-open .filter-toggle-and-sort {
+    display: block;
+  }
+  .filters {
+    display: flex;
+  }
+  .search {
+    margin-bottom: 24px;
+    font-size: 16px;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid rgb(118, 118, 118);
+    height: auto;
   }
 }
 
