@@ -264,8 +264,6 @@ export default {
     }
   },
   mounted() {
-    const observer = new IntersectionObserver(this.loadMoreIfNeeded);
-    observer.observe(this.$refs.next);
     this.submit();
   },
   methods: {
@@ -275,12 +273,17 @@ export default {
     openFilters() {
       this.filtersOpen = true;
     },
-    async submit() {
+    submit() {
+      if (this.loading) {
+        // Prevent race condition
+        setTimeout(this.submit, 500);
+        return;
+      }
       this.page = 1;
       this.loadedAll = false;
       this.results = [];
       this.total = 0;
-      await this.fetchPage();
+      this.restartLoadMoreIfNeeded();
       this.filtersOpen = false;
     },
     async updateCounts() {
@@ -341,15 +344,20 @@ export default {
         this.initializing = false;
       }
       this.loading = false;
-      // In case one page doesn't fill the screen
-      setTimeout(this.loadMoreIfNeeded, 500);
     },
-    async loadMoreIfNeeded() {
-      // Stay a full screen ahead
-      if (!this.loadedAll && !this.loading && (window.scrollY + window.innerHeight * 2 > document.body.clientHeight)) {
-        // this.$refs.afterTable.getBoundingClientRect().top)) {
-        this.page++;
-        await this.fetchPage();
+    async restartLoadMoreIfNeeded() {
+      if (this.loadTimeout) {
+        clearTimeout(this.loadTimeout);
+      }
+      this.loadTimeout = setTimeout(loadMoreIfNeeded.bind(this), 500);
+      async function loadMoreIfNeeded() {
+        // Stay a full screen ahead
+        if (!this.loadedAll && !this.loading && (window.scrollY + window.innerHeight * 3 > document.body.clientHeight)) {
+          // this.$refs.afterTable.getBoundingClientRect().top)) {
+          this.page++;
+          await this.fetchPage();
+        }
+        this.loadTimeout = setTimeout(loadMoreIfNeeded.bind(this), 500);
       }
     },
     removeChip(chip) {
