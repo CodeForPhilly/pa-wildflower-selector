@@ -1,5 +1,5 @@
 <template>
-  <span tabIndex="-1" :class="classes" @click="onClick" />
+  <button tabIndex="0" :class="classes" @click.prevent="onClick" />
 </template>
 
 <script>
@@ -31,13 +31,11 @@ export default {
   },
   methods: {
     onClick() {
-      console.log(this.modelValue);
       const newValue = this.modelValue.filter(value => value !== this.value);
       if (!this.modelValue.includes(this.value)) {
         newValue.push(this.value);
       }
       this.$emit('update:modelValue', newValue);
-      console.log(JSON.stringify(newValue));
     }
   }
 };
@@ -54,6 +52,8 @@ export default {
     height: 24px;
     border: 1px solid black;
     cursor: pointer;
+    border-radius: 0;
+    padding: 0;
   }
   .checkbox.checked {
     background-color: black;

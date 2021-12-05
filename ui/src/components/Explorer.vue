@@ -29,10 +29,10 @@
             <button class="primary primary-bar search-submit" type="submit">Search</button>
           </div>
           <fieldset v-for="filter in filters" :key="filter.name" :class="filterClass(filter)">
-            <h3 @click="toggleFilter(filter)">
+            <button class="fieldset-toggle" @click.prevent="toggleFilter(filter)">
               {{ filter.label || filter.name }}
               <span class="material-icons">{{ filterIsOpen[filter.name] ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
-            </h3>
+            </button>
             <template v-if="filterIsOpen[filter.name]">
               <template v-if="filter.range">
                 <Range :double="filter.double" :exponent="filter.exponent" :choices="filter.choices" :min="filter.min" :max="filter.max" v-model="filterValues[filter.name]" />
@@ -254,7 +254,11 @@ export default {
     },
     filterValues: {
       handler() {
-        this.updateCounts();
+        if (this.isDesktop()) {
+          this.submit();
+        } else {
+          this.updateCounts();
+        }
       },
       deep: true
     }
@@ -387,6 +391,10 @@ export default {
       return {
         'background-color': choice
       };
+    },
+    isDesktop() {
+      // Must match CSS media query below
+      return window.innerWidth >= 1024;
     }
   }
 }
@@ -643,7 +651,7 @@ td, th {
   background-color: white;
 }
 
-.filters fieldset h3 {
+.filters fieldset .fieldset-toggle {
   font-size: 18px;
   display: flex;
   flex-direction: row;
@@ -652,8 +660,13 @@ td, th {
   margin: 0;
   letter-spacing: 0.1em;
   font-weight: normal;
+  background-color: inherit;
+  color: inherit;
+  border: none;
+  border-radius: 0;
+  padding: 0;
 }
-.filters fieldset.active h3 {
+.filters fieldset.active .fieldset-toggle {
   color: #1D2E26;
   font-weight: bold;
   margin-bottom: 24px;
@@ -750,7 +763,7 @@ td, th {
     font-size: 16px;
     padding: 16px;
     border-radius: 8px;
-    border: 1px solid rgb(118, 118, 118);
+    border: 1px solid black;
     height: auto;
   }
 }
