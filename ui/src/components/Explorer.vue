@@ -52,17 +52,22 @@
         <h4>Total matches: {{ total }}</h4>
       </div>
       <article class="plants">
-        <article v-for="result in results" :key="result._id" class="plant-preview">
-          <img class="photo" :src="imageUrl(result)" />
-          <h4 class="common-name">{{ result['Common Name'] }}</h4>
-          <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
-          <div class="plant-controls-wrapper">
-            <div class="plant-controls">
-              <button class="text"><span class="material-icons material-align">info_outline</span> More Info</button>
-              <button class="text"><span class="material-icons material-align">favorite_outline</span></button>
+        <article v-for="result in results" :key="result._id" class="plant-preview-wrapper">
+          <div class="plant-preview">
+            <img class="photo" :src="imageUrl(result)" />
+            <h4 class="common-name">{{ result['Common Name'] }}</h4>
+            <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
+            <div class="plant-controls-wrapper">
+              <div class="plant-controls">
+                <button class="text"><span class="material-icons material-align">info_outline</span> More Info</button>
+                <button class="text"><span class="material-icons material-align">favorite_outline</span></button>
+              </div>
             </div>
           </div>
         </article>
+        <!-- Placeholders to ensure minimum number of cells so the grid does not
+          provide huge plant previews when there are only 3 plants on desktop -->
+        <article v-for="extra in extras" :key="extra.id" class="extra"></article>
       </article>
 <!--        
       <table>
@@ -206,6 +211,16 @@ export default {
     };
   },
   computed: {
+    extras() {
+      const min = Math.floor((window.innerWidth - 300) / 200);
+      console.log(min);
+      let extras = [];
+      for (let i = 0; (i <= min); i++) {
+        extras.push({ _id: i });
+      }
+      console.log(JSON.stringify(extras));
+      return extras;
+    },
     chips() {
       const chips = [];
       for (const filter of this.activeFilters) {
@@ -281,12 +296,20 @@ export default {
         setTimeout(this.submit, 500);
         return;
       }
-      this.page = 1;
-      this.loadedAll = false;
-      this.results = [];
-      this.total = 0;
-      this.restartLoadMoreIfNeeded();
-      this.filtersOpen = false;
+      if (this.submitTimeout) {
+        clearTimeout(this.submitTimeout);
+        this.submitTimeout = null;
+      }
+      this.submitTimeout = setTimeout(submit.bind(this), 250);
+      function submit() {
+        this.page = 0;
+        this.loadedAll = false;
+        this.results = [];
+        this.total = 0;
+        this.restartLoadMoreIfNeeded();
+        this.filtersOpen = false;
+        this.submitTimeout = null;
+      }
     },
     async updateCounts() {
       // Debounce so we don't refresh like mad when dragging a range end
@@ -586,6 +609,9 @@ td, th {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 8px;
   flex-direction: column;
+}
+.plant-preview-wrapper {
+  position: relative;
 }
 .plant-preview {
   position: relative;
