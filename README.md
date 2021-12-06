@@ -4,22 +4,23 @@
 
 First install the imagemagick command line utilities and MongoDB community edition on your machine, including the MongoDB command line utilities.
 
-Then you can install the npm dependencies:
+Then you can install the npm dependencies at the server app and ui app levels:
 
 ```
 npm install
+cd ui
+npm install
+cd ..
 ```
 
 ## First time and occasional stuff
 
 ### Download a copy of the database
 
-By far the fastest way is if I just upload a zipfile of the MongoDB database and a zipfile of the media. So I'll do that on Slack, pin those files, and you can load them locally this way:
+Run:
 
 ```
-mongorestore --gzip --archive=pa-wildflower-selector.gz
-cd pa-wildflower-selector
-tar -zxf pa-wildflower-selector-media.tar.gz
+npm restore-test-data
 ```
 
 You can also rebuild it from scratch, but this takes hours to run because of the need to obtain images from wikipedia and wikimedia:
@@ -33,7 +34,6 @@ Then run the `massage` script to clean up the data into a more reasonable form f
 ```
 node app massage
 ```
-
 
 ## Routine stuff
 

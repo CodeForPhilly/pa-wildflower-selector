@@ -1,0 +1,5 @@
+#!/bin/bash
+
+wget -O - https://boutell.dev/pa-wildflower-selector/pa-wildflower-selector.archive.gz | gunzip -c | mongorestore --drop --archive &&
+wget -O - https://boutell.dev/pa-wildflower-selector/pa-wildflower-selector.tar | tar -xvf - &&
+echo "Restored test data."
