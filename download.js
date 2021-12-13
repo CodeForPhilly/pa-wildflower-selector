@@ -32,7 +32,6 @@ async function go() {
     plants = info.plants;
     close = info.close;
     await downloadMain();
-    await downloadSuperplants();
     await close();
   } catch (e) {
     console.error(e);
@@ -74,10 +73,12 @@ async function downloadMain() {
     let name = clean['Scientific Name'];
     console.log(`${name} (${i} of ${records.length})`);
     clean._id = name;
+    let sp = (clean['Super Plant'].trim() == 'Yes');
     let hasImage = false;
     const existing = await plants.findOne({
       _id: name
     });
+    clean.Superplant = sp;
     clean.metadata = existing?.metadata;
     clean.imageUrl = existing?.imageUrl;
     knownImages[name] = rowsByName?.[name]?.['Manual File URL'] || existing?.imageUrl;
@@ -142,27 +143,6 @@ async function downloadMain() {
   }
 }
 
-async function downloadSuperplants() {
-  const body = await get(settings.superplantsCsvUrl);
-  const records = parse(body, {
-    columns: true,
-    skip_empty_lines: true
-  });
-  for (const row of records) {
-    console.log(`>>`, row);
-    let _id = row['Scientific Name'] || row['Scientific Name '];
-    // Must be consistent with capitalization in main tab
-    _id = _id.split(' ').map(word => capitalize(word)).join(' ');
-    const plant = await plants.findOne({ _id });
-    if (plant) {
-      plant.Superplant = true;
-      await update(plants, plant);
-    } else {
-      console.log(`could not find superplant ${_id}`);
-    }
-  }
-}
-  
 async function discoverImage(clean, name) {
   const result = await discoverViaWikipediaPage(clean, name);
   if (result) {
