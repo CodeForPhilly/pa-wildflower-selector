@@ -100,7 +100,6 @@ async function downloadMain() {
     if (!argv['skip-images']) {
       if (known && (!hasImage || !imageUrl || (imageUrl !== known))) {
         await fetchImage(clean, name, known);
-        await update(plants, clean);
       } else if (!known) {
         // Discover if: (1) we have an image and yet no URL for it,
         // (2) we're not skipping missing images so we want to try again
@@ -109,7 +108,6 @@ async function downloadMain() {
           discovered = await discoverImage(clean, name);
           if (discovered) {
             await fetchImage(clean, name, discovered);
-            await update(plants, clean);
           }
         }
       }
@@ -120,8 +118,8 @@ async function downloadMain() {
       const end = row['Manual Attribution URL'] ? '</a>' : '';
       clean.source = 'manual';
       clean.attribution = `${start}${row['Manual Attribution']}${end}`;
-      await update(plants, clean);
     }
+    await update(plants, clean);
     if (!rowsByName[name]) {
       await limiter.removeTokens(1);
       await sheet.addRow({
