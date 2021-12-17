@@ -476,6 +476,12 @@ button.text {
   border-radius: 0;
 }
 
+button.clear {
+  text-decoration: underline;
+  font-size: 12px;
+  transform: translate(0, 0);
+}
+
 .primary-bar {
   display: block;
   width: 100%;
@@ -548,11 +554,14 @@ menu li:hover {
 
 .chips {
   margin-bottom: 32px;
+  text-align: center;
+  line-height: 1.5;
 }
 
 .chip {
+  display: inline-block;
   border-radius: 30px;
-  margin-right: 8px;
+  margin: 8px 8px 8px 0;
 }
 
 h1 {
