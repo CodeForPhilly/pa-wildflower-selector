@@ -9,7 +9,7 @@
             <button class="chip" v-for="chip in chips" v-bind:key="chip.key" @click="removeChip(chip)">
               {{ chip.label }} <span class="material-icons">close</span>
             </button>
-            <button class="text clear" @click="removeAll">Clear all</button>
+            <button class="text clear" @click="clearAll">Clear all</button>
           </div>
           <div class="sort">
             <button @click="toggleSort" class="list-button">
@@ -25,7 +25,10 @@
         <form class="filters" id="form" @submit.prevent="submit">
           <div class="inner-controls">
             <input v-model="q" id="q" type="search" class="search" placeholder="🔎" />
-            <button class="primary primary-bar apply" type="submit">Apply</button>
+            <div class="go">
+              <button class="primary primary-bar clear" @click="clearAll">Clear</button>
+              <button class="primary primary-bar apply" type="submit">Apply</button>
+            </div>
             <button class="primary primary-bar search-submit" type="submit">Search</button>
           </div>
           <fieldset v-for="filter in filters" :key="filter.name" :class="filterClass(filter)">
@@ -395,7 +398,7 @@ export default {
       }
       this.submit();
     },
-    removeAll() {
+    clearAll() {
       for (const filter of this.filters) {
         this.filterValues[filter.name] = filter.default;
       }
@@ -452,6 +455,16 @@ export default {
   background-color: #FCF9F4;
 }
 
+.inner-controls .go {
+  display: flex;
+  gap: 16px;
+}
+
+.inner-controls button.clear {
+  color: #B74D15;
+  background-color: inherit;
+}
+
 button {
   background-color: #FCF9F4;
   color: #B74D15;
@@ -476,7 +489,7 @@ button.text {
   border-radius: 0;
 }
 
-button.clear {
+.chips button.clear {
   text-decoration: underline;
   font-size: 12px;
   transform: translate(0, 0);
@@ -811,6 +824,10 @@ td, th {
     position: static;
     z-index: auto;
     top: auto;
+  }
+  .inner-controls .clear {
+    /* Chips have one and it is always visible at this size */
+    display: none;
   }
   .filters fieldset {
     padding: 8px;
