@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h1>Choose Native Plants PA</h1>
+    <Header h1="Choose Native Plants PA" />
     <main :class="{ 'filters-open': filtersOpen }">
       <div class="controls">
         <div class="filter-toggle-and-sort">
@@ -98,11 +98,12 @@
 import qs from 'qs';
 import Range from './Range.vue';
 import Checkbox from './Checkbox.vue';
+import Header from './Header.vue';
 
 export default {
   name: 'App',
   components: {
-    Range, Checkbox
+    Range, Checkbox, Header
   },
   data() {
     const filters = [

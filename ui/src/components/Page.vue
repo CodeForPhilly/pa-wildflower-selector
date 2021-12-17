@@ -1,17 +1,25 @@
 <template>
-  <div class="page">
-    <main>
-      <h1>{{ h1 || title }}</h1>
-      <slot></slot>
-    </main>
+  <div>
+    <Header h1="h1" />
+    <div class="page">
+      <main>
+        <h1>{{ h1 || title }}</h1>
+        <slot></slot>
+      </main>
+    </div>
   </div>
 </template>
 
 <script>
+import Header from './Header.vue';
+
 export default {
   props: {
     title: String,
     h1: String
+  },
+  components: {
+    Header
   }
 };
 </script>
