@@ -289,4 +289,13 @@ header {
     background-color: #ededed;
   }
 }
+
+@media all and (min-width: 1280px) {
+  header {
+    border-bottom: none;
+  }
+  .logo {
+    width: 160px;
+  }
+}
 </style>

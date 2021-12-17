@@ -57,10 +57,11 @@
             <img class="photo" :src="imageUrl(result)" />
             <h4 class="common-name">{{ result['Common Name'] }}</h4>
             <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
+            <button class="favorite-large text"><span class="material-icons material-align">favorite_outline</span></button>
             <div class="plant-controls-wrapper">
               <div class="plant-controls">
-                <button class="text"><span class="material-icons material-align">info_outline</span> More Info</button>
-                <button class="text"><span class="material-icons material-align">favorite_outline</span></button>
+                <button class="text"><span class="material-icons material-align info">info_outline</span> More Info</button>
+                <button class="favorite-regular text"><span class="material-icons material-align">favorite_outline</span></button>
               </div>
             </div>
           </div>
@@ -427,7 +428,7 @@ export default {
     },
     isDesktop() {
       // Must match CSS media query below
-      return window.innerWidth >= 1024;
+      return window.innerWidth >= 1280;
     }
   }
 }
@@ -606,7 +607,7 @@ td, th {
 }
 .plants {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(248px, 1fr));
   gap: 8px;
   flex-direction: column;
 }
@@ -664,9 +665,15 @@ td, th {
   display: flex;
   justify-content: space-between;
 }
+.plant-controls .info {
+  transform: translate(0, 1px);
+}
 .plant-controls .text {
   margin: 0;
   letter-spacing: 0.1em;
+}
+.favorite-large {
+  display: none;
 }
 .filters {
   flex-direction: column;
@@ -764,7 +771,10 @@ td, th {
   /* Mobile and medium use all in one apply button */
   display: none;
 }
-@media all and (min-width: 1024px) {
+@media all and (min-width: 1280px) {
+  h1 {
+    font-size: 60px;
+  }
   main {
     display: flex;
     justify-content: space-between;
@@ -783,11 +793,18 @@ td, th {
   }
   main .controls {
     width: 320px;
+    letter-spacing: 0.1em;
+  }
+  main .controls button {
+    letter-spacing: 0.1em;
   }
   .inner-controls {
     position: static;
     z-index: auto;
     top: auto;
+  }
+  .filters fieldset {
+    padding: 8px;
   }
   main .plants {
     flex-grow: 1.0;
@@ -812,6 +829,36 @@ td, th {
     border-radius: 8px;
     border: 1px solid black;
     height: auto;
+    background-color: inherit;
+  }
+  .plant-controls-wrapper {
+    background-color: #B74D15;
+  }
+  .plant-controls {
+    color: white;
+  }
+  .favorite-regular {
+    display: none;
+  }
+  .favorite-large.text {
+    display: block;
+    position: absolute;
+    bottom: 48px;
+    right: 16px;
+    margin: 0;
+    padding: 0;
+    font-size: 24px;
+    font-weight: normal;
+    color: white;
+  }
+  button.text {
+    letter-spacing: 0.1em;
+  }
+  .common-name {
+    font-size: 14px;
+  }
+  .scientific-name {
+    font-size: 14px;
   }
 }
 

@@ -26,7 +26,7 @@ export default {
   }
   .page main > * {
     margin: auto;
-    max-width: 1024px;
+    max-width: 1279px;
     padding: 0 16px;
   }
   @media screen and (max-width: 799px) {
@@ -95,7 +95,7 @@ export default {
   }
   .tone > * {
     margin: auto;
-    max-width: 1024px;
+    max-width: 1279px;
     padding: 0 16px;
   }
   .tone > .carrier-wave {
