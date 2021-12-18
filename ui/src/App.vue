@@ -27,7 +27,7 @@ html {
 }
 .outer {
   position: relative;
-  padding-top: 24px;
+  padding-top: 48px;
 }
 
 .nav-is-open .modal-cover {
@@ -37,7 +37,7 @@ html {
   height: 100%;
   opacity: 0.5;
   z-index: 100;
-  top: -24px;
+  top: -48px;
   background-color: black;
 }
 *, *:before, *:after {

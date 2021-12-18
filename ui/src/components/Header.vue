@@ -149,7 +149,6 @@ menu .copyright {
     text-align: right;
     width: 100%;
     padding-right: 24px;
-    transform: translate(0, -16px);
     background-color: #fcf9f4;
     padding-bottom: 32px;
   }
@@ -158,7 +157,7 @@ menu .copyright {
     text-align: right;
   }
   .nav-is-open .main-nav .open-nav {
-    display: none;
+    visibility: hidden;
   }
   .main-nav menu {
     display: none;
@@ -167,12 +166,12 @@ menu .copyright {
     display: block;
     position: absolute;
     left: 20%;
-    top: 0px;
+    top: -24px;
     width: 80%;
     height: 100vh;
     background-color: #fcf9f4;
     padding: 32px 0 0 0;
-    border-radius: 16px;
+    border-radius: 16px 0 0 0;
     z-index: 200;
   }
   .nav-is-open .main-nav menu a {
