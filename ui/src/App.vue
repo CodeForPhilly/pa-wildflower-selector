@@ -1,12 +1,44 @@
 <template>
-  <div>
+  <div :class="classes">
+    <div class="modal-cover"></div>
     <router-view />
   </div>
 </template>
 
+<script>
+export default {
+  computed: {
+    classes() {
+      return {
+        outer: true,
+        'nav-is-open': this.$store.state.navIsOpen
+      };
+    }
+  }
+};
+</script>
+
 <style>
 html {
   box-sizing: border-box;
+}
+.modal-cover {
+  display: none;
+}
+.outer {
+  position: relative;
+  padding-top: 24px;
+}
+
+.nav-is-open .modal-cover {
+  display: block;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0.5;
+  z-index: 100;
+  top: -24px;
+  background-color: black;
 }
 *, *:before, *:after {
   box-sizing: inherit;
@@ -98,10 +130,6 @@ body {
   background-color: #fcf9f4;
   padding: 0;
   margin: 0;
-}
-
-#app {
-  margin-top: 24px;
 }
 
 .material-icons {

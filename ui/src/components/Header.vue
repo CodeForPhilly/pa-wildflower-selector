@@ -1,6 +1,6 @@
 <template>
   <header>
-    <nav :class="{ 'main-nav': true, 'mobile-visible': navIsOpen }">
+    <nav :class="{ 'main-nav': true }">
       <div class="custom-nav">
         <router-link class="logo-parent" to="/">
           <button v-if="$route.name !== 'Home'" class="material-icons router-button logo-substitute">chevron_left</button>
@@ -8,8 +8,8 @@
         </router-link>
         <h1>{{ h1 }}</h1>
         <button @click="openNav" class="material-icons router-button open-nav">menu</button>
-        <button @click="closeNav" class="material-icons router-button close-nav">close</button>
         <menu>
+          <button @click="closeNav" class="material-icons router-button close-nav">close</button>
           <router-link to="/people-page">People Page</router-link>
           <router-link to="/how-to-use">How to Use</router-link>
           <div class="copyright">© 2021 Choose Native Plants - PA</div>
@@ -41,10 +41,10 @@ export default {
   },
   methods: {
     openNav() {
-      this.navIsOpen = true;
+      this.$store.commit('setNavIsOpen', true);
     },
     closeNav() {
-      this.navIsOpen = false;
+      this.$store.commit('setNavIsOpen', false);
     }
   }
 };
@@ -127,7 +127,7 @@ header {
   border-bottom: 3px solid #1D2E26;
 }
 
-.main-nav .open-nav, .main-nav .close-nav {
+.main-nav .open-nav {
   display: none;
 }
 
@@ -144,31 +144,38 @@ menu .copyright {
   .main-nav .close-nav {
     display: none;
   }
-  .main-nav.mobile-visible .close-nav {
-    display: inline;
+  .nav-is-open .main-nav .close-nav {
+    display: block;
     text-align: right;
+    width: 100%;
+    padding-right: 24px;
+    transform: translate(0, -16px);
+    background-color: #fcf9f4;
+    padding-bottom: 32px;
   }
   .main-nav .open-nav {
     display: inline;
     text-align: right;
   }
-  .main-nav.mobile-visible .open-nav {
+  .nav-is-open .main-nav .open-nav {
     display: none;
   }
   .main-nav menu {
     display: none;
   }
-  .main-nav.mobile-visible menu {
+  .nav-is-open .main-nav menu {
     display: block;
     position: absolute;
-    left: 0px;
-    top: 32px;
+    left: 20%;
+    top: 0px;
+    width: 80%;
+    height: 100vh;
     background-color: #fcf9f4;
-    width: 100%;
-    padding: 16px 0 0 0;
-    z-index: 1;
+    padding: 32px 0 0 0;
+    border-radius: 16px;
+    z-index: 200;
   }
-  .main-nav.mobile-visible menu a {
+  .nav-is-open .main-nav menu a {
     display: block;
     margin: 0;
     padding: 16px;
@@ -179,13 +186,16 @@ menu .copyright {
     text-align: center;
     border-bottom: 1px solid #aaa;
   }
-  .main-nav.mobile-visible a.router-link-exact-active {
+  .nav-is-open .main-nav a.router-link-exact-active {
     border-bottom: none;
     background-color: #ededed;
   }
 }
 
 @media all and (min-width: 1280px) {
+  .main-nav .close-nav {
+    display: none;
+  }
   header {
     border-bottom: none;
   }
