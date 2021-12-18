@@ -617,7 +617,7 @@ label {
 }
 
 label .text {
-  transform: translate(0, 2px);
+  transform: translate(0, 3px);
 }
 
 label:last-child {
@@ -819,6 +819,10 @@ td, th {
   /* Mobile and medium use all in one apply button */
   display: none;
 }
+.filter-contents {
+  user-select: none;
+  display: flex;
+}
 @media all and (min-width: 1280px) {
   h1 {
     font-size: 60px;
@@ -911,10 +915,6 @@ td, th {
   }
   .scientific-name {
     font-size: 14px;
-  }
-  .filter-contents {
-    user-select: none;
-    display: flex;
   }
 }
 
