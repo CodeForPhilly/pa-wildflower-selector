@@ -285,7 +285,19 @@ export default {
       deep: true
     }
   },
-  mounted() {
+  async mounted() {
+    const response = await fetch('/plants?results=0&total=0');
+    const data = await response.json();
+    this.filterCounts = data.counts;
+    for (const filter of this.filters) {
+      filter.choices = data.choices[filter.name];
+    }
+    const height = this.filters.find(filter => filter.name === 'Height (feet)');
+    height.min = 0;
+    const heights = data.choices['Height (feet)'];
+    height.max = heights[heights.length - 1];
+    this.filterValues['Height (feet)'].max = height.max;
+    this.initializing = false;
     this.submit();
   },
   methods: {
@@ -365,14 +377,6 @@ export default {
       }
       data.results.forEach(datum => this.results.push(datum));
       this.total = data.total;
-      if (this.initializing) {
-        const height = this.filters.find(filter => filter.name === 'Height (feet)');
-        height.min = 0;
-        const heights = data.choices['Height (feet)'];
-        height.max = heights[heights.length - 1];
-        this.filterValues['Height (feet)'].max = height.max;
-        this.initializing = false;
-      }
       this.loading = false;
     },
     async restartLoadMoreIfNeeded() {
