@@ -706,6 +706,7 @@ td, th {
   flex-direction: column;
   max-width: 350px;
   margin: auto;
+  margin-bottom: 100%;
 }
 .filters fieldset {
   background-color: white;
