@@ -42,9 +42,6 @@ export default {
 </script>
 
 <style scoped>
-  .filter-contents {
-    user-select: none;    
-  }
   .checkbox {
     display: inline-block;
     background-color: white;

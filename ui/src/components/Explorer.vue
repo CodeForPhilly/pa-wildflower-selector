@@ -47,6 +47,7 @@
                     <span class="text">{{ choice }} ({{ filterCounts[filter.name][choice] || 0 }})</span>
                   </span>
                   <span v-if="filter.color" :style="flowerColorStyle(choice)" class="color-example" />
+                  <img v-else :src="`/assets/images/${choice}.svg`" class="choice-icon" />
                 </label>
               </template>
             </template>
@@ -430,8 +431,13 @@ export default {
       this.filterIsOpen[filter.name] = !this.filterIsOpen[filter.name];
     },
     flowerColorStyle(choice) {
+      const customColors = {
+        Cream: '#FFFDD0',
+        Lilac: '#C8A2C8',
+        Rose: '#FF0080'
+      }
       return {
-        'background-color': choice
+        'background-color': customColors[choice] || choice
       };
     },
     isDesktop() {
@@ -598,11 +604,26 @@ h1 {
   border-radius: 12px;
 }
 
+.choice-icon {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+}
+
 label {
   display: inline-block;
-  font-size: 17px;
-  margin: 1em 2em 1em 0;
+  font-size: 16px;
+  margin: 0 0 16px 0;
 }
+
+label .text {
+  transform: translate(0, 2px);
+}
+
+label:last-child {
+  margin: 0;
+}
+
 input {
   display: inline-block;
 }
@@ -715,6 +736,7 @@ td, th {
   color: #1D2E26;
   border: 1px solid #1D2E26;
   border-radius: 8px;
+  
   margin-bottom: 24px;
   padding: 16px 10px;
 }
@@ -767,9 +789,7 @@ td, th {
   width: 100%;
 }
 .text {
-  display: inline-block;
-  transform: translateY(-0.3em);
-  margin-left: 8px;
+  padding-left: 8px;
   user-select: none;
 }
 .filters {
@@ -836,7 +856,7 @@ td, th {
     display: none;
   }
   .filters fieldset {
-    padding: 8px;
+    padding: 16px;
   }
   main .plants {
     flex-grow: 1.0;
@@ -891,6 +911,10 @@ td, th {
   }
   .scientific-name {
     font-size: 14px;
+  }
+  .filter-contents {
+    user-select: none;
+    display: flex;
   }
 }
 
