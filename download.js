@@ -85,6 +85,7 @@ async function downloadMain() {
 
     if (fs.existsSync(`${__dirname}/images/${name}.jpg`)) {
       hasImage = true;
+      clean.hasImage = true;
     }
 
     // If knownImages[name] && !hasImage -> fetch image, set imageUrl property
@@ -131,11 +132,9 @@ async function downloadMain() {
       if ((row['Crawler URL'] || '') !== (clean.imageUrl || '')) {
         if (discovered) {
           row['Crawler URL'] = clean.imageUrl;
-        } else if (row['Manual File URL'] !== clean.imageUrl) {
-          // TODO figure out if we care about this
+          await limiter.removeTokens(1);
+          await row.save();
         }
-        await limiter.removeTokens(1);
-        await row.save();
       }
     }
   }

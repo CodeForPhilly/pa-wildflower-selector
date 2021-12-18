@@ -303,7 +303,11 @@ export default {
   },
   methods: {
     imageUrl(result) {
-      return `/images/${result._id}.jpg`;
+      if (result.hasImage) {
+        return `/images/${result._id}.jpg`;
+      } else {
+        return '/assets/images/missing-image.png';
+      }
     },
     openFilters() {
       this.filtersOpen = true;
