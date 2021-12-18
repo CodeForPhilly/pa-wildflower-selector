@@ -1,9 +1,8 @@
 <template>
   <div>
-    <Header h1="h1" />
+    <Header :h1="h1" />
     <div class="page">
       <main>
-        <h1>{{ h1 || title }}</h1>
         <slot></slot>
       </main>
     </div>
@@ -46,17 +45,6 @@ export default {
     color: inherit;
     text-decoration: none;
     border-bottom: 1px solid #1D2E26;
-  }
-  .page h1 {
-    font-family: "Arvo";
-    font-weight: 300;
-    font-size: 64px;
-  }
-  @media screen and (max-width: 799px) {
-    .page h1 {
-      line-height: 1;
-      font-size: 48px;
-    }
   }
   .page menu {
     margin-top: 48px;

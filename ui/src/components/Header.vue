@@ -2,15 +2,20 @@
   <header>
     <nav :class="{ 'main-nav': true, 'mobile-visible': navIsOpen }">
       <div class="custom-nav">
-        <router-link class="logo-parent" to="/"><img class="logo" src="/assets/images/logo.png" alt="Choose Native Plants PA" /></router-link>
+        <router-link class="logo-parent" to="/">
+          <button v-if="$route.name !== 'Home'" class="material-icons router-button logo-substitute">chevron_left</button>
+          <img class="logo" src="/assets/images/logo.png" alt="Choose Native Plants PA" />
+        </router-link>
         <h1>{{ h1 }}</h1>
         <button @click="openNav" class="material-icons router-button open-nav">menu</button>
         <button @click="closeNav" class="material-icons router-button close-nav">close</button>
+        <menu>
+          <router-link to="/people-page">People Page</router-link>
+          <router-link to="/how-to-use">How to Use</router-link>
+          <div class="copyright">© 2021 Choose Native Plants - PA</div>
+        </menu>
       </div>
-      <menu>
-        <router-link to="/people-page">People Page</router-link>
-        <router-link to="/how-to-use">How to Use</router-link>
-      </menu>
+      <h1>{{ h1 }}</h1>
     </nav>
   </header>
 </template>
@@ -49,20 +54,8 @@ export default {
 header {
   padding-bottom: 24px;
   border-bottom: 2px solid #d3d3d3;
-  margin-bottom: 12px;
-}
-
-h1 {
-  text-align: center;
-  font-family: Arvo;
-  font-size: 20px;
-  font-weight: normal;
-  margin-bottom: 0;
-}
-
-.main-nav {
-  display: flex;
-  justify-content: space-between;
+  /* TODO reduce this when we have more text to make this space look good */
+  margin-bottom: 36px;
 }
 
 .custom-nav {
@@ -75,6 +68,20 @@ h1 {
 
 .custom-nav > * {
   flex-basis: 0;
+  flex-grow: 1;
+}
+
+.main-nav > h1 {
+  display: none;
+}
+
+.custom-nav > h1 {
+  text-align: center;
+  font-family: Arvo;
+  font-size: 20px;
+  font-weight: normal;
+  flex-basis: auto;
+  margin: 0;
 }
 
 .logo-parent {
@@ -82,18 +89,14 @@ h1 {
 }
 
 .logo {
-  width: 120px;
-  height: auto;
-  position: relative;
+  display: none;
 }
 
 .main-nav menu {
   display: flex;
   margin: 0;
-  padding-right: 16px;
-}
-
-.main-nav menu {
+  padding-inline-start: 0;
+  justify-content: flex-end;
   font-family: Roboto;
   font-weight: 400;
   font-size: 20px;
@@ -128,7 +131,13 @@ h1 {
   display: none;
 }
 
-@media screen and (max-width: 799px) {
+menu .copyright {
+  padding: 18px 0;
+  font-size: 12px;
+  text-align: center;
+}
+
+@media screen and (max-width: 1279px) {
   .main-nav {
     position: relative;
   }
@@ -137,9 +146,11 @@ h1 {
   }
   .main-nav.mobile-visible .close-nav {
     display: inline;
+    text-align: right;
   }
   .main-nav .open-nav {
     display: inline;
+    text-align: right;
   }
   .main-nav.mobile-visible .open-nav {
     display: none;
@@ -151,10 +162,11 @@ h1 {
     display: block;
     position: absolute;
     left: 0px;
-    top: 96px;
+    top: 32px;
     background-color: #fcf9f4;
     width: 100%;
-    padding: 0;
+    padding: 16px 0 0 0;
+    z-index: 1;
   }
   .main-nav.mobile-visible menu a {
     display: block;
@@ -179,6 +191,25 @@ h1 {
   }
   .logo {
     width: 160px;
+    height: auto;
+    position: relative;
+    display: block;
+  }
+  .logo-substitute {
+    display: none;
+  }
+  .custom-nav > h1 {
+    display: none;
+  }
+  .main-nav > h1 {
+    display: block;
+    text-align: center;
+    font-family: "Arvo";
+    font-weight: 300;
+    font-size: 64px;
+  }
+  menu .copyright {
+    display: none;
   }
 }
 </style>
