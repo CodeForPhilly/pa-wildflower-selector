@@ -62,6 +62,11 @@ async function downloadMain() {
     columns: true,
     skip_empty_lines: true
   });
+  await plants.remove({
+    _id: { $nin: records.map(record => record['Scientific Name']) }
+  }, {
+    multi: true
+  });
   let i = 0;
   for (const record of records) {
     i++;
@@ -75,6 +80,7 @@ async function downloadMain() {
     clean._id = name;
     let sp = (clean['Super Plant'].trim() == 'Yes');
     let hasImage = false;
+    let hasPreview = false;
     const existing = await plants.findOne({
       _id: name
     });
@@ -86,6 +92,11 @@ async function downloadMain() {
     if (fs.existsSync(`${__dirname}/images/${name}.jpg`)) {
       hasImage = true;
       clean.hasImage = true;
+    }
+
+    if (fs.existsSync(`${__dirname}/images/${name}.preview.jpg`)) {
+      hasPreview = true;
+      clean.hasPreview = true;
     }
 
     // If knownImages[name] && !hasImage -> fetch image, set imageUrl property
@@ -111,6 +122,12 @@ async function downloadMain() {
             await fetchImage(clean, name, discovered);
           }
         }
+      }
+      if (clean.hasImage && !hasPreview) {
+        console.log(`Scaling preview of ${name}`);
+        spawn('convert', [ `${__dirname}/images/${name}.jpg`, '-resize', '248x248^', '-gravity', 'center', '-extent', '248x248', '-strip', '-quality', '85', `${__dirname}/images/${name}.preview.jpg` ]);
+        hasPreview = true;
+        clean.hasPreview = true;
       }
     }
     const row = rowsByName[name];

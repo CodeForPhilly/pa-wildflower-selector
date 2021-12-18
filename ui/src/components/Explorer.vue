@@ -304,7 +304,7 @@ export default {
   methods: {
     imageUrl(result) {
       if (result.hasImage) {
-        return `/images/${result._id}.jpg`;
+        return `/images/${result._id}.preview.jpg`;
       } else {
         return '/assets/images/missing-image.png';
       }
