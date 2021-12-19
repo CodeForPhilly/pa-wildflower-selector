@@ -4,8 +4,8 @@
     <main :class="{ 'filters-open': filtersOpen }">
       <div class="controls">
         <div class="filter-toggle-and-sort">
-          <button class="primary primary-bar filter" @click=openFilters>Filter</button>
-          <div class="chips" v-if="activeFilters.length">
+          <button v-if="!favorites" class="primary primary-bar filter" @click=openFilters>Filter</button>
+          <div class="chips" v-if="!favorites && activeFilters.length">
             <button class="chip" v-for="chip in chips" v-bind:key="chip.key" @click="removeChip(chip)">
               {{ chip.label }} <span class="material-icons">close</span>
             </button>
@@ -14,7 +14,7 @@
           <div class="sort-and-favorites">
             <button class="favorites" v-if="!favorites" @click="$router.push('/favorite-list')">Favorite List</button>
             <div class="sort">
-              <button @click.stop="toggleSort" class="list-button">
+              <button @click.stop="toggleSort" :class="sortButtonClasses">
                 <span class="label">Sort By</span>
                 <span class="value">{{ sortLabel(sort) }}</span>
                 <span class="material-icons">{{ sortIsOpen ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
@@ -261,6 +261,15 @@ export default {
         }
       });
       return result;
+    },
+    sortButtonClasses() {
+      return {
+        'list-button': true,
+        ...(this.favorites && {
+          primary: true,
+          'primary-bar': true
+        })
+      };
     }
   },
   watch: {
@@ -564,6 +573,11 @@ button.favorites {
   top: calc(-8px + -0.25em);
   padding: 4px;
   background-color: #FCF9F4;
+}
+
+.primary.list-button .label {
+  background-color: #B74D15;
+  color: #FCF9F4;
 }
 
 .sort {
