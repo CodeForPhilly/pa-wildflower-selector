@@ -1,15 +1,42 @@
 import { createStore } from 'vuex'
 
-export default createStore({
+const store = createStore({
   state () {
     return {
-      navIsOpen: false
+      navIsOpen: false,
+      favorites: getFavoritesFromLocalStorage()
     }
   },
   mutations: {
     setNavIsOpen (state, navIsOpen) {
-      console.log(arguments);
       state.navIsOpen = navIsOpen;
+    },
+    toggleFavorite (state, plantId) {
+      if (state.favorites.has(plantId)) {
+        state.favorites.delete(plantId);
+      } else {
+        state.favorites.add(plantId);
+      }
+    },
+    setFavorites (state, favorites) {
+      state.favorites = favorites;
     }
   }
 });
+
+store.subscribe((mutation, state) => {
+  if (mutation.type === 'toggleFavorite') {
+    localStorage.setItem('favorites', JSON.stringify([...state.favorites]));
+  }
+});
+
+// Changed in another tab
+window.addEventListener('storage', () => {
+  store.commit('setFavorites', getFavoritesFromLocalStorage());
+});
+
+export default store;
+
+function getFavoritesFromLocalStorage() {
+  return new Set(JSON.parse(localStorage.getItem('favorites') || '[]'));
+}

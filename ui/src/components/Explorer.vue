@@ -61,11 +61,11 @@
             <img width="248" height="248" class="photo" :src="imageUrl(result)" />
             <h4 class="common-name">{{ result['Common Name'] }}</h4>
             <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
-            <button class="favorite-large text"><span class="material-icons material-align">favorite_outline</span></button>
+            <button @click="toggleFavorite(result._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
             <div class="plant-controls-wrapper">
               <div class="plant-controls">
                 <button class="text"><span class="material-icons material-align info">info_outline</span> More Info</button>
-                <button class="favorite-regular text"><span class="material-icons material-align">favorite_outline</span></button>
+                <button @click="toggleFavorite(result._id)" class="favorite-regular text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
               </div>
             </div>
           </div>
@@ -447,6 +447,12 @@ export default {
     isDesktop() {
       // Must match CSS media query below
       return window.innerWidth >= 1280;
+    },
+    toggleFavorite(_id) {
+      this.$store.commit('toggleFavorite', _id);
+    },
+    renderFavorite(_id) {
+      return this.$store.state.favorites.has(_id) ? 'favorite' : 'favorite_outline';
     }
   }
 }
