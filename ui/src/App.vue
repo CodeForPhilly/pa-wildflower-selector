@@ -11,7 +11,8 @@ export default {
     classes() {
       return {
         outer: true,
-        'nav-is-open': this.$store.state.navIsOpen
+        'nav-is-open': this.$store.state.navIsOpen,
+        'menu-is-open': this.$store.state.navIsOpen || this.$store.state.sortIsOpen
       };
     }
   }
@@ -30,7 +31,7 @@ html {
   padding-top: 48px;
 }
 
-.nav-is-open .modal-cover {
+.menu-is-open .modal-cover {
   display: block;
   position: absolute;
   width: 100%;

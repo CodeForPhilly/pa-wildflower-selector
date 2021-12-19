@@ -10,6 +10,14 @@ const routes = [
     component: Explorer
   },
   {
+    path: "/favorite-list",
+    name: "Favorite List",
+    component: Explorer,
+    props: {
+      favorites: true
+    }
+  },
+  {
     path: "/people-page",
     name: "People Page",
     component: PeoplePage

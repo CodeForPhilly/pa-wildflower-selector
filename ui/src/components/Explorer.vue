@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Header h1="Choose Native Plants PA" />
+    <Header :h1="favorites ? 'Favorite List' : 'Choose Native Plants PA'" />
     <main :class="{ 'filters-open': filtersOpen }">
       <div class="controls">
         <div class="filter-toggle-and-sort">
@@ -11,18 +11,21 @@
             </button>
             <button class="text clear" @click="clearAll">Clear all</button>
           </div>
-          <div class="sort">
-            <button @click="toggleSort" class="list-button">
-              <span class="label">Sort By</span>
-              <span class="value">{{ sortLabel(sort) }}</span>
-              <span class="material-icons">{{ sortOpen ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
-            </button>
-            <menu :style="{ visibility: sortOpen ? 'visible' : 'hidden' }" class="list-menu">
-              <li v-for="sort in sorts" v-bind:key="sort.value" @click="setSort(sort)" @keydown.enter="setSort(sort)" tabindex="0">{{ sort.label }}</li>
-            </menu>
+          <div class="sort-and-favorites">
+            <button class="favorites" v-if="!favorites" @click="$router.push('/favorite-list')">Favorite List</button>
+            <div class="sort">
+              <button @click.stop="toggleSort" class="list-button">
+                <span class="label">Sort By</span>
+                <span class="value">{{ sortLabel(sort) }}</span>
+                <span class="material-icons">{{ sortIsOpen ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
+              </button>
+              <menu :style="{ visibility: sortIsOpen ? 'visible' : 'hidden' }" class="list-menu">
+                <li v-for="sort in sorts" v-bind:key="sort.value" @click="setSort(sort)" @keydown.enter="setSort(sort)" tabindex="0">{{ sort.label }}</li>
+              </menu>
+            </div>
           </div>
         </div>
-        <form class="filters" id="form" @submit.prevent="submit">
+        <form v-if="!favorites" class="filters" id="form" @submit.prevent="submit">
           <div class="inner-controls">
             <input v-model="q" id="q" type="search" class="search" placeholder="🔎" />
             <div class="go">
@@ -74,23 +77,8 @@
           provide huge plant previews when there are only 3 plants on desktop -->
         <article v-for="extra in extras" :key="extra.id" class="extra"></article>
       </article>
-<!--        
-      <table>
-        <tr>
-          <th>Common Name</th><th>Scientific Name</th><th>Credit</th><th>Flower Color</th><th>Average Height (ft)</th><th>Soil Moisture</th><th>Image</th>
-        </tr>
-        <tr v-for="result in results" :key="result._id">
-          <td>{{ result['Common Name'] }}</td>
-          <td>{{ result['Scientific Name'] }}</td>
-          <td><span v-html="result.attribution" /></td>
-          <td>{{ result['Flower Color'] }}</td>
-          <td>{{ result['Average Height'] }}</td>
-          <td>{{ result['Soil Moisture'] }}</td>
-          <td></td>
-        </tr>
-      </table>
--->
     </main>
+    <!-- Useful if we go back to using an observer for infinite scroll -->
     <div ref="next"></div>
   </div>
 </template>
@@ -105,6 +93,12 @@ export default {
   name: 'App',
   components: {
     Range, Checkbox, Header
+  },
+  props: {
+    favorites: {
+      type: Boolean,
+      default: false
+    }
   },
   data() {
     const filters = [
@@ -194,7 +188,6 @@ export default {
         'Sort by Scientific Name (Z-A)': 'Scientific Name (Z-A)'
       }).map(([ value, label ]) => ({ value, label }));
     return {
-      initializing: true,
       results: [],
       total: 0,
       q: '',
@@ -213,7 +206,7 @@ export default {
       filtersOpen: false,
       updatingCounts: false,
       sorts,
-      sortOpen: false
+      sortIsOpen: false
     };
   },
   computed: {
@@ -272,6 +265,12 @@ export default {
     }
   },
   watch: {
+    favorites() {
+      this.reinitialize();
+    },
+    sortIsOpen() {
+      this.$store.commit('setSortIsOpen', this.sortIsOpen);
+    },
     sort() {
       this.submit();
     },
@@ -287,21 +286,36 @@ export default {
     }
   },
   async mounted() {
-    const response = await fetch('/plants?results=0&total=0');
-    const data = await response.json();
-    this.filterCounts = data.counts;
-    for (const filter of this.filters) {
-      filter.choices = data.choices[filter.name];
-    }
-    const height = this.filters.find(filter => filter.name === 'Height (feet)');
-    height.min = 0;
-    const heights = data.choices['Height (feet)'];
-    height.max = heights[heights.length - 1];
-    this.filterValues['Height (feet)'].max = height.max;
-    this.initializing = false;
-    this.submit();
+    document.body.addEventListener('click', this.bodyClick);
+    await this.reinitialize();
+  },
+  destroy() {
+    document.body.removeEventListener('click', this.bodyClick);
   },
   methods: {
+    async reinitialize() {
+      this.initializing = true;
+      if (!this.favorites) {
+        const response = await fetch('/plants?results=0&total=0');
+        const data = await response.json();
+        this.filterCounts = data.counts;
+        for (const filter of this.filters) {
+          filter.choices = data.choices[filter.name];
+        }
+        const height = this.filters.find(filter => filter.name === 'Height (feet)');
+        height.min = 0;
+        const heights = data.choices['Height (feet)'];
+        height.max = heights[heights.length - 1];
+        this.filterValues['Height (feet)'].max = height.max;
+      }
+      this.initializing = false;
+      this.submit();
+    },
+    bodyClick() {
+      if (this.sortIsOpen) {
+        this.sortIsOpen = false;
+      }
+    },
     imageUrl(result) {
       if (result.hasImage) {
         return `/images/${result._id}.preview.jpg`;
@@ -361,7 +375,10 @@ export default {
     },
     async fetchPage() {
       this.loading = true;
-      const params = {
+      const params = this.favorites ? {
+        favorites: [...this.$store.state.favorites],
+        sort: this.sort
+      } : {
         ...this.filterValues,
         q: this.q,
         sort: this.sort,
@@ -373,11 +390,13 @@ export default {
       }
       const response = await fetch('/plants?' + qs.stringify(params));
       const data = await response.json();
-      this.filterCounts = data.counts;
-      for (const filter of this.filters) {
-        filter.choices = data.choices[filter.name];
+      if (!this.favorites) {
+        this.filterCounts = data.counts;
+        for (const filter of this.filters) {
+          filter.choices = data.choices[filter.name];
+        }
       }
-      if (!data.results.length) {
+      if ((!data.results.length) || this.favorites) {
         this.loadedAll = true;
       }
       data.results.forEach(datum => this.results.push(datum));
@@ -415,11 +434,11 @@ export default {
       this.submit();
     },
     toggleSort() {
-      this.sortOpen = !this.sortOpen;
+      this.sortIsOpen = !this.sortIsOpen;
     },
     setSort(sort) {
       this.sort = sort.value;
-      this.sortOpen = false;
+      this.sortIsOpen = false;
     },
     sortLabel(sort) {
       return this.sorts.find(_sort => _sort.value === sort).label;
@@ -450,6 +469,9 @@ export default {
     },
     toggleFavorite(_id) {
       this.$store.commit('toggleFavorite', _id);
+      if (this.favorites) {
+        this.results = this.results.filter(result => result._id !== _id);
+      }
     },
     renderFavorite(_id) {
       return this.$store.state.favorites.has(_id) ? 'favorite' : 'favorite_outline';
@@ -524,9 +546,20 @@ button.text {
   margin-bottom: 11px;
 }
 
-.sort {
+.sort-and-favorites {
   max-width: 350px;
   margin: auto;
+  display: flex;
+  justify-content: space-between;
+}
+
+button.favorites {
+  /* Because gap doesn't seem to work in flex */
+  margin-right: 16px;
+}
+
+.sort-and-favorites > * {
+  flex-grow: 1.0;
 }
 
 .list-button {
@@ -544,17 +577,21 @@ button.text {
   background-color: #FCF9F4;
 }
 
+.sort {
+  position: relative;
+}
+
 menu {
   position: absolute;
   z-index: 100;
+  right: 0;
   background-color: #FCF9F4;
   display: flex;
   flex-direction: column;
   padding-inline-start: 0;
-  color: #B74D15;
-  border: 1px solid #b74e15;
   border-radius: 8px;
   font-size: 17px;
+  border-radius: 16px;
   margin: 0;
 }
 
@@ -564,6 +601,7 @@ menu li {
   line-height: 2;
   color: black;
   padding: 0 12px;
+  border-bottom: 1px solid #aaa;
 }
 
 menu li:first-child {
@@ -574,6 +612,7 @@ menu li:first-child {
 menu li:last-child {
   border-radius: 0 0 9px 9px;
   background-clip: padding-box;
+  border-bottom: none;
 }
 
 menu li:focus {

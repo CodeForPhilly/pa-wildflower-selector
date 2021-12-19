@@ -4,12 +4,16 @@ const store = createStore({
   state () {
     return {
       navIsOpen: false,
+      sortIsOpen: false,
       favorites: getFavoritesFromLocalStorage()
     }
   },
   mutations: {
     setNavIsOpen (state, navIsOpen) {
       state.navIsOpen = navIsOpen;
+    },
+    setSortIsOpen (state, sortIsOpen) {
+      state.sortIsOpen = sortIsOpen;
     },
     toggleFavorite (state, plantId) {
       if (state.favorites.has(plantId)) {
