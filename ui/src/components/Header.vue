@@ -15,8 +15,10 @@
           <div class="copyright">© 2021 Choose Native Plants - PA</div>
         </menu>
       </div>
-      <h1>{{ h1 }}</h1>
+      <slot name="before-bar"></slot>
     </nav>
+    <h1>{{ h1 }}</h1>
+    <slot name="after-bar"></slot>
   </header>
 </template>
 
@@ -53,9 +55,13 @@ export default {
 <style scoped>
 header {
   padding-bottom: 24px;
+}
+
+.main-nav {
+  padding-bottom: 32px;
   border-bottom: 2px solid #d3d3d3;
   /* TODO reduce this when we have more text to make this space look good */
-  margin-bottom: 36px;
+  margin-bottom: 32px;
 }
 
 .custom-nav {
@@ -71,7 +77,7 @@ header {
   flex-grow: 1;
 }
 
-.main-nav > h1 {
+header > h1 {
   display: none;
 }
 
@@ -195,7 +201,7 @@ menu .copyright {
   .main-nav .close-nav {
     display: none;
   }
-  header {
+  .main-nav {
     border-bottom: none;
   }
   .logo {
@@ -210,12 +216,13 @@ menu .copyright {
   .custom-nav > h1 {
     display: none;
   }
-  .main-nav > h1 {
+  header > h1 {
     display: block;
     text-align: center;
     font-family: "Arvo";
     font-weight: 300;
     font-size: 64px;
+    margin-bottom: 16px;
   }
   menu .copyright {
     display: none;

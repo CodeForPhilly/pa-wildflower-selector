@@ -1,6 +1,15 @@
 <template>
   <div>
-    <Header :h1="favorites ? 'Favorite List' : 'Choose Native Plants PA'" />
+    <Header :h1="favorites ? 'Favorite List' : 'Choose Native Plants PA'">
+      <template v-slot:after-bar>
+        <p class="not-large-help">
+          <router-link to="/questions">Not sure where to start?<br />Answer 5 questions</router-link>
+        </p>
+        <p class="large-help">
+          Filter your preferences to find native shrubs, plants and flowers in Pennsylvania. Not sure where to start? <router-link to="/questions">Answer 5 questions</router-link>
+        </p>
+      </template>
+    </Header>
     <main :class="{ 'filters-open': filtersOpen }">
       <div class="controls">
         <div class="filter-toggle-and-sort">
@@ -54,7 +63,6 @@
             </template>
           </fieldset>
         </form>
-        <h4>Total matches: {{ total }}</h4>
       </div>
       <article class="plants">
         <article v-for="result in results" :key="result._id" class="plant-preview-wrapper">
@@ -836,7 +844,45 @@ td, th {
   user-select: none;
   display: flex;
 }
+.large-help {
+  display: none;
+  text-align: center;
+}
+.not-large-help {
+  max-width: 320px;
+  text-align: center;
+  width: 50%;
+  margin: auto;
+  font-size: 12px;
+  line-height: 16px;
+  font-family: Roboto;
+}
+.not-large-help a {
+  color: inherit;
+}
+
+.total-matches {
+  text-align: center;
+}
+
 @media all and (min-width: 1280px) {
+  .large-help {
+    display: block;
+    text-align: center;
+    width: 50%;
+    font-size: 20px;
+    line-height: 30px;
+    font-family: Roboto;
+    margin: auto;
+  }
+  .not-large-help {
+    display: none;
+    margin: auto;
+    text-align: center;
+  }
+  .large-help a {
+    color: inherit;
+  }
   h1 {
     font-size: 60px;
   }
