@@ -264,12 +264,13 @@ export default {
     },
     sortButtonClasses() {
       return {
-        'list-button': true,
-        ...(this.favorites && {
-          primary: true,
-          'primary-bar': true
-        })
+        'list-button': true
       };
+      // Creates unresolved design issues
+      // ...(this.favorites && {
+      //   primary: true,
+      //   'primary-bar': true
+      // })
     }
   },
   watch: {
@@ -565,6 +566,10 @@ button.favorites {
   display: flex;
   flex-direction: row;
   width: 100%;
+}
+
+.list-button > *:last-child {
+  margin-left: auto;
 }
 
 .list-button .label {
