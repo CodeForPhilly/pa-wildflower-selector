@@ -27,11 +27,15 @@ export default {
     },
     bodyKey(e) {
       if (e.key === 'Escape') {
-        this.$emit('close');
+        if (this.open) {
+          this.$emit('close');
+        }
       }
     },
     bodyClick() {
-      this.$emit('close');
+      if (this.open) {
+        this.$emit('close');
+      }
     },
     choiceClass(value) {
       if (this.modelValue === value) {
