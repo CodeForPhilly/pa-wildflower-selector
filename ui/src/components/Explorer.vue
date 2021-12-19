@@ -59,7 +59,7 @@
       <article class="plants">
         <article v-for="result in results" :key="result._id" class="plant-preview-wrapper">
           <div class="plant-preview">
-            <img width="248" height="248" class="photo" :src="imageUrl(result)" />
+            <img class="photo" :src="imageUrl(result)" />
             <h4 class="common-name">{{ result['Common Name'] }}</h4>
             <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
             <button @click="toggleFavorite(result._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>

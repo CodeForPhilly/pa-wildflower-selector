@@ -33,9 +33,9 @@ html {
 
 .menu-is-open .modal-cover {
   display: block;
-  position: absolute;
+  position: fixed;
   width: 100%;
-  height: 100%;
+  height: 200%;
   opacity: 0.5;
   z-index: 100;
   top: -48px;
