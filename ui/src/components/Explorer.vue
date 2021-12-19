@@ -19,9 +19,7 @@
                 <span class="value">{{ sortLabel(sort) }}</span>
                 <span class="material-icons">{{ sortIsOpen ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
               </button>
-              <menu :style="{ visibility: sortIsOpen ? 'visible' : 'hidden' }" class="list-menu">
-                <li v-for="sort in sorts" v-bind:key="sort.value" @click="setSort(sort)" @keydown.enter="setSort(sort)" tabindex="0">{{ sort.label }}</li>
-              </menu>
+              <Menu :open="sortIsOpen" :choices="sorts" v-model="sort" @close="toggleSort" />
             </div>
           </div>
         </div>
@@ -88,11 +86,12 @@ import qs from 'qs';
 import Range from './Range.vue';
 import Checkbox from './Checkbox.vue';
 import Header from './Header.vue';
+import Menu from './Menu.vue';
 
 export default {
   name: 'App',
   components: {
-    Range, Checkbox, Header
+    Range, Checkbox, Header, Menu
   },
   props: {
     favorites: {
@@ -286,7 +285,6 @@ export default {
     }
   },
   async mounted() {
-    document.body.addEventListener('click', this.bodyClick);
     await this.reinitialize();
   },
   destroy() {
@@ -310,11 +308,6 @@ export default {
       }
       this.initializing = false;
       this.submit();
-    },
-    bodyClick() {
-      if (this.sortIsOpen) {
-        this.sortIsOpen = false;
-      }
     },
     imageUrl(result) {
       if (result.hasImage) {
@@ -435,10 +428,6 @@ export default {
     },
     toggleSort() {
       this.sortIsOpen = !this.sortIsOpen;
-    },
-    setSort(sort) {
-      this.sort = sort.value;
-      this.sortIsOpen = false;
     },
     sortLabel(sort) {
       return this.sorts.find(_sort => _sort.value === sort).label;
@@ -579,50 +568,6 @@ button.favorites {
 
 .sort {
   position: relative;
-}
-
-menu {
-  position: absolute;
-  z-index: 100;
-  right: 0;
-  background-color: #FCF9F4;
-  display: flex;
-  flex-direction: column;
-  padding-inline-start: 0;
-  border-radius: 8px;
-  font-size: 17px;
-  border-radius: 16px;
-  margin: 0;
-}
-
-menu li {
-  cursor: pointer;
-  list-style: none;
-  line-height: 2;
-  color: black;
-  padding: 0 12px;
-  border-bottom: 1px solid #aaa;
-}
-
-menu li:first-child {
-  border-radius: 9px 9px 0 0;
-  background-clip: padding-box;
-}
-
-menu li:last-child {
-  border-radius: 0 0 9px 9px;
-  background-clip: padding-box;
-  border-bottom: none;
-}
-
-menu li:focus {
-  color: #B74D15;
-  background-color: #ffebcc;
-}
-
-menu li:hover {
-  color: #B74D15;
-  background-color: #ffebcc;
 }
 
 .chips {
