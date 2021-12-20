@@ -639,6 +639,7 @@ button.text {
   margin: auto;
   display: flex;
   justify-content: space-between;
+  margin-bottom: 16px;
 }
 
 button.favorites {
@@ -977,6 +978,9 @@ td, th {
 }
 
 @media all and (min-width: 1280px) {
+  .sort-and-favorites {
+    margin-bottom: 0;
+  }
   .large-help {
     display: block;
     text-align: center;
