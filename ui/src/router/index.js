@@ -18,6 +18,14 @@ const routes = [
     }
   },
   {
+    path: "/questions",
+    name: "Answer 5 Questions",
+    component: Explorer,
+    props: {
+      questions: true
+    }
+  },
+  {
     path: "/people-page",
     name: "People Page",
     component: PeoplePage

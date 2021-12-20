@@ -11,78 +11,99 @@
       </template>
     </Header>
     <main :class="{ 'filters-open': filtersOpen }">
-      <div class="controls">
-        <div class="filter-toggle-and-sort">
-          <button v-if="!favorites" class="primary primary-bar filter" @click=openFilters>Filter</button>
-          <div class="chips" v-if="!favorites && activeFilters.length">
-            <button class="chip" v-for="chip in chips" v-bind:key="chip.key" @click="removeChip(chip)">
-              {{ chip.label }} <span class="material-icons">close</span>
-            </button>
-            <button class="text clear" @click="clearAll">Clear all</button>
-          </div>
-          <div class="sort-and-favorites">
-            <button class="favorites" v-if="!favorites" @click="$router.push('/favorite-list')">Favorite List</button>
-            <div class="sort">
-              <button @click.stop="toggleSort" :class="sortButtonClasses">
-                <span class="label">Sort By</span>
-                <span class="value">{{ sortLabel(sort) }}</span>
-                <span class="material-icons">{{ sortIsOpen ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
-              </button>
-              <Menu :open="sortIsOpen" :choices="sorts" v-model="sort" @close="toggleSort" />
+      <div v-if="questions" class="questions">
+        <form :class="questionClasses(index)" v-for="questionDetail, index in questionDetails" :key="index">
+          <fieldset>
+            <h4>{{ questionDetail.title }}</h4>
+            <label v-for="choice in questionDetail.filter.choices" :key="choice">
+              <span class="filter-contents">
+                <Checkbox :disabled="!filterCounts[questionDetail.filter.name][choice]" v-model="filterValues[questionDetail.filter.name]" :value="choice" />
+                <span class="text">{{ choice }} ({{ filterCounts[questionDetail.filter.name][choice] || 0 }})</span>
+              </span>
+              <img :src="`/assets/images/${choice}.svg`" class="choice-icon" />
+            </label>
+            <div class="question-buttons">
+              <button v-if="index > 0" @click.prevent="question = index - 1">Back</button>
+              <button v-if="index + 1 < questionDetails.length" @click.prevent="nextQuestion">Next Question</button>
+              <button v-else @click="endQuestions">View Plants</button>
             </div>
-          </div>
-        </div>
-        <form v-if="!favorites" class="filters" id="form" @submit.prevent="submit">
-          <div class="inner-controls">
-            <input v-model="q" id="q" type="search" class="search" placeholder="🔎" />
-            <div class="go">
-              <button class="primary primary-bar clear" @click="clearAll">Clear</button>
-              <button class="primary primary-bar apply" type="submit">Apply</button>
-            </div>
-            <button class="primary primary-bar search-submit" type="submit">Search</button>
-          </div>
-          <fieldset v-for="filter in filters" :key="filter.name" :class="filterClass(filter)">
-            <button class="fieldset-toggle" @click.prevent="toggleFilter(filter)">
-              {{ filter.label || filter.name }}
-              <span class="material-icons">{{ filterIsOpen[filter.name] ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
-            </button>
-            <template v-if="filterIsOpen[filter.name]">
-              <template v-if="filter.range">
-                <Range :double="filter.double" :exponent="filter.exponent" :choices="filter.choices" :min="filter.min" :max="filter.max" v-model="filterValues[filter.name]" />
-              </template>
-              <template v-else>
-                <label v-for="choice in filter.choices" :key="choice">
-                  <span class="filter-contents">
-                    <Checkbox :disabled="!filterCounts[filter.name][choice]" v-model="filterValues[filter.name]" :value="choice" />
-                    <span class="text">{{ choice }} ({{ filterCounts[filter.name][choice] || 0 }})</span>
-                  </span>
-                  <span v-if="filter.color" :style="flowerColorStyle(choice)" class="color-example" />
-                  <img v-else :src="`/assets/images/${choice}.svg`" class="choice-icon" />
-                </label>
-              </template>
-            </template>
           </fieldset>
         </form>
       </div>
-      <article class="plants">
-        <article v-for="result in results" :key="result._id" class="plant-preview-wrapper">
-          <div class="plant-preview">
-            <img class="photo" :src="imageUrl(result)" />
-            <h4 class="common-name">{{ result['Common Name'] }}</h4>
-            <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
-            <button @click="toggleFavorite(result._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
-            <div class="plant-controls-wrapper">
-              <div class="plant-controls">
-                <button class="text"><span class="material-icons material-align info">info_outline</span> More Info</button>
-                <button @click="toggleFavorite(result._id)" class="favorite-regular text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
+      <template v-else>
+        <div class="controls">
+          <div class="filter-toggle-and-sort">
+            <button v-if="!favorites" class="primary primary-bar filter" @click=openFilters>Filter</button>
+            <div class="chips" v-if="!favorites && activeFilters.length">
+              <button class="chip" v-for="chip in chips" v-bind:key="chip.key" @click="removeChip(chip)">
+                {{ chip.label }} <span class="material-icons">close</span>
+              </button>
+              <button class="text clear" @click="clearAll">Clear all</button>
+            </div>
+            <div class="sort-and-favorites">
+              <button class="favorites" v-if="!favorites" @click="$router.push('/favorite-list')">Favorite List</button>
+              <div class="sort">
+                <button @click.stop="toggleSort" :class="sortButtonClasses">
+                  <span class="label">Sort By</span>
+                  <span class="value">{{ sortLabel(sort) }}</span>
+                  <span class="material-icons">{{ sortIsOpen ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
+                </button>
+                <Menu :open="sortIsOpen" :choices="sorts" v-model="sort" @close="toggleSort" />
               </div>
             </div>
           </div>
+          <form v-if="!favorites" class="filters" id="form" @submit.prevent="submit">
+            <div class="inner-controls">
+              <input v-model="q" id="q" type="search" class="search" placeholder="🔎" />
+              <div class="go">
+                <button class="primary primary-bar clear" @click="clearAll">Clear</button>
+                <button class="primary primary-bar apply" type="submit">Apply</button>
+              </div>
+              <button class="primary primary-bar search-submit" type="submit">Search</button>
+            </div>
+            <fieldset v-for="filter in filters" :key="filter.name" :class="filterClass(filter)">
+              <button class="fieldset-toggle" @click.prevent="toggleFilter(filter)">
+                {{ filter.label || filter.name }}
+                <span class="material-icons">{{ filterIsOpen[filter.name] ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
+              </button>
+              <template v-if="filterIsOpen[filter.name]">
+                <template v-if="filter.range">
+                  <Range :double="filter.double" :exponent="filter.exponent" :choices="filter.choices" :min="filter.min" :max="filter.max" v-model="filterValues[filter.name]" />
+                </template>
+                <template v-else>
+                  <label v-for="choice in filter.choices" :key="choice">
+                    <span class="filter-contents">
+                      <Checkbox :disabled="!filterCounts[filter.name][choice]" v-model="filterValues[filter.name]" :value="choice" />
+                      <span class="text">{{ choice }} ({{ filterCounts[filter.name][choice] || 0 }})</span>
+                    </span>
+                    <span v-if="filter.color" :style="flowerColorStyle(choice)" class="color-example" />
+                    <img v-else :src="`/assets/images/${choice}.svg`" class="choice-icon" />
+                  </label>
+                </template>
+              </template>
+            </fieldset>
+          </form>
+        </div>
+        <article class="plants">
+          <article v-for="result in results" :key="result._id" class="plant-preview-wrapper">
+            <div class="plant-preview">
+              <img class="photo" :src="imageUrl(result)" />
+              <h4 class="common-name">{{ result['Common Name'] }}</h4>
+              <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
+              <button @click="toggleFavorite(result._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
+              <div class="plant-controls-wrapper">
+                <div class="plant-controls">
+                  <button class="text"><span class="material-icons material-align info">info_outline</span> More Info</button>
+                  <button @click="toggleFavorite(result._id)" class="favorite-regular text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
+                </div>
+              </div>
+            </div>
+          </article>
+          <!-- Placeholders to ensure minimum number of cells so the grid does not
+            provide huge plant previews when there are only 3 plants on desktop -->
+          <article v-for="extra in extras" :key="extra.id" class="extra"></article>
         </article>
-        <!-- Placeholders to ensure minimum number of cells so the grid does not
-          provide huge plant previews when there are only 3 plants on desktop -->
-        <article v-for="extra in extras" :key="extra.id" class="extra"></article>
-      </article>
+      </template>
     </main>
     <!-- Useful if we go back to using an observer for infinite scroll -->
     <div ref="next"></div>
@@ -103,6 +124,10 @@ export default {
   },
   props: {
     favorites: {
+      type: Boolean,
+      default: false
+    },
+    questions: {
       type: Boolean,
       default: false
     }
@@ -194,18 +219,16 @@ export default {
         'Sort by Scientific Name (A-Z)': 'Scientific Name (A-Z)',
         'Sort by Scientific Name (Z-A)': 'Scientific Name (Z-A)'
       }).map(([ value, label ]) => ({ value, label }));
+
+    this.defaultFilterValues = getDefaultFilterValues(filters);
+
     return {
       results: [],
       total: 0,
       q: '',
       sort: 'Sort by Common Name (A-Z)',
       filters,
-      filterValues: Object.fromEntries(filters.map(filter => {
-        const value = [ filter.name, filter.value ];
-        filter.default = filter.value;
-        delete filter.value;
-        return value;
-      })),
+      filterValues: {...this.defaultFilterValues},
       filterIsOpen: Object.fromEntries(filters.map(filter => [
         filter.name, filter.initiallyOpen || false
       ])),
@@ -213,18 +236,43 @@ export default {
       filtersOpen: false,
       updatingCounts: false,
       sorts,
-      sortIsOpen: false
+      sortIsOpen: false,
+      question: 0,
+      questionDetails: [
+        {
+          filter: filters.find(filter => filter.name === 'Plant Type Flags'),
+          title: 'What type of plants do you want?'
+        },
+        {
+          filter: filters.find(filter => filter.name === 'Life Cycle Flags'),
+          title: 'What life cycle do you want?'
+        },
+        {
+          filter: filters.find(filter => filter.name === 'Sun Exposure Flags'),
+          title: 'How much sun exposure does your planting site get?'
+        },
+        {
+          filter: filters.find(filter => filter.name === 'Soil Moisture Flags'),
+          title: 'How wet is the soil?'
+        },
+        {
+          filter: filters.find(filter => filter.name === 'Pollinator Flags'),
+          title: 'What pollinators do you want to attract?'
+        },
+        {
+          filter: filters.find(filter => filter.name === 'Superplant'),
+          title: 'You can further refine your search to only include Super Plants.'
+        }
+      ]
     };
   },
   computed: {
     extras() {
       const min = Math.floor((window.innerWidth - 300) / 200);
-      console.log(min);
       let extras = [];
       for (let i = 0; (i <= min); i++) {
         extras.push({ _id: i });
       }
-      console.log(JSON.stringify(extras));
       return extras;
     },
     chips() {
@@ -283,7 +331,14 @@ export default {
   },
   watch: {
     favorites() {
-      this.reinitialize();
+      this.determineFilterCounts();
+    },
+    questions() {
+      if (this.questions) {
+        this.filterValues = {...this.defaultFilterValues};
+        this.determineFilterCounts();
+        this.question = 0;
+      }
     },
     sortIsOpen() {
       this.$store.commit('setSortIsOpen', this.sortIsOpen);
@@ -303,15 +358,15 @@ export default {
     }
   },
   async mounted() {
-    await this.reinitialize();
+    await this.determineFilterCounts();
   },
   destroy() {
     document.body.removeEventListener('click', this.bodyClick);
   },
   methods: {
-    async reinitialize() {
+    async determineFilterCounts() {
       this.initializing = true;
-      if (!this.favorites) {
+      if (!this.determinedFilterCounts) {
         const response = await fetch('/plants?results=0&total=0');
         const data = await response.json();
         this.filterCounts = data.counts;
@@ -323,6 +378,7 @@ export default {
         const heights = data.choices['Height (feet)'];
         height.max = heights[heights.length - 1];
         this.filterValues['Height (feet)'].max = height.max;
+        this.determinedFilterCounts = true;
       }
       this.initializing = false;
       this.submit();
@@ -482,10 +538,35 @@ export default {
     },
     renderFavorite(_id) {
       return this.$store.state.favorites.has(_id) ? 'favorite' : 'favorite_outline';
+    },
+    questionClasses(index) {
+      if (this.question === index) {
+        return 'filters question active-question';
+      } else {
+        return 'filters question inactive-question';
+      }
+    },
+    nextQuestion() {
+      this.question = this.question + 1;
+    },
+    endQuestions() {
+      for (const questionDetail of this.questionDetails) {
+        this.filterIsOpen[questionDetail.filter.name] = true;
+      }
+      this.filtersOpen = true;
+      this.$router.push('/');
     }
   }
 }
 
+function getDefaultFilterValues(filters) {
+  return Object.fromEntries(filters.map(filter => {
+    const value = [ filter.name, filter.value ];
+    filter.default = filter.value;
+    delete filter.value;
+    return value;
+  }));
+}
 </script>
 
 <style scoped>
@@ -865,6 +946,36 @@ td, th {
   text-align: center;
 }
 
+.questions {
+  display: flex;
+  margin: auto;
+}
+
+.question {
+  flex-grow: 1.0;
+}
+
+.inactive-question {
+  display: none;
+}
+
+.question-buttons {
+  display: flex;
+}
+
+.question-buttons > * {
+  flex-basis: 0;
+  flex-grow: 1.0;
+}
+
+.question-buttons > * {
+  margin-right: 16px;
+}
+
+.question-buttons > *:last-child {
+  margin-right: 0;
+}
+
 @media all and (min-width: 1280px) {
   .large-help {
     display: block;
@@ -936,6 +1047,9 @@ td, th {
   }
   .filters {
     display: flex;
+  }
+  .filters.inactive-question {
+    display: none;
   }
   .search {
     margin-bottom: 24px;
