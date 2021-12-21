@@ -187,6 +187,13 @@ export default {
         color: true
       },
       {
+        name: 'Availability Flags',
+        label: 'Availability',
+        value: [],
+        array: true,
+        counts: {}
+      },
+      {
         name: 'Flowering Months',
         range: true,
         double: true,

@@ -217,7 +217,20 @@ async function go() {
         'Flower Color Flags': flowerColorFlags
       }
     });
-
+    const availabilityFlags = [];
+    if (plant['Online Flag'] === '1') {
+      availabilityFlags.push('Online');
+    }
+    if (plant['Local Flag'] === '1') {
+      availabilityFlags.push('Local');
+    }
+    await plants.updateOne({
+      _id: plant._id
+    }, {
+      $set: {
+        'Availability Flags': availabilityFlags
+      }
+    });
   }
   await close();
 }
