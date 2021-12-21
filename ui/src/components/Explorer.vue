@@ -772,9 +772,11 @@ td, th {
   grid-template-columns: repeat(auto-fit, minmax(248px, 1fr));
   gap: 8px;
   flex-direction: column;
+  align-content: start;
 }
 .plant-preview-wrapper {
   position: relative;
+  aspect-ratio: 1/1;
 }
 .plant-preview {
   position: relative;
