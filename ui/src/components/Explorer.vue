@@ -267,6 +267,10 @@ export default {
           title: 'What pollinators do you want to attract?'
         },
         {
+          filter: filters.find(filter => filter.name === 'Availability Flags'),
+          title: 'Where would you like to purchase your plants?'
+        },
+        {
           filter: filters.find(filter => filter.name === 'Superplant'),
           title: 'You can further refine your search to only include Super Plants.'
         }
@@ -470,7 +474,7 @@ export default {
           filter.choices = data.choices[filter.name];
         }
       }
-      if ((!data.results.length) || this.favorites) {
+      if ((!data.results.length) || this.favorites || this.questions) {
         this.loadedAll = true;
       }
       data.results.forEach(datum => this.results.push(datum));
