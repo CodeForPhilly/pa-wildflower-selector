@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Header :h1="favorites ? 'Favorite List' : 'Choose Native Plants PA'">
+    <Header :h1="favorites ? 'Favorite List' : 'Find native plants in PA'">
       <template v-slot:after-bar>
         <p class="not-large-help">
           <router-link to="/questions">Not sure where to start?<br />Answer 5 questions</router-link>
@@ -589,6 +589,10 @@ function getDefaultFilterValues(filters) {
   padding: 32px;
 }
 
+main {
+  padding: 0 32px;
+}
+
 .inner-controls {
   position: sticky;
   z-index: 100;
@@ -1018,7 +1022,7 @@ td, th {
     display: flex;
     justify-content: space-between;
     gap: 32px;
-    padding: 0 16px;
+    padding: 0 64px;
   }
   .apply {
     display: none;
