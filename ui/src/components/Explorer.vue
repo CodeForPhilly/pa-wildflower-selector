@@ -453,6 +453,16 @@ export default {
     },
     async fetchPage() {
       this.loading = true;
+      console.log(this.$store.state.favorites);
+      if (this.favorites && !([...this.$store.state.favorites].length)) {
+        // Avoid a query that would result in seeing all of the plants
+        // in the database as "favorites"
+        this.results = [];
+        this.loadedAll = true;
+        this.total = 0;
+        this.loading = false;
+        return;
+      }
       const params = this.favorites ? {
         favorites: [...this.$store.state.favorites],
         sort: this.sort
