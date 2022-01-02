@@ -55,11 +55,11 @@ menu {
   right: 0;
   background-color: #FCF9F4;
   display: flex;
+  min-width: 216px;
   flex-direction: column;
   padding-inline-start: 0;
   border-radius: 8px;
   font-size: 16px;
-  border-radius: 16px;
   margin: 0;
 }
 
@@ -70,6 +70,8 @@ menu li {
   color: black;
   padding: 0 12px;
   border-bottom: 1px solid #aaa;
+  height: 48px;
+  line-height: 48px;
 }
 
 menu li:first-child {
