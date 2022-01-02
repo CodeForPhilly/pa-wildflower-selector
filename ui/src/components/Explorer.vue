@@ -1001,7 +1001,7 @@ td, th {
   .large-help {
     display: block;
     text-align: center;
-    width: 50%;
+    width: 600px;
     font-size: 20px;
     line-height: 30px;
     font-family: Roboto;

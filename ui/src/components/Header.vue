@@ -198,6 +198,9 @@ menu .copyright {
 }
 
 @media all and (min-width: 1280px) {
+  header {
+    padding-bottom: 64px;
+  }
   .main-nav .close-nav {
     display: none;
   }
