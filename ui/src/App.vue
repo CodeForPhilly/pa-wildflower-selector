@@ -12,7 +12,7 @@ export default {
       return {
         outer: true,
         'nav-is-open': this.$store.state.navIsOpen,
-        'menu-is-open': this.$store.state.navIsOpen || this.$store.state.sortIsOpen
+        'menu-is-open': this.$store.state.navIsOpen || this.$store.state.sortIsOpen || this.$store.state.selectedIsOpen
       };
     }
   }
@@ -30,7 +30,10 @@ html {
   position: relative;
   padding-top: 48px;
 }
-
+.menu-is-open {
+  height: 100vh;
+  overflow: hidden;
+}
 .menu-is-open .modal-cover {
   display: block;
   position: fixed;

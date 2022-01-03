@@ -10,6 +10,27 @@
         </p>
       </template>
     </Header>
+    <article v-if="selected" class="selected">
+      <div class="header">
+        <!-- Holds space on left -->
+        <div></div>
+        <h2>More Info</h2>
+        <router-link to="/" class="material-icons router-button close-nav">close</router-link>
+      </div>
+      <div class="info-and-photo">
+        <div class="info">
+          <h1>{{ selected['Common Name'] }}</h1>
+          <button @click="toggleFavorite(selected._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(selected._id) }}</span></button>
+          <h2>{{ selected['Scientific Name'] }}</h2>
+          <h3>Available at these stores:</h3>
+          <h4>Store1, store2, store3</h4>
+          <h3>Mentioned in these articles:</h3>
+          <h4>Hyperlink1, hyperlink2, hyperlink3</h4>
+          <p>Flags</p>
+        </div>
+        <img class="photo" :src="imageUrl(selected, false)" />
+      </div>
+    </article>
     <main :class="{ 'filters-open': filtersOpen }">
       <div v-if="questions" class="questions">
         <form :class="questionClasses(index)" v-for="questionDetail, index in questionDetails" :key="index">
@@ -87,13 +108,15 @@
         <article class="plants">
           <article v-for="result in results" :key="result._id" class="plant-preview-wrapper">
             <div class="plant-preview">
-              <img class="photo" :src="imageUrl(result)" />
+              <img class="photo" :src="imageUrl(result, true)" />
               <h4 class="common-name">{{ result['Common Name'] }}</h4>
               <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
               <button @click="toggleFavorite(result._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
               <div class="plant-controls-wrapper">
                 <div class="plant-controls">
-                  <button class="text"><span class="material-icons material-align info">info_outline</span> More Info</button>
+                  <router-link :to="`/plants/${result['Scientific Name']}`" tag="button" class="text">
+                    <span class="material-icons material-align info">info_outline</span> More Info
+                  </router-link>
                   <button @click="toggleFavorite(result._id)" class="favorite-regular text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
                 </div>
               </div>
@@ -118,7 +141,7 @@ import Header from './Header.vue';
 import Menu from './Menu.vue';
 
 export default {
-  name: 'App',
+  name: 'Explorer',
   components: {
     Range, Checkbox, Header, Menu
   },
@@ -242,6 +265,7 @@ export default {
       filterCounts: Object.fromEntries(filters.map(filter => [ filter.name, {} ])),
       filtersOpen: false,
       updatingCounts: false,
+      selected: null,
       sorts,
       sortIsOpen: false,
       question: 0,
@@ -278,6 +302,9 @@ export default {
     };
   },
   computed: {
+    selectedName() {
+      return this.$route.params.name;
+    },
     extras() {
       const min = Math.floor((window.innerWidth - 300) / 200);
       let extras = [];
@@ -341,6 +368,9 @@ export default {
     }
   },
   watch: {
+    selectedName() {
+      this.fetchSelectedIfNeeded();
+    },
     favorites() {
       this.determineFilterCounts();
     },
@@ -370,11 +400,25 @@ export default {
   },
   async mounted() {
     await this.determineFilterCounts();
+    await this.fetchSelectedIfNeeded();
   },
   destroy() {
     document.body.removeEventListener('click', this.bodyClick);
   },
   methods: {
+    async fetchSelectedIfNeeded() {
+      if (!this.selectedName) {
+        this.selected = null;
+        this.$store.commit('setSelectedIsOpen', false);
+      } else {
+        // Could be optimized away in some cases, but not all
+        // (direct links from Google for example), so let's stick to
+        // what definitely works for now
+        const response = await fetch(`/plants/${this.selectedName}`);
+        this.selected = await response.json();
+        this.$store.commit('setSelectedIsOpen', true);
+      }
+    },
     async determineFilterCounts() {
       this.initializing = true;
       if (!this.determinedFilterCounts) {
@@ -394,9 +438,13 @@ export default {
       this.initializing = false;
       this.submit();
     },
-    imageUrl(result) {
+    imageUrl(result, preview) {
       if (result.hasImage) {
-        return `/images/${result._id}.preview.jpg`;
+        if (preview) {
+          return `/images/${result._id}.preview.jpg`;
+        } else {
+          return `/images/${result._id}.jpg`;
+        }
       } else {
         return '/assets/images/missing-image.png';
       }
@@ -497,6 +545,10 @@ export default {
       }
       this.loadTimeout = setTimeout(loadMoreIfNeeded.bind(this), 500);
       async function loadMoreIfNeeded() {
+        if (!this.$el.closest('body')) {
+          // Component unmounted, don't waste energy
+          return;
+        }
         // Stay a full screen ahead
         if (!this.loadedAll && !this.loading && (window.scrollY + window.innerHeight * 3 > document.body.clientHeight)) {
           // this.$refs.afterTable.getBoundingClientRect().top)) {
@@ -785,7 +837,6 @@ td, th {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(248px, 1fr));
   gap: 8px;
-  flex-direction: column;
   align-content: start;
 }
 .plant-preview-wrapper {
@@ -799,7 +850,7 @@ td, th {
 .photo {
   object-fit: cover;
   width: 100%;
-  aspect-ratio: 1/1;
+  aspect-ratio: 1.25/1;
   border-radius: 8px 8px 0 0;
 }
 .common-name {
@@ -1004,6 +1055,56 @@ td, th {
   margin-right: 0;
 }
 
+.selected {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  width: 100%;
+  height: 100vh;
+  background-color: #fcf9f4;
+  z-index: 200;
+}
+
+.selected .header {
+  padding: 0 32px;
+  display: flex;
+}
+
+.selected .header h2 {
+  flex-grow: 1;
+  text-align: center;
+  font-size: 20px;
+  font-family: Arvo;
+  font-weight: normal;
+}
+
+.selected .header a {
+  flex-basis: 0;
+  align-self: right;
+  font-size: 24px;
+  align-self: center;
+  color: inherit;
+  text-decoration: none;
+}
+
+.selected .info-and-photo {
+  display: flex;
+  flex-direction: column;
+}
+
+.selected .info {
+  padding: 0 32px;
+  overflow: scroll;
+  order: 2;
+}
+
+.selected .photo {
+  display: block;
+  order: 1;
+  border-radius: 0;
+  padding: 0;
+}
+
 @media all and (min-width: 1280px) {
   .sort-and-favorites {
     margin-bottom: 0;
@@ -1119,6 +1220,20 @@ td, th {
   }
   .scientific-name {
     font-size: 14px;
+  }
+  .selected {
+    flex-direction: row;
+    height: 66vh;
+  }
+  .selected .info {
+    order: 1;
+    flex-basis: 0;
+    flex-grow: 1;
+  }
+  .selected .photo {
+    order: 2;
+    flex-basis: 0;
+    flex-grow: 1;
   }
 }
 

@@ -5,6 +5,7 @@ const store = createStore({
     return {
       navIsOpen: false,
       sortIsOpen: false,
+      selectedIsOpen: false,
       favorites: getFavoritesFromLocalStorage()
     }
   },
@@ -14,6 +15,9 @@ const store = createStore({
     },
     setSortIsOpen (state, sortIsOpen) {
       state.sortIsOpen = sortIsOpen;
+    },
+    setSelectedIsOpen (state, selectedIsOpen) {
+      state.selectedIsOpen = selectedIsOpen;
     },
     toggleFavorite (state, plantId) {
       if (state.favorites.has(plantId)) {

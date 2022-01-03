@@ -10,6 +10,10 @@ const routes = [
     component: Explorer
   },
   {
+    path: '/plants/:name',
+    component: Explorer
+  },
+  {
     path: "/favorite-list",
     name: "Favorite List",
     component: Explorer,
@@ -39,7 +43,7 @@ const routes = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes,
+  routes
 });
 
 export default router;
