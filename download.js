@@ -28,6 +28,9 @@ let close = null;
 
 async function go() {
   try {
+    if (!fs.existsSync(`${__dirname}/images`)) {
+      fs.mkdirSync(`${__dirname}/images`);
+    }
     const info = await db();
     plants = info.plants;
     close = info.close;
