@@ -224,7 +224,8 @@ export default {
         'Sort by Common Name (A-Z)': 'Common Name (A-Z)',
         'Sort by Common Name (Z-A)': 'Common Name (Z-A)',
         'Sort by Scientific Name (A-Z)': 'Scientific Name (A-Z)',
-        'Sort by Scientific Name (Z-A)': 'Scientific Name (Z-A)'
+        'Sort by Scientific Name (Z-A)': 'Scientific Name (Z-A)',
+	'Sort by Recommendation Score': 'Recommendation Score'
       }).map(([ value, label ]) => ({ value, label }));
 
     this.defaultFilterValues = getDefaultFilterValues(filters);
