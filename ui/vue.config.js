@@ -6,14 +6,10 @@ module.exports = {
     proxy: 'http://localhost:3001'
   },
   filenameHashing: false,
-  // pages: {},
-  // assetsDir: process.env.SSR ? 'ssr' : 'browser',
   chainWebpack: webpackConfig => {
-    // webpackConfig.optimization.splitChunks(false);
     if (!process.env.SSR) {
       return;
     }
-    webpackConfig.optimization.splitChunks(false);
 
     webpackConfig
       .entry("app")
@@ -30,6 +26,7 @@ module.exports = {
     webpackConfig.externals(nodeExternals({ allowlist: /\.(css|vue)$/ }));
 
     webpackConfig.optimization.minimize(false);
+    webpackConfig.optimization.splitChunks(false);
 
     webpackConfig.plugins.delete("hmr");
     webpackConfig.plugins.delete("preload");

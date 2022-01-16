@@ -7,3 +7,5 @@ node_modules
 /settings.json
 /pa-wildflower-selector-media.tar
 /designs.fig
+/dist
+/ssr

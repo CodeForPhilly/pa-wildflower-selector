@@ -5,9 +5,12 @@
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "cd ui && npm run build && cd .. && cp -r ui/dist/ public",
+    "build-ssr": "cd ui && npm run build-ssr && cd .. && mkdir -p ssr && cp -r ui/dist/ ssr",
+    "build-browser": "cd ui && npm run build && cd .. && cp -r ui/dist/ public && rm public/index.html",
+    "build": "npm run build-ssr && npm run build-browser",
     "deploy": "npm run build && sc-deploy production",
     "sync-up": "./scripts/sync-up",
+    "serve": "PORT=3001 node app",
     "dev": "PORT=3001 node app & (cd ui && npm run serve)",
     "upload-test-data": "./scripts/upload-test-data",
     "restore-test-data": "./scripts/restore-test-data"
@@ -23,8 +26,11 @@
   },
   "homepage": "https://github.com/boutell/pa-wildflower-selector#readme",
   "dependencies": {
+    "@vue/server-renderer": "^3.2.26",
     "boring": "^1.1.1",
     "cheerio": "^1.0.0-rc.9",
+    "core-js": "^3.20.2",
+    "css-loader": "^6.5.1",
     "csv-parse": "^4.15.4",
     "express": "^4.17.1",
     "google-spreadsheet": "^3.1.15",
@@ -32,9 +38,15 @@
     "mongodb": "^3.6.7",
     "node-fetch": "^2.6.1",
     "qs": "^6.10.1",
+    "regenerator-runtime": "^0.13.9",
     "regexp-quote": "0.0.0",
     "sluggo": "^0.3.1",
+    "vue": "^3.2.26",
+    "vue-loader": "^17.0.0",
     "vue-router": "^4.0.12",
-    "vuex": "^4.0.2"
+    "vue-template-compiler": "^2.6.14",
+    "vuex": "^4.0.2",
+    "webpack": "^5.65.0",
+    "webpack-cli": "^4.9.1"
   }
 }
