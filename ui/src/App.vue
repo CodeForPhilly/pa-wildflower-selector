@@ -1,12 +1,16 @@
 <template>
   <div :class="classes">
     <div class="modal-cover"></div>
-    <router-view />
+    <Explorer />
   </div>
 </template>
 
 <script>
+
+import Explorer from './components/Explorer.vue';
+
 export default {
+  components: { Explorer },
   computed: {
     classes() {
       return {

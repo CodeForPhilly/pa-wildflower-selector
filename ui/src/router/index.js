@@ -1,7 +1,7 @@
-import { createWebHistory, createRouter } from "vue-router";
 import Explorer from "../components/Explorer.vue";
 import PeoplePage from "../components/PeoplePage.vue";
 import HowToUsePage from "../components/HowToUsePage.vue";
+import { createRouter } from "vue-router";
 
 const routes = [
   {
@@ -41,9 +41,10 @@ const routes = [
   }
 ];
 
-const router = createRouter({
-  history: createWebHistory(),
-  routes
-});
-
-export default router;
+export default ({ history }) => {
+  console.log(history);
+  return createRouter({
+    history,
+    routes
+  });
+};

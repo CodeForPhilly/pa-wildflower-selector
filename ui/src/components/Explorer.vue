@@ -306,6 +306,9 @@ export default {
       return this.$route.params.name;
     },
     extras() {
+      if (typeof window === 'undefined') {
+        return [];
+      }
       const min = Math.floor((window.innerWidth - 300) / 200);
       let extras = [];
       for (let i = 0; (i <= min); i++) {
@@ -372,12 +375,12 @@ export default {
       this.fetchSelectedIfNeeded();
     },
     favorites() {
-      this.determineFilterCounts();
+      this.determineFilterCountsAndSubmit();
     },
     questions() {
       if (this.questions) {
         this.filterValues = {...this.defaultFilterValues};
-        this.determineFilterCounts();
+        this.determineFilterCountsAndSubmit();
         this.question = 0;
       }
     },
@@ -398,8 +401,14 @@ export default {
       deep: true
     }
   },
+  // Server only
+  async serverPrefetch() {
+    await this.determineFilterCountsAndSubmit();
+    await this.fetchPage();
+  },
+  // Browser only
   async mounted() {
-    await this.determineFilterCounts();
+    await this.determineFilterCountsAndSubmit();
     await this.fetchSelectedIfNeeded();
   },
   destroy() {
@@ -414,15 +423,19 @@ export default {
         // Could be optimized away in some cases, but not all
         // (direct links from Google for example), so let's stick to
         // what definitely works for now
-        const response = await fetch(`/plants/${this.selectedName}`);
+        const response = await fetch(`/api/v1/plants/${this.selectedName}`);
         this.selected = await response.json();
         this.$store.commit('setSelectedIsOpen', true);
       }
     },
+    async determineFilterCountsAndSubmit() {
+      await this.determineFilterCounts();
+      this.submit();
+    },
     async determineFilterCounts() {
       this.initializing = true;
       if (!this.determinedFilterCounts) {
-        const response = await fetch('/plants?results=0&total=0');
+        const response = await fetch('/api/v1/plants?results=0&total=0');
         const data = await response.json();
         this.filterCounts = data.counts;
         for (const filter of this.filters) {
@@ -492,7 +505,7 @@ export default {
         if (this.initializing) {
           return;
         }
-        const response = await fetch('/plants?' + qs.stringify(params));
+        const response = await fetch('/api/v1/plants?' + qs.stringify(params));
         const data = await response.json();
         this.filterCounts = data.counts;
       } finally {
@@ -524,7 +537,7 @@ export default {
         // Don't send a bogus query for min 0 max 0
         delete params['Height (feet)'];
       }
-      const response = await fetch('/plants?' + qs.stringify(params));
+      const response = await fetch('/api/v1/plants?' + qs.stringify(params));
       const data = await response.json();
       if (!this.favorites) {
         this.filterCounts = data.counts;
@@ -545,6 +558,10 @@ export default {
       }
       this.loadTimeout = setTimeout(loadMoreIfNeeded.bind(this), 500);
       async function loadMoreIfNeeded() {
+        if ((typeof window) === 'undefined') {
+          // server side, not appropriate
+          return;
+        }
         if (!this.$el.closest('body')) {
           // Component unmounted, don't waste energy
           return;
