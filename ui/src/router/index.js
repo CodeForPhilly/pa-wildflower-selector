@@ -42,7 +42,6 @@ const routes = [
 ];
 
 export default ({ history }) => {
-  console.log(history);
   return createRouter({
     history,
     routes

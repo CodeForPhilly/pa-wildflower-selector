@@ -514,7 +514,6 @@ export default {
     },
     async fetchPage() {
       this.loading = true;
-      console.log(this.$store.state.favorites);
       if (this.favorites && !([...this.$store.state.favorites].length)) {
         // Avoid a query that would result in seeing all of the plants
         // in the database as "favorites"

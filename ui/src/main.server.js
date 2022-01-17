@@ -6,16 +6,17 @@ import { createMemoryHistory } from "vue-router";
 import App from './App.vue';
 import nodeFetch from 'node-fetch';
 
-console.log('top level code');
-
-export default async ({ port }) => {
-  console.log('IN THE FUNCTION');
+export default async ({ port, url }) => {
   // Shim to allow fetch calls to ourselves on the server side
   global.fetch = (url) => {
     return nodeFetch(`http://localhost:${port}${url}`);
   };
   const app = createSSRApp(App);
-  app.use(router({ history: createMemoryHistory() }));
+  const routerInstance = router({ history: createMemoryHistory() });
+  app.use(routerInstance);
   app.use(store({ favorites: new Set() }));
+  console.log(`URL is: ${url}`);
+  await routerInstance.push(url);
+  await routerInstance.isReady();
   return renderToString(app);
 }

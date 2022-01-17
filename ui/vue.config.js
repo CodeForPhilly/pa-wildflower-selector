@@ -32,7 +32,7 @@ module.exports = {
     webpackConfig.plugins.delete("preload");
     webpackConfig.plugins.delete("prefetch");
     webpackConfig.plugins.delete("progress");
-    webpackConfig.plugins.delete("friendly-errors");
+    // webpackConfig.plugins.delete("friendly-errors");
     
   }
 };

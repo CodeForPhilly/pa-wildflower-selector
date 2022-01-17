@@ -10,8 +10,7 @@
     "build": "npm run build-ssr && npm run build-browser",
     "deploy": "npm run build && sc-deploy production",
     "sync-up": "./scripts/sync-up",
-    "serve": "PORT=3001 node app",
-    "dev": "PORT=3001 node app & (cd ui && npm run serve)",
+    "dev": "npm run build && node app",
     "upload-test-data": "./scripts/upload-test-data",
     "restore-test-data": "./scripts/restore-test-data"
   },
