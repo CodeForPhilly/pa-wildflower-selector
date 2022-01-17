@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",
-    "build": "vue-cli-service build",
+    "build": "rm -rf ui/dist node_modules/.cache && vue-cli-service build",
     "lint": "vue-cli-service lint",
-    "build-ssr": "SSR=true vue-cli-service build"
+    "build-ssr": "rm -rf ui/dist node_modules/.cache && SSR=true vue-cli-service build"
   },
   "dependencies": {
     "@vue/server-renderer": "^3.2.26",
