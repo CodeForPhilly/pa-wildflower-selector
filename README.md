@@ -13,6 +13,7 @@ git clone https://github.com/CodeForPhilly/pa-wildflower-selector
 Then you can install the npm dependencies at the server app and ui app levels:
 
 ```
+cd pa-wildflower-selector
 npm install
 cd ui
 npm install
