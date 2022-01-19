@@ -33,9 +33,7 @@
     "vue-router": "^4.0.12",
     "vuex": "^4.0.2",
     "webpack-manifest-plugin": "^4.0.2",
-    "webpack-node-externals": "^3.0.0"
-  },
-  "devDependencies": {
+    "webpack-node-externals": "^3.0.0",
     "@vue/cli-plugin-babel": "^4.5.15",
     "@vue/cli-plugin-eslint": "^4.5.15",
     "@vue/cli-service": "^4.5.15",
