@@ -1,5 +1,6 @@
-# Because it's a copy of dist each time
-/public
+/public/js
+/public/css
+/version.txt
 /images
 .DS_Store
 node_modules
