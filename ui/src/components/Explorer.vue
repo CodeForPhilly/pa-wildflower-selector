@@ -221,11 +221,11 @@ export default {
       }
     ];
     const sorts = Object.entries({
+	'Sort by Recommendation Score': 'Recommendation Score',
         'Sort by Common Name (A-Z)': 'Common Name (A-Z)',
         'Sort by Common Name (Z-A)': 'Common Name (Z-A)',
         'Sort by Scientific Name (A-Z)': 'Scientific Name (A-Z)',
-        'Sort by Scientific Name (Z-A)': 'Scientific Name (Z-A)',
-	'Sort by Recommendation Score': 'Recommendation Score'
+        'Sort by Scientific Name (Z-A)': 'Scientific Name (Z-A)'
       }).map(([ value, label ]) => ({ value, label }));
 
     this.defaultFilterValues = getDefaultFilterValues(filters);
@@ -234,7 +234,7 @@ export default {
       results: [],
       total: 0,
       q: '',
-      sort: 'Sort by Common Name (A-Z)',
+      sort: 'Sort by Recommendation Score',
       filters,
       filterValues: {...this.defaultFilterValues},
       filterIsOpen: Object.fromEntries(filters.map(filter => [
