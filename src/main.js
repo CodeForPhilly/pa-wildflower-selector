@@ -21,7 +21,6 @@ window.addEventListener('storage', () => {
 });
 
 const router = routerFactory({ history: createWebHistory() });
-console.log('router is:', router);
 createSSRApp(App).use(router).use(store).mount('#app');
 
 function getFavoritesFromLocalStorage() {

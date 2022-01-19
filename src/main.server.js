@@ -15,7 +15,6 @@ export default async ({ port, url }) => {
   const routerInstance = router({ history: createMemoryHistory() });
   app.use(routerInstance);
   app.use(store({ favorites: new Set() }));
-  console.log(`URL is: ${url}`);
   await routerInstance.push(url);
   await routerInstance.isReady();
   return renderToString(app);
