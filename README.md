@@ -47,6 +47,13 @@ npm run dev
 npm run build
 ```
 
+### Tests the production experience locally
+```
+npm run ssr-dev
+```
+
+This is much slower and doesn't restart automatically, but it is important to check before deploying to production, in order to make sure we haven't broken server side rendering with changes to the Vue application that are browser-specific. If you must do something browser-specific, wrap it in an `if ((typeof window) !== 'undefined') { ... }` block.
+
 ### Deploys (to Tom's server, currently for Tom to run)
 ```
 npm run deploy

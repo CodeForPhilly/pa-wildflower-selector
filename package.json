@@ -4,8 +4,8 @@
   "private": true,
   "main": "server.js",
   "scripts": {
-    "serve": "PORT=3001 node server & vue-cli-service serve",
-    "ssr-serve": "npm run build && node server",
+    "dev": "PORT=3001 node server & vue-cli-service serve",
+    "ssr-dev": "npm run build && node server",
     "lint": "vue-cli-service lint",
     "build-browser": "rm -rf dist node_modules/.cache && vue-cli-service build && cp -r dist/ public && rm public/index.html",
     "build-ssr": "rm -rf dist node_modules/.cache && SSR=true vue-cli-service build && cp -r dist/ ssr",
