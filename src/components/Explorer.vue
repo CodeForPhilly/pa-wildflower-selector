@@ -866,7 +866,7 @@ td, th {
 .photo {
   object-fit: cover;
   width: 100%;
-  aspect-ratio: 1.25/1;
+  aspect-ratio: 1/1;
   border-radius: 8px 8px 0 0;
 }
 .common-name {
@@ -907,6 +907,7 @@ td, th {
   border-radius: 0 0 8px 8px;
   color: #B74D15;
   padding: 8px 8px 2px;
+  height: 48px;
   display: flex;
   justify-content: space-between;
 }
@@ -916,6 +917,10 @@ td, th {
 .plant-controls .text {
   margin: 0;
   letter-spacing: 0.1em;
+}
+.plant-controls a.text {
+  color: white;
+  text-decoration: none;
 }
 .favorite-large {
   display: none;

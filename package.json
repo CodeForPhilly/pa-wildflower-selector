@@ -2,36 +2,38 @@
   "name": "pa-wildflower-selector",
   "version": "0.1.0",
   "private": true,
+  "main": "server.js",
   "scripts": {
-    "serve": "vue-cli-service serve",
+    "serve": "PORT=3001 node server & vue-cli-service serve",
+    "ssr-serve": "npm run build && node server",
     "lint": "vue-cli-service lint",
-    "build-browser": "rm -rf dist node_modules/.cache && vue-cli-service build && cp -r ui/dist/ public && rm public/index.html",
+    "build-browser": "rm -rf dist node_modules/.cache && vue-cli-service build && cp -r dist/ public && rm public/index.html",
     "build-ssr": "rm -rf dist node_modules/.cache && SSR=true vue-cli-service build && cp -r dist/ ssr",
     "build": "npm run build-ssr && npm run build-browser",
     "deploy": "npm run build && sc-deploy production",
     "sync-up": "./scripts/sync-up",
-    "dev": "npm run build && node app",
     "upload-test-data": "./scripts/upload-test-data",
     "restore-test-data": "./scripts/restore-test-data"
   },
   "dependencies": {
     "@vue/server-renderer": "^3.2.26",
-    "core-js": "^3.20.2",
-    "qs": "^6.10.2",
-    "vue": "^3.2.26",
-    "vue-router": "^4.0.12",
-    "webpack-manifest-plugin": "^4.0.2",
-    "webpack-node-externals": "^3.0.0",
     "boring": "^1.1.1",
     "cheerio": "^1.0.0-rc.9",
+    "core-js": "^3.20.2",
     "csv-parse": "^4.15.4",
     "express": "^4.17.1",
     "google-spreadsheet": "^3.1.15",
     "limiter": "^2.1.0",
     "mongodb": "^3.6.7",
     "node-fetch": "^2.6.1",
+    "qs": "^6.10.2",
     "regexp-quote": "0.0.0",
-    "sluggo": "^0.3.1"
+    "sluggo": "^0.3.1",
+    "vue": "^3.2.26",
+    "vue-router": "^4.0.12",
+    "vuex": "^4.0.2",
+    "webpack-manifest-plugin": "^4.0.2",
+    "webpack-node-externals": "^3.0.0"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "^4.5.15",
@@ -40,9 +42,7 @@
     "@vue/compiler-sfc": "^3.2.26",
     "babel-eslint": "^10.1.0",
     "eslint": "^6.7.2",
-    "eslint-plugin-vue": "^7.20.0",
-    "sass": "^1.47.0",
-    "sass-loader": "^12.4.0"
+    "eslint-plugin-vue": "^7.20.0"
   },
   "eslintConfig": {
     "root": true,
@@ -65,5 +65,5 @@
   ],
   "alias": {
     "vue": "./node_modules/vue/dist/vue.esm.js"
-  }  
+  }
 }

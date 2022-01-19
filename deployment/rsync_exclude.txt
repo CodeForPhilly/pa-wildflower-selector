@@ -2,7 +2,6 @@
 # In our projects .git and .gitignore are good candidates, also 'data' which contains persistent files
 # that are *not* part of deployment. A good place for things like data/port, data/pid, and any
 # sqlite databases or static web content you may need
-/ui
 /.git
 .gitignore
 /node_modules
