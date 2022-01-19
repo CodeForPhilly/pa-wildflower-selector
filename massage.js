@@ -110,6 +110,29 @@ async function go() {
       });
     }
 
+    // Fix Reccomendation Score to be an int not a string
+    const score = plant['Recommendation Score'];
+    if (typeof score === 'string' || score instanceof String) {
+      const numScore = parseFloat(score);
+      if (numScore != NaN) {
+        await plants.updateOne({
+          _id: plant._id
+        }, {
+          $set: {
+            'Recommendation Score': numScore
+          }
+        });
+      } else {
+        await plants.updateOne({
+          _id: plant._id
+        }, {
+          $set: {
+            'Recommendation Score': 0
+          }
+        });
+      }
+    }
+
     if (plant['Flower Color'] === '') {
       // Handle null values consistently for fields we sort on
       await plants.updateOne({
