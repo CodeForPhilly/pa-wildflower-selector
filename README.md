@@ -4,9 +4,16 @@
 
 First install the imagemagick command line utilities and MongoDB community edition on your machine, including the MongoDB command line utilities.
 
+Next clone the project:
+
+```
+git clone https://github.com/CodeForPhilly/pa-wildflower-selector
+```
+
 Then you can install the npm dependencies at the server app and ui app levels:
 
 ```
+cd pa-wildflower-selector
 npm install
 cd ui
 npm install
@@ -20,19 +27,21 @@ cd ..
 Run:
 
 ```
-npm restore-test-data
+npm run restore-test-data
 ```
 
-You can also rebuild it from scratch, but this takes hours to run because of the need to obtain images from wikipedia and wikimedia:
+You can also rebuild it from scratch, but this takes hours to run because of the need to obtain images from wikipedia and wikimedia.
+
+> First, you will need to obtain the files `settings.json` and `service-account.json` from Tom, Zach or Kio. These files are not in the repository because they grant API access to certain google sheets resources. You do not need these files unless you wish to run `node download` yourself. You can use `npm run restore-test-data` for most work.
 
 ```
-node app download
+node download
 ```
 
 Then run the `massage` script to clean up the data into a more reasonable form for queries:
 
 ```
-node app massage
+node massage
 ```
 
 ## Routine stuff
