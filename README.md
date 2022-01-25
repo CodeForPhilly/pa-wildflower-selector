@@ -1,5 +1,21 @@
 # pa-wildflower-selector
 
+## Dev system requirements
+
+Your development system must have:
+
+* MacOS, Linux, or Windows Subsystem for Linux (not the Windows command prompt)
+* mongodb (4.x or better)
+* nodejs (16.x)
+* imagemagick command line utilities
+
+## Production system requirements
+
+* Linux
+* mongodb (4.x or better)
+* nodejs (16.x)
+* imagemagick command line utilities
+
 ## Project setup
 
 First install the imagemagick command line utilities and MongoDB community edition on your machine, including the MongoDB command line utilities.
