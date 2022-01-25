@@ -169,7 +169,7 @@ body {
 @media all and (min-width: 1280px) {
   .outer {
     position: relative;
-    padding-top: 24px;
+    padding: 0;
   }
 }
 </style>

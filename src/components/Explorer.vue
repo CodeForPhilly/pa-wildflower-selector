@@ -1,15 +1,29 @@
 <template>
   <div>
-    <Header :h1="favorites ? 'Favorite List' : 'Find native plants in PA'">
+    <Header :h1="favorites ? 'Favorites' : null">
       <template v-slot:after-bar>
-        <p class="not-large-help">
-          <router-link to="/questions">Not sure where to start?<br />Answer 5 questions</router-link>
-        </p>
-        <p class="large-help">
-          Filter your preferences to find native shrubs, plants and flowers in Pennsylvania. Not sure where to start? <router-link to="/questions">Answer 5 questions</router-link>
-        </p>
+        <div class="two-up">
+          <div class="two-up-text">
+            <h2>
+              Native plants promote a healthier ecosystem in your garden
+            </h2>
+            <p>
+              Find which native shrubs, plants and flowers from <strong>Pennsylvania</strong>
+              have the right conditions to flourish in your garden. Use the quick search option
+              or side filters to get started. Detailed instructions are found <router-link to="/how-to-use#the-directions">here</router-link>
+            </p>
+          </div>
+          <div :style="`background-image: url(/assets/images/two-up/${Math.floor(Math.random() * 17)}.jpg`"></div>
+        </div>
       </template>
     </Header>
+    <div class="search-desktop-parent" v-if="!(questions || favorites)">
+      <form class="search-desktop" @submit.prevent="submit">
+        <span class="material-icons">search</span>
+        <input v-model="q" id="q" placeholder="Search plant name" />
+        <button type="submit" class="text" :disabled="q.length == 0"><span class="material-icons">chevron_right</span></button>
+      </form>
+    </div>
     <article v-if="selected" class="selected">
       <div class="header">
         <!-- Holds space on left -->
@@ -55,14 +69,8 @@
         <div class="controls">
           <div class="filter-toggle-and-sort">
             <button v-if="!favorites" class="primary primary-bar filter" @click=openFilters>Filter</button>
-            <div class="chips" v-if="!favorites && activeFilters.length">
-              <button class="chip" v-for="chip in chips" v-bind:key="chip.key" @click="removeChip(chip)">
-                {{ chip.label }} <span class="material-icons">close</span>
-              </button>
-              <button class="text clear" @click="clearAll">Clear all</button>
-            </div>
             <div class="sort-and-favorites">
-              <button class="favorites" v-if="!favorites" @click="$router.push('/favorite-list')">Favorite List</button>
+              <button class="favorites" v-if="!favorites" @click="$router.push('/favorites')">Favorites</button>
               <div class="sort">
                 <button @click.stop="toggleSort" :class="sortButtonClasses">
                   <span class="label">Sort By</span>
@@ -75,12 +83,11 @@
           </div>
           <form v-if="!favorites" class="filters" id="form" @submit.prevent="submit">
             <div class="inner-controls">
-              <input v-model="q" id="q" type="search" class="search" placeholder="🔎" />
+              <input v-model="q" id="q" type="search" class="search-mobile" placeholder="🔎" />
               <div class="go">
                 <button class="primary primary-bar clear" @click="clearAll">Clear</button>
                 <button class="primary primary-bar apply" type="submit">Apply</button>
               </div>
-              <button class="primary primary-bar search-submit" type="submit">Search</button>
             </div>
             <fieldset v-for="filter in filters" :key="filter.name" :class="filterClass(filter)">
               <button class="fieldset-toggle" @click.prevent="toggleFilter(filter)">
@@ -105,27 +112,37 @@
             </fieldset>
           </form>
         </div>
-        <article class="plants">
-          <article v-for="result in results" :key="result._id" class="plant-preview-wrapper">
-            <div class="plant-preview">
-              <img class="photo" :src="imageUrl(result, true)" />
-              <h4 class="common-name">{{ result['Common Name'] }}</h4>
-              <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
-              <button @click="toggleFavorite(result._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
-              <div class="plant-controls-wrapper">
-                <div class="plant-controls">
-                  <router-link :to="`/plants/${result['Scientific Name']}`" tag="button" class="text">
-                    <span class="material-icons material-align info">info_outline</span> More Info
-                  </router-link>
-                  <button @click="toggleFavorite(result._id)" class="favorite-regular text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
+        <div class="chips-and-plants">
+          <div class="chips" v-if="!favorites && chips.length">
+            <button class="chip" v-for="chip in chips" v-bind:key="chip.key" @click="removeChip(chip)">
+              <img v-if="!chip.color" :src="`/assets/images/${chip.svg}.svg`" class="choice-icon" />
+              <span v-else class="chip-color" :style="chipColor(chip)"></span>
+              <span class="chip-label">{{ chip.label }}</span><span class="material-icons">close</span>
+            </button>
+            <button class="text clear" @click="clearAll">Clear all</button>
+          </div>
+          <article class="plants">
+            <article v-for="result in results" :key="result._id" class="plant-preview-wrapper">
+              <div class="plant-preview">
+                <img class="photo" :src="imageUrl(result, true)" />
+                <h4 class="common-name">{{ result['Common Name'] }}</h4>
+                <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
+                <button @click="toggleFavorite(result._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
+                <div class="plant-controls-wrapper">
+                  <div class="plant-controls">
+                    <router-link :to="`/plants/${result['Scientific Name']}`" tag="button" class="text">
+                      <span class="material-icons material-align info">info_outline</span> More Info
+                    </router-link>
+                    <button @click="toggleFavorite(result._id)" class="favorite-regular text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
+                  </div>
                 </div>
               </div>
-            </div>
+            </article>
+            <!-- Placeholders to ensure minimum number of cells so the grid does not
+              provide huge plant previews when there are only 3 plants on desktop -->
+            <article v-for="extra in extras" :key="extra.id" class="extra"></article>
           </article>
-          <!-- Placeholders to ensure minimum number of cells so the grid does not
-            provide huge plant previews when there are only 3 plants on desktop -->
-          <article v-for="extra in extras" :key="extra.id" class="extra"></article>
-        </article>
+        </div>
       </template>
     </main>
     <!-- Useful if we go back to using an observer for infinite scroll -->
@@ -257,6 +274,7 @@ export default {
       results: [],
       total: 0,
       q: '',
+      activeSearch: '',
       sort: 'Sort by Recommendation Score',
       filters,
       filterValues: {...this.defaultFilterValues},
@@ -319,19 +337,39 @@ export default {
     },
     chips() {
       const chips = [];
+      if (this.activeSearch.length) {
+        chips.push({
+          name: 'Search',
+          label: this.activeSearch,
+          key: 'Search',
+          svg: 'Search'
+        });
+      }
       for (const filter of this.activeFilters) {
         const value = this.filterValues[filter.name];
         if (filter.array) {
-          value.forEach(item => {
-            chips.push({
-              name: filter.name,
-              label: item,
-              key: filter.name + ':' + item
+          if (filter.name === 'Flower Color Flags') {
+            value.forEach(item => {
+              chips.push({
+                name: filter.name,
+                label: item,
+                color: item
+              });
             });
-          })
+          } else {
+            value.forEach(item => {
+              chips.push({
+                name: filter.name,
+                label: item,
+                svg: item,
+                key: filter.name + ':' + item
+              });
+            });
+          }
         } else if (filter.range) {
           chips.push({
             name: filter.name,
+            svg: filter.name,
             label: filter.label || filter.name,
             key: filter.name
           });
@@ -339,6 +377,7 @@ export default {
           chips.push({
             name: filter.name,
             label: value,
+            svg: filter.name,
             key: filter.name
           });
         }
@@ -509,6 +548,7 @@ export default {
         const response = await fetch('/api/v1/plants?' + qs.stringify(params));
         const data = await response.json();
         this.filterCounts = data.counts;
+        this.activeSearch = this.q;
       } finally {
         this.updatingCounts = false;
       }
@@ -533,6 +573,7 @@ export default {
         sort: this.sort,
         page: this.page
       };
+      this.activeSearch = this.q;
       if (this.initializing) {
         // Don't send a bogus query for min 0 max 0
         delete params['Height (feet)'];
@@ -576,11 +617,15 @@ export default {
       }
     },
     removeChip(chip) {
-      const filter = this.filters.find(filter => filter.name === chip.name);
-      if (filter.array) {
-        this.filterValues[chip.name] = this.filterValues[chip.name].filter(value => value !== chip.label);
+      if (chip.name === 'Search') {
+        this.q = '';
       } else {
-        this.filterValues[chip.name] = filter.default;
+        const filter = this.filters.find(filter => filter.name === chip.name);
+        if (filter.array) {
+          this.filterValues[chip.name] = this.filterValues[chip.name].filter(value => value !== chip.label);
+        } else {
+          this.filterValues[chip.name] = filter.default;
+        }
       }
       this.submit();
     },
@@ -588,6 +633,7 @@ export default {
       for (const filter of this.filters) {
         this.filterValues[filter.name] = filter.default;
       }
+      this.q = '';
       this.submit();
     },
     toggleSort() {
@@ -615,6 +661,13 @@ export default {
       return {
         'background-color': customColors[choice] || choice
       };
+    },
+    chipColor(chip) {
+      if (chip.color) {
+        return this.flowerColorStyle(chip.color);
+      } else {
+        return '';
+      }
     },
     isDesktop() {
       // Must match CSS media query below
@@ -716,7 +769,7 @@ button.text {
 
 .chips button.clear {
   text-decoration: underline;
-  font-size: 12px;
+  font-size: 16px;
   transform: translate(0, 0);
 }
 
@@ -737,8 +790,9 @@ button.text {
 }
 
 button.favorites {
-  /* Because gap doesn't seem to work in flex */
-  margin-right: 16px;
+  width: 100%;
+  display: block;
+  margin-bottom: 24px;
 }
 
 .sort-and-favorites > * {
@@ -775,14 +829,51 @@ button.favorites {
 
 .chips {
   margin-bottom: 32px;
-  text-align: center;
+  text-align: left;
   line-height: 1.5;
+  height: 4em;
+  white-space: nowrap;
+  overflow: scroll;
+  /* https://stackoverflow.com/questions/36230944/prevent-flex-items-from-overflowing-a-container */
+  min-width: 0;
 }
 
 .chip {
   display: inline-block;
   border-radius: 30px;
   margin: 8px 8px 8px 0;
+  letter-spacing: 0.1em;
+}
+
+.chip img {
+  /* Tinted to match our text color: https://codepen.io/sosuke/pen/Pjoqqp */
+  filter: invert(41%) sepia(98%) saturate(5459%) hue-rotate(19deg) brightness(89%) contrast(84%);
+  width: 24px;
+  height: 24px;
+  padding: 2px;
+  margin-right: 8px;
+  border-radius: 50%;
+  border: 1px solid #B74D15;
+  vertical-align: middle;
+}
+
+.chip-color {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  margin-right: 8px;
+  border-radius: 50%;
+  border: 1px solid #B74D15;
+  vertical-align: middle;
+}
+
+.chip-label, .chip .material-icons {
+  display: inline-block;
+  transform: translate(0, 2px);
+}
+
+.chip .material-icons {
+  margin-left: 8px;
 }
 
 h1 {
@@ -849,6 +940,10 @@ td, th {
   width: 1em;
   height: 1em;
   color: gray;
+}
+.chips-and-plants {
+  flex-grow: 1.0;
+  min-width: 0;
 }
 .plants {
   display: grid;
@@ -983,13 +1078,16 @@ td, th {
   padding: 0;
   font-size: inherit;
 }
-.search {
+.search-mobile {
   display: block;
   height: 64px;
   font-size: 24px;
   padding: 16px;
   margin-bottom: 8px;
   width: 100%;
+}
+.search-desktop-parent {
+  display: none;
 }
 .text {
   padding-left: 8px;
@@ -1017,10 +1115,6 @@ td, th {
     gap: 8px;
     flex-direction: column;
   }
-}
-.search-submit {
-  /* Mobile and medium use all in one apply button */
-  display: none;
 }
 .filter-contents {
   user-select: none;
@@ -1102,7 +1196,6 @@ td, th {
 
 .selected .header a {
   flex-basis: 0;
-  align-self: right;
   font-size: 24px;
   align-self: center;
   color: inherit;
@@ -1127,9 +1220,51 @@ td, th {
   padding: 0;
 }
 
+.two-up {
+  display: flex;
+}
+
+.two-up-text {
+  padding: 40px;
+}
+
+.two-up h2 {
+  font-family: Arvo;
+  font-weight: normal;
+  font-size: 36px;
+  max-width: 460px;
+  line-height: 48px;
+  margin: 0;
+  padding: 0;
+}
+
+.two-up p {
+  max-width: 560px;
+  color: #1D2E26;
+  font-size: 16px;
+  font-family: Roboto;
+  font-weight: normal;
+  line-height: 24px;
+}
+
+.two-up p a {
+  color: #B74D15;
+}
+
+.two-up > * {
+  color: #B74D15;
+  flex-grow: 1.0;
+  flex-basis: 0;
+  height: 380px;
+  background-color: white;
+  background-size: cover;
+  background-position: center;
+}
+
 @media all and (min-width: 1280px) {
   .sort-and-favorites {
     margin-bottom: 0;
+    display: block;
   }
   .large-help {
     display: block;
@@ -1155,17 +1290,9 @@ td, th {
     display: flex;
     justify-content: space-between;
     gap: 32px;
-    padding: 0 64px;
   }
   .apply {
     display: none;
-  }
-  .search-submit {
-    /* At large size this button is just for the search field
-      (in appearance — does the same darn thing but there's
-      autosubmit at this size too) */
-    display: block;
-    margin-bottom: 24px;
   }
   main .controls {
     width: 320px;
@@ -1205,14 +1332,43 @@ td, th {
   .filters.inactive-question {
     display: none;
   }
-  .search {
-    margin-bottom: 24px;
-    font-size: 16px;
+  .search-mobile {
+    display: none;
+  }
+  .search-desktop-parent {
+    display: flex;
+    justify-content: right;
+    padding: 24px 32px;
+  }
+  .search-desktop {
+    display: flex;
+    min-width: 400px;
     padding: 16px;
     border-radius: 8px;
-    border: 1px solid black;
+    border: 1px solid #1D2E26;
+  }
+  .search-desktop button {
+    padding: 0;
+  }
+  .search-desktop button:disabled {
+    opacity: 0.5;
+  }
+  .search-desktop .material-icons {
+    padding: 0 8px;
+  }
+  .search-desktop input {
+    font-size: 16px;
     height: auto;
     background-color: inherit;
+    padding: 0;
+    border: 0;
+    width: 100%;
+  }
+  .search-desktop input:focus {
+    outline: none;
+  }
+  .search-desktop::placeholder {
+    font-style: italic;
   }
   .plant-controls-wrapper {
     background-color: #B74D15;

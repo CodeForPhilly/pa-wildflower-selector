@@ -4,20 +4,27 @@
       <div class="custom-nav">
         <router-link class="logo-parent" to="/">
           <button v-if="$route.name !== 'Home'" class="material-icons router-button logo-substitute">chevron_left</button>
-          <img class="logo" src="/assets/images/logo.png" alt="Choose Native Plants PA" />
+          <h1>
+            <span class="text">
+              Choose<br />Native<br />Plants PA
+            </span>
+            <img class="logo" src="/assets/images/logo.svg" />
+          </h1>
         </router-link>
-        <h1>{{ h1 }}</h1>
+        <h1 v-if="h1">{{ h1 }}</h1>
         <button @click="openNav" class="material-icons router-button open-nav">menu</button>
         <menu>
           <button @click="closeNav" class="material-icons router-button close-nav">close</button>
-          <router-link to="/people-page">People Page</router-link>
-          <router-link to="/how-to-use">How to Use</router-link>
+          <span class="regular-links">
+            <router-link to="/people-page">People Page</router-link>
+            <router-link to="/how-to-use">How to Use</router-link>
+          </span>
           <div class="copyright">© 2021 Choose Native Plants - PA</div>
         </menu>
       </div>
       <slot name="before-bar"></slot>
     </nav>
-    <h1>{{ h1 }}</h1>
+    <h1 v-if="h1">{{ h1 }}</h1>
     <slot name="after-bar"></slot>
   </header>
 </template>
@@ -90,8 +97,10 @@ header > h1 {
   margin: 0;
 }
 
-.logo-parent {
+a.logo-parent {
   position: relative;
+  border-bottom: none;
+  text-decoration: none;
 }
 
 .logo {
@@ -109,12 +118,12 @@ header > h1 {
 }
 
 .main-nav menu a {
-  padding: 34px 18px;
-  margin: 2px;
-  color: #54595f;
+  padding: 8px 0px;
+  margin: 20px 20px;
+  color: white;
   text-decoration: none;
   /* Match background to take up same space as on hover */
-  border-bottom: 3px solid #fcf9f4;
+  border-bottom: 2px solid #B74D15;
 }
 
 .router-button {
@@ -124,13 +133,11 @@ header > h1 {
 }
 
 .main-nav menu a:hover {
-  color: #B74D15;
-  border-bottom: 3px solid #B74D15;
+  border-bottom: 2px solid white;
 }
 
 .main-nav menu a.router-link-exact-active {
-  color: #1D2E26;
-  border-bottom: 3px solid #1D2E26;
+  border-bottom: 2px solid white;
 }
 
 .main-nav .open-nav {
@@ -199,22 +206,42 @@ menu .copyright {
 
 @media all and (min-width: 1280px) {
   header {
-    padding-bottom: 64px;
+    background-color: #B74D15;
+    color: white;
+    padding: 0;
   }
   .main-nav .close-nav {
     display: none;
   }
   .main-nav {
     border-bottom: none;
+    padding: 0;
+    margin: 0;
+  }
+  h1 {
+    font-family: Arvo;
+    font-size: 24px;
+    line-height: 30px;
+    font-weight: normal;
+    height: 100px;
+    display: flex;
+  }
+  h1 .text {
+    margin-top: 5px;
+    text-decoration: none;
+    color: white;
+    border-bottom-style: none;
   }
   .logo {
-    width: 160px;
-    height: auto;
-    position: relative;
-    display: block;
+    height: 100%;
+    display: inline-block;
+    transform: translate(-16px, 0);
   }
   .logo-substitute {
     display: none;
+  }
+  .custom-nav {
+    padding: 0 40px;
   }
   .custom-nav > h1 {
     display: none;
@@ -229,6 +256,9 @@ menu .copyright {
   }
   menu .copyright {
     display: none;
+  }
+  menu .regular-links a:last-child {
+    margin-right: 0;
   }
 }
 </style>
