@@ -25,24 +25,22 @@
       </form>
     </div>
     <article v-if="selected" class="selected">
-      <div class="header">
-        <!-- Holds space on left -->
-        <div></div>
-        <h2>More Info</h2>
+      <div class="modal-bar">
+        <span class="title">More Info</span>
         <router-link to="/" class="material-icons router-button close-nav">close</router-link>
       </div>
-      <div class="info-and-photo">
-        <div class="info">
+      <div class="two-up">
+        <div class="two-up-text">
           <h1>{{ selected['Common Name'] }}</h1>
           <button @click="toggleFavorite(selected._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(selected._id) }}</span></button>
           <h2>{{ selected['Scientific Name'] }}</h2>
           <h3>Available at these stores:</h3>
-          <h4>Store1, store2, store3</h4>
+          <p>Store1, store2, store3</p>
           <h3>Mentioned in these articles:</h3>
-          <h4>Hyperlink1, hyperlink2, hyperlink3</h4>
+          <p>Hyperlink1, hyperlink2, hyperlink3</p>
           <p>Flags</p>
         </div>
-        <img class="photo" :src="imageUrl(selected, false)" />
+        <div :style="selectedImageStyle(selected)"></div>
       </div>
     </article>
     <main :class="{ 'filters-open': filtersOpen }">
@@ -455,6 +453,11 @@ export default {
     document.body.removeEventListener('click', this.bodyClick);
   },
   methods: {
+    selectedImageStyle(selected) {
+      const style = `background-image: url("${this.imageUrl(selected, false)}")`;
+      console.log(style);
+      return style;
+    },
     async fetchSelectedIfNeeded() {
       if (!this.selectedName) {
         this.selected = null;
@@ -1181,45 +1184,6 @@ td, th {
   z-index: 200;
 }
 
-.selected .header {
-  padding: 0 32px;
-  display: flex;
-}
-
-.selected .header h2 {
-  flex-grow: 1;
-  text-align: center;
-  font-size: 20px;
-  font-family: Arvo;
-  font-weight: normal;
-}
-
-.selected .header a {
-  flex-basis: 0;
-  font-size: 24px;
-  align-self: center;
-  color: inherit;
-  text-decoration: none;
-}
-
-.selected .info-and-photo {
-  display: flex;
-  flex-direction: column;
-}
-
-.selected .info {
-  padding: 0 32px;
-  overflow: scroll;
-  order: 2;
-}
-
-.selected .photo {
-  display: block;
-  order: 1;
-  border-radius: 0;
-  padding: 0;
-}
-
 .two-up {
   display: flex;
 }
@@ -1259,6 +1223,38 @@ td, th {
   background-color: white;
   background-size: cover;
   background-position: center;
+}
+
+.selected .two-up > * {
+  height: 736px;
+  background-color: #FCF9F4;
+  color: black;
+}
+
+.selected h1, .selected h2, .selected h3, selected h4 {
+  font-family: Roboto;
+  text-align: left;
+}
+
+.selected h1 {
+  font-size: 40px;
+  margin: 0 0 12px 0;
+}
+
+.selected h2 {
+  font-size: 24px;
+  margin: 0 0 32px 0;
+}
+
+.selected h3 {
+  font-size: 24px;
+  font-weight: 500;
+  margin: 0 0 8px 0;
+}
+
+.selected p {
+  font-size: 20px;
+  margin: 0 0 16px 0;
 }
 
 @media all and (min-width: 1280px) {
@@ -1398,6 +1394,29 @@ td, th {
   }
   .scientific-name {
     font-size: 14px;
+  }
+  .modal-bar {
+    padding: 12px;
+    height: 48px;
+    text-align: center;
+    border-bottom: 1px solid black;
+    position: relative;
+  }
+  .modal-bar .title {
+    margin-top: 8px;
+    font-family: Arvo;
+    font-size: 20px;
+    line-height: 24px;
+    font-weight: normal;
+    vertical-align: middle;
+  }
+  .modal-bar .close-nav {
+    position: absolute;
+    font-size: 40px;
+    right: 8px;
+    text-decoration: none;
+    color: black;
+    transform: translate(0, -8px);
   }
   .selected {
     flex-direction: row;

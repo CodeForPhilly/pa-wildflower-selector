@@ -70,6 +70,14 @@ html {
   font-family: Roboto;
   src: url("/assets/fonts/Roboto-Regular.ttf") format("truetype");
 }
+
+@font-face {
+  font-family: Roboto;
+  font-weight: 500;
+  font-style: normal;
+  src: url("/assets/fonts/Roboto-Medium.ttf") format("truetype");
+}
+
 @font-face {
   font-family: Roboto;
   font-weight: 700;
