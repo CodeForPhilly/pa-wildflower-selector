@@ -12,7 +12,7 @@ export default {
       return {
         outer: true,
         'nav-is-open': this.$store.state.navIsOpen,
-        'menu-is-open': this.$store.state.navIsOpen || this.$store.state.sortIsOpen
+        'menu-is-open': this.$store.state.navIsOpen || this.$store.state.sortIsOpen || this.$store.state.selectedIsOpen
       };
     }
   }

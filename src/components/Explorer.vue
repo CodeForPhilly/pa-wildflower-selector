@@ -35,10 +35,24 @@
           <button @click="toggleFavorite(selected._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(selected._id) }}</span></button>
           <h2>{{ selected['Scientific Name'] }}</h2>
           <h3>Available at these stores:</h3>
-          <p>Store1, store2, store3</p>
+          <p>{{ selected['Local Names'] }}</p>
+          <p><a v-for="storeLink in storeLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
           <h3>Mentioned in these articles:</h3>
-          <p>Hyperlink1, hyperlink2, hyperlink3</p>
-          <p>Flags</p>
+          <p>{{ selected['Article Names'] }}</p>
+          <p v-if="selected['Flowering Months']">
+            Flowering Months:
+            {{ selected['Flowering Months'] }}
+          </p>
+          <p v-if="selected['Height (feet)']">
+            Height: {{ selected['Height (feet)'] }} feet
+          </p>
+          <div class="chips flags">
+            <span class="chip" v-for="flag in flags" v-bind:key="flag.key">
+              <img v-if="!flag.color" :src="`/assets/images/${flag.svg}.svg`" class="choice-icon" />
+              <span v-else class="chip-color" :style="chipColor(flag)"></span>
+              <span class="chip-label">{{ flag.label }}</span>
+            </span>
+          </div>
         </div>
         <div :style="selectedImageStyle(selected)"></div>
       </div>
@@ -334,53 +348,10 @@ export default {
       return extras;
     },
     chips() {
-      const chips = [];
-      if (this.activeSearch.length) {
-        chips.push({
-          name: 'Search',
-          label: this.activeSearch,
-          key: 'Search',
-          svg: 'Search'
-        });
-      }
-      for (const filter of this.activeFilters) {
-        const value = this.filterValues[filter.name];
-        if (filter.array) {
-          if (filter.name === 'Flower Color Flags') {
-            value.forEach(item => {
-              chips.push({
-                name: filter.name,
-                label: item,
-                color: item
-              });
-            });
-          } else {
-            value.forEach(item => {
-              chips.push({
-                name: filter.name,
-                label: item,
-                svg: item,
-                key: filter.name + ':' + item
-              });
-            });
-          }
-        } else if (filter.range) {
-          chips.push({
-            name: filter.name,
-            svg: filter.name,
-            label: filter.label || filter.name,
-            key: filter.name
-          });
-        } else {
-          chips.push({
-            name: filter.name,
-            label: value,
-            svg: filter.name,
-            key: filter.name
-          });
-        }
-      }
-      return chips;
+      return this.getChips(true);
+    },
+    flags() {
+      return this.getChips(false);
     },
     activeFilters() {
       const result = this.filters.filter(filter => {
@@ -406,6 +377,12 @@ export default {
       //   primary: true,
       //   'primary-bar': true
       // })
+    },
+    storeLinks() {
+      return this.selected['Online Names'].split(',').map(url => url.trim()).map(url => ({
+        label: url,
+        url
+      }));
     }
   },
   watch: {
@@ -448,11 +425,71 @@ export default {
   async mounted() {
     await this.determineFilterCountsAndSubmit();
     await this.fetchSelectedIfNeeded();
+    console.log(JSON.stringify(this.selected, null, '  '));
   },
   destroy() {
     document.body.removeEventListener('click', this.bodyClick);
   },
   methods: {
+    getChips(active) {
+      const chips = [];
+      if (active && this.activeSearch.length) {
+        chips.push({
+          name: 'Search',
+          label: this.activeSearch,
+          key: 'Search',
+          svg: 'Search'
+        });
+      }
+      for (const filter of (active ? this.activeFilters : this.filters)) {
+        let value = active ? this.filterValues[filter.name] : this.selected[filter.name];
+        console.log(value);
+        if (filter.array) {
+          value = value || [];
+          if (value === true) {
+            value = [ filter.label ];
+          }
+          console.log(`value of ${filter.name} is`, value);
+          if (filter.name === 'Flower Color Flags') {
+            value.forEach(item => {
+              chips.push({
+                name: filter.name,
+                label: item,
+                color: item,
+                key: filter.name + ':' + item
+              });
+            });
+          } else {
+            value.forEach(item => {
+              chips.push({
+                name: filter.name,
+                label: item,
+                svg: item,
+                key: filter.name + ':' + item
+              });
+            });
+          }
+        } else if (filter.range) {
+          if (active) {
+            chips.push({
+              name: filter.name,
+              svg: filter.name,
+              label: filter.label || filter.name,
+              key: filter.name
+            });
+          }
+        } else {
+          chips.push({
+            name: filter.name,
+            label: value,
+            svg: filter.name,
+            key: filter.name
+          });
+        }
+      }
+      console.log(JSON.stringify(chips));
+      return chips;
+    },
     selectedImageStyle(selected) {
       const style = `background-image: url("${this.imageUrl(selected, false)}")`;
       console.log(style);
@@ -970,25 +1007,25 @@ td, th {
 }
 .common-name {
   position: absolute;
-  bottom: 68px;
+  bottom: 74px;
   left: 16px;
   margin: 0;
   padding: 0;
   font-size: 14px;
   font-weight: normal;
-  font-family: Roboto;
+  font-family: Lato;
   color: white;
 }
 .scientific-name {
   position: absolute;
-  bottom: 52px;
+  bottom: 56px;
   left: 16px;
   margin: 0;
   padding: 0;
   font-size: 12px;
   font-style: italic;
   font-weight: normal;
-  font-family: Roboto;
+  font-family: Lato;
   color: white;
 }
 .plant-controls-wrapper {
@@ -1005,13 +1042,10 @@ td, th {
   border-top: none;
   border-radius: 0 0 8px 8px;
   color: #B74D15;
-  padding: 8px 8px 2px;
+  padding: 16px 8px 0 4px;
   height: 48px;
   display: flex;
   justify-content: space-between;
-}
-.plant-controls .info {
-  transform: translate(0, 1px);
 }
 .plant-controls .text {
   margin: 0;
@@ -1175,7 +1209,7 @@ td, th {
 }
 
 .selected {
-  position: absolute;
+  position: fixed;
   top: 0px;
   left: 0px;
   width: 100%;
@@ -1190,6 +1224,7 @@ td, th {
 
 .two-up-text {
   padding: 40px;
+  position: relative;
 }
 
 .two-up h2 {
@@ -1255,6 +1290,38 @@ td, th {
 .selected p {
   font-size: 20px;
   margin: 0 0 16px 0;
+}
+
+.selected .two-up-text {
+  overflow: scroll;
+}
+
+.two-up .chips {
+  max-width: 560px;
+  overflow: visible;
+  white-space: normal;
+}
+
+.two-up .chips .chip {
+  white-space: normal;
+  letter-spacing: 0;
+  color: #B74D15;
+  font-family: Roboto;
+  font-size: 16px;
+  margin-right: 24px;
+}
+
+.two-up a.store-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.store-link::after {
+  content: ', ';
+}
+
+.store-link:last-child::after {
+  content: '';
 }
 
 @media all and (min-width: 1280px) {
@@ -1386,14 +1453,21 @@ td, th {
     font-weight: normal;
     color: white;
   }
+  .selected .favorite-large.text {
+    top: 48px;
+    right: 32px;
+    font-size: 40px;
+    height: 48px;
+    color: #B74D15;
+  }
   button.text {
     letter-spacing: 0.1em;
   }
   .common-name {
-    font-size: 14px;
+    font-size: 16px;
   }
   .scientific-name {
-    font-size: 14px;
+    font-size: 16px;
   }
   .modal-bar {
     padding: 12px;
