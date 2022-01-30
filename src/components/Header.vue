@@ -4,6 +4,7 @@
       <div class="custom-nav">
         <router-link class="logo-parent" to="/">
           <button v-if="$route.name !== 'Home'" class="material-icons router-button logo-substitute">chevron_left</button>
+          <span v-else></span>
           <h1>
             <span class="text">
               Choose<br />Native<br />Plants PA
@@ -11,7 +12,7 @@
             <img class="logo" src="/assets/images/logo.svg" />
           </h1>
         </router-link>
-        <h1 v-if="h1">{{ h1 }}</h1>
+        <h1>{{ h1 || 'Choose Native Plants PA' }}</h1>
         <button @click="openNav" class="material-icons router-button open-nav">menu</button>
         <menu>
           <button @click="closeNav" class="material-icons router-button close-nav">close</button>
@@ -103,6 +104,10 @@ a.logo-parent {
   text-decoration: none;
 }
 
+a.logo-parent h1 {
+  display: none;
+}
+
 .logo {
   display: none;
 }
@@ -120,7 +125,7 @@ a.logo-parent {
 .main-nav menu a {
   padding: 8px 0px;
   margin: 20px 20px;
-  color: white;
+  color: #1D2E26;
   text-decoration: none;
   /* Match background to take up same space as on hover */
   border-bottom: 2px solid #B74D15;
@@ -218,6 +223,9 @@ menu .copyright {
     padding: 0;
     margin: 0;
   }
+  a.logo-parent h1 {
+    display: flex;
+  }
   h1 {
     font-family: Arvo;
     font-size: 24px;
@@ -259,6 +267,9 @@ menu .copyright {
   }
   menu .regular-links a:last-child {
     margin-right: 0;
+  }
+  .main-nav menu a {
+    color: white;
   }
 }
 </style>

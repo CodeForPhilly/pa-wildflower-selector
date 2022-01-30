@@ -2,7 +2,10 @@
   <div>
     <Header :h1="favorites ? 'Favorites' : null">
       <template v-slot:after-bar>
-        <div class="two-up">
+        <p class="not-large-help">
+          <router-link to="/questions">Not sure where to start?<br />Try quick search</router-link>
+        </p>
+        <div class="two-up large-help">
           <div class="two-up-text">
             <h2>
               Native plants promote a healthier ecosystem in your garden
@@ -82,7 +85,7 @@
           <div class="filter-toggle-and-sort">
             <button v-if="!favorites" class="primary primary-bar filter" @click=openFilters>Filter</button>
             <div class="sort-and-favorites">
-              <button class="favorites" v-if="!favorites" @click="$router.push('/favorites')">Favorites</button>
+              <button class="favorites" :disabled="!favoritesAvailable" v-if="!favorites" @click="favoritesAvailable && $router.push('/favorites')"><span class="material-icons material-align">favorite</span><span class="favorites-label">&nbsp;Favorites</span></button>
               <div class="sort">
                 <button @click.stop="toggleSort" :class="sortButtonClasses">
                   <span class="label">Sort By</span>
@@ -383,6 +386,9 @@ export default {
         label: url,
         url
       }));
+    },
+    favoritesAvailable() {
+      return !![...this.$store.state.favorites].length;
     }
   },
   watch: {
@@ -833,10 +839,17 @@ button.favorites {
   width: 100%;
   display: block;
   margin-bottom: 24px;
+  flex-basis: 0;
+  flex-grow: 0;
+  margin-right: 24px;
 }
 
-.sort-and-favorites > * {
-  flex-grow: 1.0;
+button.favorites[disabled] {
+  opacity: 0.5;
+}
+
+button.favorites .favorites-label {
+  display: none;
 }
 
 .list-button {
@@ -865,6 +878,12 @@ button.favorites {
 
 .sort {
   position: relative;
+  flex-grow: 1.0;
+}
+
+.sort .value {
+  color: #1D2E26;
+  font-family: Roboto;
 }
 
 .chips {
@@ -1042,8 +1061,8 @@ td, th {
   border-top: none;
   border-radius: 0 0 8px 8px;
   color: #B74D15;
-  padding: 16px 8px 0 4px;
-  height: 48px;
+  padding: 8px 8px 2px;
+  height: 32px;
   display: flex;
   justify-content: space-between;
 }
@@ -1052,7 +1071,7 @@ td, th {
   letter-spacing: 0.1em;
 }
 .plant-controls a.text {
-  color: white;
+  color: inherit;
   text-decoration: none;
 }
 .favorite-large {
@@ -1157,9 +1176,8 @@ td, th {
   user-select: none;
   display: flex;
 }
-.large-help {
+.two-up.large-help {
   display: none;
-  text-align: center;
 }
 .not-large-help {
   max-width: 320px;
@@ -1261,9 +1279,9 @@ td, th {
 }
 
 .selected .two-up > * {
-  height: 736px;
   background-color: #FCF9F4;
   color: black;
+  height: auto;
 }
 
 .selected h1, .selected h2, .selected h3, selected h4 {
@@ -1324,19 +1342,20 @@ td, th {
   content: '';
 }
 
+.favorite-regular {
+  transform: translate(0, -4px);
+}
+
 @media all and (min-width: 1280px) {
   .sort-and-favorites {
     margin-bottom: 0;
     display: block;
   }
-  .large-help {
-    display: block;
-    text-align: center;
-    width: 600px;
-    font-size: 20px;
-    line-height: 30px;
-    font-family: Roboto;
-    margin: auto;
+  button.favorites .favorites-label {
+    display: inline;
+  }
+  .two-up.large-help {
+    display: flex;
   }
   .not-large-help {
     display: none;
@@ -1438,6 +1457,11 @@ td, th {
   }
   .plant-controls {
     color: white;
+    padding: 16px 8px 0 4px;
+    height: 48px;
+  }
+  .plant-controls a.text {
+    color: white;
   }
   .favorite-regular {
     display: none;
@@ -1445,7 +1469,7 @@ td, th {
   .favorite-large.text {
     display: block;
     position: absolute;
-    bottom: 48px;
+    bottom: 64px;
     right: 16px;
     margin: 0;
     padding: 0;
