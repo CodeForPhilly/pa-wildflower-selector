@@ -61,6 +61,7 @@ menu {
   border-radius: 8px;
   font-size: 16px;
   margin: 0;
+  font-family: Roboto;
 }
 
 menu li {

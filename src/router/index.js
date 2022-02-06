@@ -14,7 +14,7 @@ const routes = [
     component: Explorer
   },
   {
-    path: "/favorite-list",
+    path: "/favorites",
     name: "Favorite List",
     component: Explorer,
     props: {
@@ -44,6 +44,14 @@ const routes = [
 export default ({ history }) => {
   return createRouter({
     history,
-    routes
+    routes,
+    // Enable anchors https://forum.vuejs.org/t/vue-router-navigate-or-scroll-to-anchors-anchors-not-working/108218/2
+    scrollBehavior(to) {
+      if (to.hash) {
+        return {
+          el: to.hash
+        };
+      }
+    }
   });
 };

@@ -1,34 +1,63 @@
 <template>
   <div>
-    <Header :h1="favorites ? 'Favorite List' : 'Find native plants in PA'">
+    <Header :h1="favorites ? 'Favorites' : null">
       <template v-slot:after-bar>
         <p class="not-large-help">
-          <router-link to="/questions">Not sure where to start?<br />Answer 5 questions</router-link>
+          <router-link to="/questions">Not sure where to start?<br />Try quick search</router-link>
         </p>
-        <p class="large-help">
-          Filter your preferences to find native shrubs, plants and flowers in Pennsylvania. Not sure where to start? <router-link to="/questions">Answer 5 questions</router-link>
-        </p>
+        <div class="two-up large-help">
+          <div class="two-up-text">
+            <h2>
+              Native plants promote a healthier ecosystem in your garden
+            </h2>
+            <p>
+              Find which native shrubs, plants and flowers from <strong>Pennsylvania</strong>
+              have the right conditions to flourish in your garden. Use the quick search option
+              or side filters to get started. Detailed instructions are found <router-link to="/how-to-use#the-directions">here</router-link>
+            </p>
+          </div>
+          <div class="two-up-image" :style="`background-image: url(/assets/images/two-up/${Math.floor(Math.random() * 17)}.jpg`"></div>
+        </div>
       </template>
     </Header>
+    <div class="search-desktop-parent" v-if="!(questions || favorites)">
+      <form class="search-desktop" @submit.prevent="submit">
+        <span class="material-icons">search</span>
+        <input v-model="q" id="q" placeholder="Search plant name" />
+        <button type="submit" class="text" :disabled="q.length == 0"><span class="material-icons">chevron_right</span></button>
+      </form>
+    </div>
     <article v-if="selected" class="selected">
-      <div class="header">
-        <!-- Holds space on left -->
-        <div></div>
-        <h2>More Info</h2>
+      <div class="modal-bar">
+        <span class="title">More Info</span>
         <router-link to="/" class="material-icons router-button close-nav">close</router-link>
       </div>
-      <div class="info-and-photo">
-        <div class="info">
-          <h1>{{ selected['Common Name'] }}</h1>
-          <button @click="toggleFavorite(selected._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(selected._id) }}</span></button>
+      <div class="two-up">
+        <div class="two-up-image" :style="selectedImageStyle(selected)"></div>
+        <div class="two-up-text">
+          <h1>{{ selected['Common Name'] }}<button @click="toggleFavorite(selected._id)" class="favorite-selected text"><span class="material-icons material-align">{{ renderFavorite(selected._id) }}</span></button>
+</h1>
           <h2>{{ selected['Scientific Name'] }}</h2>
           <h3>Available at these stores:</h3>
-          <h4>Store1, store2, store3</h4>
+          <p>{{ selected['Local Names'] }}</p>
+          <p><a v-for="storeLink in storeLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
           <h3>Mentioned in these articles:</h3>
-          <h4>Hyperlink1, hyperlink2, hyperlink3</h4>
-          <p>Flags</p>
+          <p>{{ selected['Article Names'] }}</p>
+          <p v-if="selected['Flowering Months']">
+            Flowering Months:
+            {{ selected['Flowering Months'] }}
+          </p>
+          <p v-if="selected['Height (feet)']">
+            Height: {{ selected['Height (feet)'] }} feet
+          </p>
+          <div class="chips flags">
+            <span class="chip" v-for="flag in flags" v-bind:key="flag.key">
+              <img v-if="!flag.color" :src="`/assets/images/${flag.svg}.svg`" class="choice-icon" />
+              <span v-else class="chip-color" :style="chipColor(flag)"></span>
+              <span class="chip-label">{{ flag.label }}</span>
+            </span>
+          </div>
         </div>
-        <img class="photo" :src="imageUrl(selected, false)" />
       </div>
     </article>
     <main :class="{ 'filters-open': filtersOpen }">
@@ -55,14 +84,8 @@
         <div class="controls">
           <div class="filter-toggle-and-sort">
             <button v-if="!favorites" class="primary primary-bar filter" @click=openFilters>Filter</button>
-            <div class="chips" v-if="!favorites && activeFilters.length">
-              <button class="chip" v-for="chip in chips" v-bind:key="chip.key" @click="removeChip(chip)">
-                {{ chip.label }} <span class="material-icons">close</span>
-              </button>
-              <button class="text clear" @click="clearAll">Clear all</button>
-            </div>
             <div class="sort-and-favorites">
-              <button class="favorites" v-if="!favorites" @click="$router.push('/favorite-list')">Favorite List</button>
+              <button class="favorites" :disabled="!favoritesAvailable" v-if="!favorites" @click="favoritesAvailable && $router.push('/favorites')"><span class="material-icons material-align">favorite</span><span class="favorites-label">&nbsp;Favorites</span></button>
               <div class="sort">
                 <button @click.stop="toggleSort" :class="sortButtonClasses">
                   <span class="label">Sort By</span>
@@ -75,12 +98,11 @@
           </div>
           <form v-if="!favorites" class="filters" id="form" @submit.prevent="submit">
             <div class="inner-controls">
-              <input v-model="q" id="q" type="search" class="search" placeholder="🔎" />
+              <input v-model="q" id="q" type="search" class="search-mobile" placeholder="🔎" />
               <div class="go">
                 <button class="primary primary-bar clear" @click="clearAll">Clear</button>
                 <button class="primary primary-bar apply" type="submit">Apply</button>
               </div>
-              <button class="primary primary-bar search-submit" type="submit">Search</button>
             </div>
             <fieldset v-for="filter in filters" :key="filter.name" :class="filterClass(filter)">
               <button class="fieldset-toggle" @click.prevent="toggleFilter(filter)">
@@ -105,27 +127,37 @@
             </fieldset>
           </form>
         </div>
-        <article class="plants">
-          <article v-for="result in results" :key="result._id" class="plant-preview-wrapper">
-            <div class="plant-preview">
-              <img class="photo" :src="imageUrl(result, true)" />
-              <h4 class="common-name">{{ result['Common Name'] }}</h4>
-              <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
-              <button @click="toggleFavorite(result._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
-              <div class="plant-controls-wrapper">
-                <div class="plant-controls">
-                  <router-link :to="`/plants/${result['Scientific Name']}`" tag="button" class="text">
-                    <span class="material-icons material-align info">info_outline</span> More Info
-                  </router-link>
-                  <button @click="toggleFavorite(result._id)" class="favorite-regular text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
+        <div class="chips-and-plants">
+          <div class="chips" v-if="!favorites && chips.length">
+            <button class="chip" v-for="chip in chips" v-bind:key="chip.key" @click="removeChip(chip)">
+              <img v-if="!chip.color" :src="`/assets/images/${chip.svg}.svg`" class="choice-icon" />
+              <span v-else class="chip-color" :style="chipColor(chip)"></span>
+              <span class="chip-label">{{ chip.label }}</span><span class="material-icons">close</span>
+            </button>
+            <button class="text clear" @click="clearAll">Clear all</button>
+          </div>
+          <article class="plants">
+            <article v-for="result in results" :key="result._id" class="plant-preview-wrapper">
+              <div class="plant-preview">
+                <img class="photo" :src="imageUrl(result, true)" />
+                <h4 class="common-name">{{ result['Common Name'] }}</h4>
+                <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
+                <button @click="toggleFavorite(result._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
+                <div class="plant-controls-wrapper">
+                  <div class="plant-controls">
+                    <router-link :to="`/plants/${result['Scientific Name']}`" tag="button" class="text">
+                      <span class="material-icons material-align info">info_outline</span> More Info
+                    </router-link>
+                    <button @click="toggleFavorite(result._id)" class="favorite-regular text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
+                  </div>
                 </div>
               </div>
-            </div>
+            </article>
+            <!-- Placeholders to ensure minimum number of cells so the grid does not
+              provide huge plant previews when there are only 3 plants on desktop -->
+            <article v-for="extra in extras" :key="extra.id" class="extra"></article>
           </article>
-          <!-- Placeholders to ensure minimum number of cells so the grid does not
-            provide huge plant previews when there are only 3 plants on desktop -->
-          <article v-for="extra in extras" :key="extra.id" class="extra"></article>
-        </article>
+        </div>
       </template>
     </main>
     <!-- Useful if we go back to using an observer for infinite scroll -->
@@ -257,6 +289,7 @@ export default {
       results: [],
       total: 0,
       q: '',
+      activeSearch: '',
       sort: 'Sort by Recommendation Score',
       filters,
       filterValues: {...this.defaultFilterValues},
@@ -318,32 +351,10 @@ export default {
       return extras;
     },
     chips() {
-      const chips = [];
-      for (const filter of this.activeFilters) {
-        const value = this.filterValues[filter.name];
-        if (filter.array) {
-          value.forEach(item => {
-            chips.push({
-              name: filter.name,
-              label: item,
-              key: filter.name + ':' + item
-            });
-          })
-        } else if (filter.range) {
-          chips.push({
-            name: filter.name,
-            label: filter.label || filter.name,
-            key: filter.name
-          });
-        } else {
-          chips.push({
-            name: filter.name,
-            label: value,
-            key: filter.name
-          });
-        }
-      }
-      return chips;
+      return this.getChips(true);
+    },
+    flags() {
+      return this.getChips(false);
     },
     activeFilters() {
       const result = this.filters.filter(filter => {
@@ -369,6 +380,15 @@ export default {
       //   primary: true,
       //   'primary-bar': true
       // })
+    },
+    storeLinks() {
+      return this.selected['Online Names'].split(',').map(url => url.trim()).map(url => ({
+        label: url,
+        url
+      }));
+    },
+    favoritesAvailable() {
+      return !![...this.$store.state.favorites].length;
     }
   },
   watch: {
@@ -411,11 +431,76 @@ export default {
   async mounted() {
     await this.determineFilterCountsAndSubmit();
     await this.fetchSelectedIfNeeded();
+    console.log(JSON.stringify(this.selected, null, '  '));
   },
   destroy() {
     document.body.removeEventListener('click', this.bodyClick);
   },
   methods: {
+    getChips(active) {
+      const chips = [];
+      if (active && this.activeSearch.length) {
+        chips.push({
+          name: 'Search',
+          label: this.activeSearch,
+          key: 'Search',
+          svg: 'Search'
+        });
+      }
+      for (const filter of (active ? this.activeFilters : this.filters)) {
+        let value = active ? this.filterValues[filter.name] : this.selected[filter.name];
+        console.log(value);
+        if (filter.array) {
+          value = value || [];
+          if (value === true) {
+            value = [ filter.label ];
+          }
+          console.log(`value of ${filter.name} is`, value);
+          if (filter.name === 'Flower Color Flags') {
+            value.forEach(item => {
+              chips.push({
+                name: filter.name,
+                label: item,
+                color: item,
+                key: filter.name + ':' + item
+              });
+            });
+          } else {
+            value.forEach(item => {
+              chips.push({
+                name: filter.name,
+                label: item,
+                svg: item,
+                key: filter.name + ':' + item
+              });
+            });
+          }
+        } else if (filter.range) {
+          if (active) {
+            chips.push({
+              name: filter.name,
+              svg: filter.name,
+              label: filter.label || filter.name,
+              key: filter.name
+            });
+          }
+        } else {
+          chips.push({
+            name: filter.name,
+            label: value,
+            svg: filter.name,
+            key: filter.name
+          });
+        }
+      }
+      console.log(JSON.stringify(chips));
+      return chips;
+    },
+    selectedImageStyle(selected) {
+      const style = `background-image: url("${this.imageUrl(selected, false)}")`;
+      console.log(style);
+      return style;
+    },
     async fetchSelectedIfNeeded() {
       if (!this.selectedName) {
         this.selected = null;
@@ -509,6 +594,7 @@ export default {
         const response = await fetch('/api/v1/plants?' + qs.stringify(params));
         const data = await response.json();
         this.filterCounts = data.counts;
+        this.activeSearch = this.q;
       } finally {
         this.updatingCounts = false;
       }
@@ -533,6 +619,7 @@ export default {
         sort: this.sort,
         page: this.page
       };
+      this.activeSearch = this.q;
       if (this.initializing) {
         // Don't send a bogus query for min 0 max 0
         delete params['Height (feet)'];
@@ -576,11 +663,15 @@ export default {
       }
     },
     removeChip(chip) {
-      const filter = this.filters.find(filter => filter.name === chip.name);
-      if (filter.array) {
-        this.filterValues[chip.name] = this.filterValues[chip.name].filter(value => value !== chip.label);
+      if (chip.name === 'Search') {
+        this.q = '';
       } else {
-        this.filterValues[chip.name] = filter.default;
+        const filter = this.filters.find(filter => filter.name === chip.name);
+        if (filter.array) {
+          this.filterValues[chip.name] = this.filterValues[chip.name].filter(value => value !== chip.label);
+        } else {
+          this.filterValues[chip.name] = filter.default;
+        }
       }
       this.submit();
     },
@@ -588,6 +679,7 @@ export default {
       for (const filter of this.filters) {
         this.filterValues[filter.name] = filter.default;
       }
+      this.q = '';
       this.submit();
     },
     toggleSort() {
@@ -615,6 +707,13 @@ export default {
       return {
         'background-color': customColors[choice] || choice
       };
+    },
+    chipColor(chip) {
+      if (chip.color) {
+        return this.flowerColorStyle(chip.color);
+      } else {
+        return '';
+      }
     },
     isDesktop() {
       // Must match CSS media query below
@@ -716,7 +815,7 @@ button.text {
 
 .chips button.clear {
   text-decoration: underline;
-  font-size: 12px;
+  font-size: 16px;
   transform: translate(0, 0);
 }
 
@@ -737,12 +836,20 @@ button.text {
 }
 
 button.favorites {
-  /* Because gap doesn't seem to work in flex */
-  margin-right: 16px;
+  width: 100%;
+  display: block;
+  margin-bottom: 24px;
+  flex-basis: 0;
+  flex-grow: 0;
+  margin-right: 24px;
 }
 
-.sort-and-favorites > * {
-  flex-grow: 1.0;
+button.favorites[disabled] {
+  opacity: 0.5;
+}
+
+button.favorites .favorites-label {
+  display: none;
 }
 
 .list-button {
@@ -771,18 +878,61 @@ button.favorites {
 
 .sort {
   position: relative;
+  flex-grow: 1.0;
+}
+
+.sort .value {
+  color: #1D2E26;
+  font-family: Roboto;
 }
 
 .chips {
   margin-bottom: 32px;
-  text-align: center;
+  text-align: left;
   line-height: 1.5;
+  height: 4em;
+  white-space: nowrap;
+  overflow: scroll;
+  /* https://stackoverflow.com/questions/36230944/prevent-flex-items-from-overflowing-a-container */
+  min-width: 0;
 }
 
 .chip {
   display: inline-block;
   border-radius: 30px;
   margin: 8px 8px 8px 0;
+  letter-spacing: 0.1em;
+}
+
+.chip img {
+  /* Tinted to match our text color: https://codepen.io/sosuke/pen/Pjoqqp */
+  filter: invert(41%) sepia(98%) saturate(5459%) hue-rotate(19deg) brightness(89%) contrast(84%);
+  width: 24px;
+  height: 24px;
+  padding: 2px;
+  margin-right: 8px;
+  border-radius: 50%;
+  border: 1px solid #B74D15;
+  vertical-align: middle;
+}
+
+.chip-color {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  margin-right: 8px;
+  border-radius: 50%;
+  border: 1px solid #B74D15;
+  vertical-align: middle;
+}
+
+.chip-label, .chip .material-icons {
+  display: inline-block;
+  transform: translate(0, 2px);
+}
+
+.chip .material-icons {
+  margin-left: 8px;
 }
 
 h1 {
@@ -850,6 +1000,10 @@ td, th {
   height: 1em;
   color: gray;
 }
+.chips-and-plants {
+  flex-grow: 1.0;
+  min-width: 0;
+}
 .plants {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(248px, 1fr));
@@ -872,25 +1026,25 @@ td, th {
 }
 .common-name {
   position: absolute;
-  bottom: 68px;
+  bottom: 74px;
   left: 16px;
   margin: 0;
   padding: 0;
   font-size: 14px;
   font-weight: normal;
-  font-family: Roboto;
+  font-family: Lato;
   color: white;
 }
 .scientific-name {
   position: absolute;
-  bottom: 52px;
+  bottom: 56px;
   left: 16px;
   margin: 0;
   padding: 0;
   font-size: 12px;
   font-style: italic;
   font-weight: normal;
-  font-family: Roboto;
+  font-family: Lato;
   color: white;
 }
 .plant-controls-wrapper {
@@ -908,19 +1062,16 @@ td, th {
   border-radius: 0 0 8px 8px;
   color: #B74D15;
   padding: 8px 8px 2px;
-  height: 48px;
+  height: 32px;
   display: flex;
   justify-content: space-between;
-}
-.plant-controls .info {
-  transform: translate(0, 1px);
 }
 .plant-controls .text {
   margin: 0;
   letter-spacing: 0.1em;
 }
 .plant-controls a.text {
-  color: white;
+  color: inherit;
   text-decoration: none;
 }
 .favorite-large {
@@ -983,13 +1134,16 @@ td, th {
   padding: 0;
   font-size: inherit;
 }
-.search {
+.search-mobile {
   display: block;
   height: 64px;
   font-size: 24px;
   padding: 16px;
   margin-bottom: 8px;
   width: 100%;
+}
+.search-desktop-parent {
+  display: none;
 }
 .text {
   padding-left: 8px;
@@ -1018,17 +1172,12 @@ td, th {
     flex-direction: column;
   }
 }
-.search-submit {
-  /* Mobile and medium use all in one apply button */
-  display: none;
-}
 .filter-contents {
   user-select: none;
   display: flex;
 }
-.large-help {
+.two-up.large-help {
   display: none;
-  text-align: center;
 }
 .not-large-help {
   max-width: 320px;
@@ -1077,8 +1226,31 @@ td, th {
   margin-right: 0;
 }
 
-.selected {
+.modal-bar {
+  padding: 12px;
+  height: 96px;
+  text-align: center;
+  border-bottom: 1px solid black;
+  position: relative;
+}
+.modal-bar .title {
+  display: block;
+  transform: translate(0, 48px);
+  font-family: Arvo;
+  font-size: 20px;
+  font-weight: normal;
+}
+.modal-bar .close-nav {
   position: absolute;
+  font-size: 24px;
+  top: 16px;
+  right: 16px;
+  text-decoration: none;
+  color: black;
+}
+
+.selected {
+  position: fixed;
   top: 0px;
   left: 0px;
   width: 100%;
@@ -1087,58 +1259,151 @@ td, th {
   z-index: 200;
 }
 
-.selected .header {
-  padding: 0 32px;
-  display: flex;
-}
-
-.selected .header h2 {
-  flex-grow: 1;
-  text-align: center;
-  font-size: 20px;
-  font-family: Arvo;
+.favorite-selected > * {
+  color: #B74D15;
   font-weight: normal;
 }
 
-.selected .header a {
-  flex-basis: 0;
-  align-self: right;
+.selected .two-up h1 {
+  font-family: Arvo;
   font-size: 24px;
-  align-self: center;
-  color: inherit;
-  text-decoration: none;
+  margin: 16px 0 4px 0;
+  text-align: left;
 }
 
-.selected .info-and-photo {
+.favorite-selected.text {
+  display: block;
+  position: absolute;
+  top: 40px;
+  right: 8px;
+  font-size: 16px;
+}
+
+.selected .two-up h2 {
+  font-size: 20px;
+  font-family: Roboto;
+  line-height: 1;
+  margin: 0 0 24px;
+}
+
+.selected .two-up h3 {
+  font-size: 20px;
+  font-family: Roboto;
+  line-height: 1;
+  font-weight: 500;
+  margin: 0 0 8px 0;
+}
+
+.selected .two-up p {
+  font-size: 16px;
+  font-family: Lato;
+  line-height: 20px;
+  margin: 0 0 16px 0;
+}
+
+.two-up {
   display: flex;
+}
+
+.two-up-text {
+  box-sizing: border-box;
+  padding: 24px;
+  position: relative;
+}
+
+.two-up h2 {
+  font-family: Arvo;
+  font-weight: normal;
+  font-size: 36px;
+  max-width: 460px;
+  line-height: 48px;
+  margin: 0;
+  padding: 0;
+}
+
+.two-up p {
+  max-width: 560px;
+  color: #1D2E26;
+  font-size: 16px;
+  font-family: Roboto;
+  font-weight: normal;
+  line-height: 24px;
+}
+
+.two-up p a {
+  color: #B74D15;
+}
+
+.two-up > * {
+  color: #B74D15;
+  flex-grow: 1.0;
+  flex-basis: 0;
+  height: 380px;
+  background-color: white;
+  background-size: cover;
+  background-position: center;
+}
+
+.selected .two-up {
+  height: calc(100vh - 96px);
+}
+
+.selected .two-up {
   flex-direction: column;
 }
 
-.selected .info {
-  padding: 0 32px;
-  overflow: scroll;
-  order: 2;
+.selected .two-up > * {
+  background-color: #FCF9F4;
+  color: black;
+  height: auto;
 }
 
-.selected .photo {
-  display: block;
-  order: 1;
-  border-radius: 0;
-  padding: 0;
+.selected .two-up-text {
+  overflow: scroll;
+}
+
+.two-up .chips {
+  display: grid;
+  overflow: visible;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  white-space: normal;
+}
+
+.two-up .chips .chip {
+  white-space: normal;
+  letter-spacing: 0;
+  color: #B74D15;
+  font-family: Roboto;
+  font-size: 16px;
+}
+
+.two-up a.store-link {
+  color: #B74D15;
+  text-decoration: underline;
+}
+
+.store-link::after {
+  content: ', ';
+}
+
+.store-link:last-child::after {
+  content: '';
+}
+
+.favorite-regular {
+  transform: translate(0, -4px);
 }
 
 @media all and (min-width: 1280px) {
   .sort-and-favorites {
     margin-bottom: 0;
-  }
-  .large-help {
     display: block;
-    text-align: center;
-    width: 600px;
-    font-size: 20px;
-    line-height: 30px;
-    font-family: Roboto;
-    margin: auto;
+  }
+  button.favorites .favorites-label {
+    display: inline;
+  }
+  .two-up.large-help {
+    display: flex;
   }
   .not-large-help {
     display: none;
@@ -1155,17 +1420,9 @@ td, th {
     display: flex;
     justify-content: space-between;
     gap: 32px;
-    padding: 0 64px;
   }
   .apply {
     display: none;
-  }
-  .search-submit {
-    /* At large size this button is just for the search field
-      (in appearance — does the same darn thing but there's
-      autosubmit at this size too) */
-    display: block;
-    margin-bottom: 24px;
   }
   main .controls {
     width: 320px;
@@ -1205,19 +1462,53 @@ td, th {
   .filters.inactive-question {
     display: none;
   }
-  .search {
-    margin-bottom: 24px;
-    font-size: 16px;
+  .search-mobile {
+    display: none;
+  }
+  .search-desktop-parent {
+    display: flex;
+    justify-content: right;
+    padding: 24px 32px;
+  }
+  .search-desktop {
+    display: flex;
+    min-width: 400px;
     padding: 16px;
     border-radius: 8px;
-    border: 1px solid black;
+    border: 1px solid #1D2E26;
+  }
+  .search-desktop button {
+    padding: 0;
+  }
+  .search-desktop button:disabled {
+    opacity: 0.5;
+  }
+  .search-desktop .material-icons {
+    padding: 0 8px;
+  }
+  .search-desktop input {
+    font-size: 16px;
     height: auto;
     background-color: inherit;
+    padding: 0;
+    border: 0;
+    width: 100%;
+  }
+  .search-desktop input:focus {
+    outline: none;
+  }
+  .search-desktop::placeholder {
+    font-style: italic;
   }
   .plant-controls-wrapper {
     background-color: #B74D15;
   }
   .plant-controls {
+    color: white;
+    padding: 16px 8px 0 4px;
+    height: 48px;
+  }
+  .plant-controls a.text {
     color: white;
   }
   .favorite-regular {
@@ -1226,7 +1517,7 @@ td, th {
   .favorite-large.text {
     display: block;
     position: absolute;
-    bottom: 48px;
+    bottom: 64px;
     right: 16px;
     margin: 0;
     padding: 0;
@@ -1234,18 +1525,83 @@ td, th {
     font-weight: normal;
     color: white;
   }
+  .two-up-text {
+    padding: 40px;
+  }
+
+  .selected .two-up h1, .selected .two-up h2, .selected .two-up h3, .selected .two-up h4 {
+    font-family: Roboto;
+    text-align: left;
+  }
+
+  .selected .two-up h1 {
+    font-family: Roboto;
+    font-size: 40px;
+    margin: 0 0 12px 0;
+  }
+
+  .selected .two-up h2 {
+    font-size: 24px;
+    margin: 0 0 32px 0;
+  }
+
+  .selected .two-up h3 {
+    font-size: 24px;
+    font-weight: 500;
+    margin: 0 0 8px 0;
+  }
+
+  .selected .two-up p {
+    font-size: 20px;
+    line-height: 24px;
+    margin: 0 0 16px 0;
+  }
+
+  .favorite-selected.text {
+    top: 40px;
+    right: 32px;
+    font-size: 40px;
+    height: 48px;
+    color: #B74D15;
+  }
   button.text {
     letter-spacing: 0.1em;
   }
   .common-name {
-    font-size: 14px;
+    font-size: 16px;
   }
   .scientific-name {
-    font-size: 14px;
+    font-size: 16px;
+  }
+  .modal-bar {
+    padding: 12px;
+    height: 48px;
+    text-align: center;
+    border-bottom: 1px solid black;
+    position: relative;
+  }
+  .modal-bar .title {
+    font-family: Arvo;
+    font-size: 20px;
+    line-height: 24px;
+    font-weight: normal;
+    vertical-align: middle;
+    transform: translate(0, 0);
+  }
+  .modal-bar .close-nav {
+    position: absolute;
+    font-size: 40px;
+    right: 8px;
+    text-decoration: none;
+    color: black;
+    transform: translate(0, -12px);
   }
   .selected {
     flex-direction: row;
     height: 66vh;
+  }
+  .selected .two-up {
+    height: auto;
   }
   .selected .info {
     order: 1;
@@ -1256,6 +1612,16 @@ td, th {
     order: 2;
     flex-basis: 0;
     flex-grow: 1;
+  }
+  .selected .two-up {
+    flex-direction: row;
+    height: auto;
+  }
+  .selected .two-up-image {
+    order: 2;
+  }
+  .selected .two-up-text {
+    order: 1;
   }
 }
 

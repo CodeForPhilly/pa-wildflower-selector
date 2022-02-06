@@ -12,7 +12,7 @@ export default {
       return {
         outer: true,
         'nav-is-open': this.$store.state.navIsOpen,
-        'menu-is-open': this.$store.state.navIsOpen || this.$store.state.sortIsOpen
+        'menu-is-open': this.$store.state.navIsOpen || this.$store.state.sortIsOpen || this.$store.state.selectedIsOpen
       };
     }
   }
@@ -70,6 +70,14 @@ html {
   font-family: Roboto;
   src: url("/assets/fonts/Roboto-Regular.ttf") format("truetype");
 }
+
+@font-face {
+  font-family: Roboto;
+  font-weight: 500;
+  font-style: normal;
+  src: url("/assets/fonts/Roboto-Medium.ttf") format("truetype");
+}
+
 @font-face {
   font-family: Roboto;
   font-weight: 700;
@@ -169,7 +177,7 @@ body {
 @media all and (min-width: 1280px) {
   .outer {
     position: relative;
-    padding-top: 24px;
+    padding: 0;
   }
 }
 </style>
