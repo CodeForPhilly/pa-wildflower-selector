@@ -38,6 +38,7 @@
           <h1>{{ selected['Common Name'] }}<button @click="toggleFavorite(selected._id)" class="favorite-selected text"><span class="material-icons material-align">{{ renderFavorite(selected._id) }}</span></button>
 </h1>
           <h2>{{ selected['Scientific Name'] }}</h2>
+          <p v-if="selected['Blurb']">{{ selected['Blurb'] }}</p>
           <h3>Available at these stores:</h3>
           <p>{{ selected['Local Names'] }}</p>
           <p><a v-for="storeLink in storeLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
