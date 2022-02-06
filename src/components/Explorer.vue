@@ -1306,6 +1306,7 @@ td, th {
 }
 
 .two-up-text {
+  box-sizing: border-box;
   padding: 24px;
   position: relative;
 }
@@ -1344,7 +1345,7 @@ td, th {
 }
 
 .selected .two-up {
-  height: 100vh;
+  height: calc(100vh - 96px);
 }
 
 .selected .two-up {
@@ -1364,7 +1365,7 @@ td, th {
 .two-up .chips {
   display: grid;
   overflow: visible;
-  grid-template-columns: repeat(auto-fit, minmax(40vw, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   white-space: normal;
 }
 
@@ -1528,7 +1529,6 @@ td, th {
     padding: 40px;
   }
 
-
   .selected .two-up h1, .selected .two-up h2, .selected .two-up h3, .selected .two-up h4 {
     font-family: Roboto;
     text-align: left;
@@ -1599,6 +1599,9 @@ td, th {
   .selected {
     flex-direction: row;
     height: 66vh;
+  }
+  .selected .two-up {
+    height: auto;
   }
   .selected .info {
     order: 1;
