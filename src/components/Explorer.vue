@@ -16,7 +16,7 @@
               or side filters to get started. Detailed instructions are found <router-link to="/how-to-use#the-directions">here</router-link>
             </p>
           </div>
-          <div :style="`background-image: url(/assets/images/two-up/${Math.floor(Math.random() * 17)}.jpg`"></div>
+          <div class="two-up-image" :style="`background-image: url(/assets/images/two-up/${Math.floor(Math.random() * 17)}.jpg`"></div>
         </div>
       </template>
     </Header>
@@ -33,9 +33,10 @@
         <router-link to="/" class="material-icons router-button close-nav">close</router-link>
       </div>
       <div class="two-up">
+        <div class="two-up-image" :style="selectedImageStyle(selected)"></div>
         <div class="two-up-text">
-          <h1>{{ selected['Common Name'] }}</h1>
-          <button @click="toggleFavorite(selected._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(selected._id) }}</span></button>
+          <h1>{{ selected['Common Name'] }}<button @click="toggleFavorite(selected._id)" class="favorite-selected text"><span class="material-icons material-align">{{ renderFavorite(selected._id) }}</span></button>
+</h1>
           <h2>{{ selected['Scientific Name'] }}</h2>
           <h3>Available at these stores:</h3>
           <p>{{ selected['Local Names'] }}</p>
@@ -57,7 +58,6 @@
             </span>
           </div>
         </div>
-        <div :style="selectedImageStyle(selected)"></div>
       </div>
     </article>
     <main :class="{ 'filters-open': filtersOpen }">
@@ -1226,6 +1226,29 @@ td, th {
   margin-right: 0;
 }
 
+.modal-bar {
+  padding: 12px;
+  height: 96px;
+  text-align: center;
+  border-bottom: 1px solid black;
+  position: relative;
+}
+.modal-bar .title {
+  display: block;
+  transform: translate(0, 48px);
+  font-family: Arvo;
+  font-size: 20px;
+  font-weight: normal;
+}
+.modal-bar .close-nav {
+  position: absolute;
+  font-size: 24px;
+  top: 16px;
+  right: 16px;
+  text-decoration: none;
+  color: black;
+}
+
 .selected {
   position: fixed;
   top: 0px;
@@ -1236,12 +1259,54 @@ td, th {
   z-index: 200;
 }
 
+.favorite-selected > * {
+  color: #B74D15;
+  font-weight: normal;
+}
+
+.selected .two-up h1 {
+  font-family: Arvo;
+  font-size: 24px;
+  margin: 16px 0 4px 0;
+  text-align: left;
+}
+
+.favorite-selected.text {
+  display: block;
+  position: absolute;
+  top: 40px;
+  right: 8px;
+  font-size: 16px;
+}
+
+.selected .two-up h2 {
+  font-size: 20px;
+  font-family: Roboto;
+  line-height: 1;
+  margin: 0 0 24px;
+}
+
+.selected .two-up h3 {
+  font-size: 20px;
+  font-family: Roboto;
+  line-height: 1;
+  font-weight: 500;
+  margin: 0 0 8px 0;
+}
+
+.selected .two-up p {
+  font-size: 16px;
+  font-family: Lato;
+  line-height: 20px;
+  margin: 0 0 16px 0;
+}
+
 .two-up {
   display: flex;
 }
 
 .two-up-text {
-  padding: 40px;
+  padding: 24px;
   position: relative;
 }
 
@@ -1278,36 +1343,18 @@ td, th {
   background-position: center;
 }
 
+.selected .two-up {
+  height: 100vh;
+}
+
+.selected .two-up {
+  flex-direction: column;
+}
+
 .selected .two-up > * {
   background-color: #FCF9F4;
   color: black;
   height: auto;
-}
-
-.selected h1, .selected h2, .selected h3, selected h4 {
-  font-family: Roboto;
-  text-align: left;
-}
-
-.selected h1 {
-  font-size: 40px;
-  margin: 0 0 12px 0;
-}
-
-.selected h2 {
-  font-size: 24px;
-  margin: 0 0 32px 0;
-}
-
-.selected h3 {
-  font-size: 24px;
-  font-weight: 500;
-  margin: 0 0 8px 0;
-}
-
-.selected p {
-  font-size: 20px;
-  margin: 0 0 16px 0;
 }
 
 .selected .two-up-text {
@@ -1315,8 +1362,9 @@ td, th {
 }
 
 .two-up .chips {
-  max-width: 560px;
+  display: grid;
   overflow: visible;
+  grid-template-columns: repeat(auto-fit, minmax(40vw, 1fr));
   white-space: normal;
 }
 
@@ -1326,12 +1374,11 @@ td, th {
   color: #B74D15;
   font-family: Roboto;
   font-size: 16px;
-  margin-right: 24px;
 }
 
 .two-up a.store-link {
-  color: inherit;
-  text-decoration: none;
+  color: #B74D15;
+  text-decoration: underline;
 }
 
 .store-link::after {
@@ -1477,8 +1524,41 @@ td, th {
     font-weight: normal;
     color: white;
   }
-  .selected .favorite-large.text {
-    top: 48px;
+  .two-up-text {
+    padding: 40px;
+  }
+
+
+  .selected .two-up h1, .selected .two-up h2, .selected .two-up h3, .selected .two-up h4 {
+    font-family: Roboto;
+    text-align: left;
+  }
+
+  .selected .two-up h1 {
+    font-family: Roboto;
+    font-size: 40px;
+    margin: 0 0 12px 0;
+  }
+
+  .selected .two-up h2 {
+    font-size: 24px;
+    margin: 0 0 32px 0;
+  }
+
+  .selected .two-up h3 {
+    font-size: 24px;
+    font-weight: 500;
+    margin: 0 0 8px 0;
+  }
+
+  .selected .two-up p {
+    font-size: 20px;
+    line-height: 24px;
+    margin: 0 0 16px 0;
+  }
+
+  .favorite-selected.text {
+    top: 40px;
     right: 32px;
     font-size: 40px;
     height: 48px;
@@ -1501,12 +1581,12 @@ td, th {
     position: relative;
   }
   .modal-bar .title {
-    margin-top: 8px;
     font-family: Arvo;
     font-size: 20px;
     line-height: 24px;
     font-weight: normal;
     vertical-align: middle;
+    transform: translate(0, 0);
   }
   .modal-bar .close-nav {
     position: absolute;
@@ -1514,7 +1594,7 @@ td, th {
     right: 8px;
     text-decoration: none;
     color: black;
-    transform: translate(0, -8px);
+    transform: translate(0, -12px);
   }
   .selected {
     flex-direction: row;
@@ -1529,6 +1609,16 @@ td, th {
     order: 2;
     flex-basis: 0;
     flex-grow: 1;
+  }
+  .selected .two-up {
+    flex-direction: row;
+    height: auto;
+  }
+  .selected .two-up-image {
+    order: 2;
+  }
+  .selected .two-up-text {
+    order: 1;
   }
 }
 
