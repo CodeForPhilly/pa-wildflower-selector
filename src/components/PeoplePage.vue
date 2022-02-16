@@ -121,14 +121,17 @@
           <Person image="kio-p" alt="Photo of Kio P">
             <h4>Development / Code Engineer</h4>
             <p>
-            Kio is an aspiring Librarian and definitely not a bona fide city nymph. Kio currently works in IT, tech, and various customer support capacities, and absolutely cannot charm privateers to lose their stolen goods. In Kio’s spare time they enjoy acting, playing piano, and never shape-shifting.
+            Kio is an aspiring Librarian and definitely not a bona fide city nymph. Kio currently 
+            works in IT, tech, and various customer support capacities, and absolutely cannot charm 
+            privateers to lose their stolen goods. In Kio’s spare time they enjoy acting, 
+            playing piano, and never shape-shifting.
             </p>
           </Person>
           <Person image="charles-leahan" alt="Photo of Charles Leahan">
             <h4>Data Specialist</h4>
             <p>
-              Charles Leahan is an aspiring data scientist, self-taught programmer and math lover. He enjoys lifting, trail running and plays too much online chess. 
-              
+              Charles Leahan is an aspiring data scientist, self-taught programmer and math lover. 
+              He also enjoys lifting, trail running and plays too much online chess. 
             </p>
           </Person>
         </section>
