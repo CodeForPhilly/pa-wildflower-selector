@@ -140,7 +140,7 @@
           <article class="plants">
             <article v-for="result in results" :key="result._id" class="plant-preview-wrapper">
               <div class="plant-preview">
-                <img class="photo" :src="imageUrl(result, true)" />
+                <div class="photo" :style="imageStyle(result, true)"></div>
                 <h4 class="common-name">{{ result['Common Name'] }}</h4>
                 <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
                 <button @click="toggleFavorite(result._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
@@ -501,6 +501,9 @@ export default {
       const style = `background-image: url("${this.imageUrl(selected, false)}")`;
       console.log(style);
       return style;
+    },
+    imageStyle(image) {
+      return `background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.4) 60.94%, rgba(0, 0, 0, 0.4) 100%), url("${this.imageUrl(image, true)}");`;
     },
     async fetchSelectedIfNeeded() {
       if (!this.selectedName) {
@@ -1020,7 +1023,6 @@ td, th {
   border-radius: 8px;
 }
 .photo {
-  object-fit: cover;
   width: 100%;
   aspect-ratio: 1/1;
   border-radius: 8px 8px 0 0;
