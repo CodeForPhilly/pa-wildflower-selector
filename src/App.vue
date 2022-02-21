@@ -12,7 +12,8 @@ export default {
       return {
         outer: true,
         'nav-is-open': this.$store.state.navIsOpen,
-        'menu-is-open': this.$store.state.navIsOpen || this.$store.state.sortIsOpen || this.$store.state.selectedIsOpen
+        'questions-page': this.$route.name === 'Quick Search',
+        'menu-is-open': this.$store.state.navIsOpen || this.$store.state.sortIsOpen || this.$store.state.selectedIsOpen || this.$store.state.monthIsOpen
       };
     }
   }

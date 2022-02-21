@@ -93,6 +93,7 @@ async function downloadMain() {
       _id: name
     });
     clean.Superplant = sp;
+    clean.Showy = clean.Showy === 'Yes';
     clean.metadata = existing?.metadata;
     clean.imageUrl = existing?.imageUrl;
     knownImages[name] = rowsByName?.[name]?.['Manual File URL'] || existing?.imageUrl;

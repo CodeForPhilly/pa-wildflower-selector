@@ -65,11 +65,20 @@ header {
   padding-bottom: 24px;
 }
 
+.questions-page header {
+  padding-bottom: 0;
+}
+
 .main-nav {
   padding-bottom: 32px;
   border-bottom: 2px solid #d3d3d3;
   /* TODO reduce this when we have more text to make this space look good */
   margin-bottom: 32px;
+}
+
+.questions-page .main-nav {
+  margin-bottom: 0;
+  padding-bottom: 16px;
 }
 
 .custom-nav {

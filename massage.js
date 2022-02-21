@@ -41,7 +41,7 @@ async function go() {
         _id: renamed,
         'Scientific Name': renamed
       };
-      await plants.insert(plant);
+      await plants.insertOne(plant);
       await plants.removeOne({
        _id: name
       });

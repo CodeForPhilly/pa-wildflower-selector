@@ -1,9 +1,9 @@
 <template>
   <div>
-    <Header :h1="favorites ? 'Favorites' : null">
-      <template v-slot:after-bar>
+    <Header :h1="favorites ? 'Favorites' : questions ? 'Quick Search' : null">
+      <template v-if="!(questions || favorites)" v-slot:after-bar>
         <p class="not-large-help">
-          <router-link to="/questions">Not sure where to start?<br />Try quick search</router-link>
+          <router-link to="/quick-search">Not sure where to start?<br />Try quick search</router-link>
         </p>
         <div class="two-up large-help">
           <div class="two-up-text">
@@ -15,6 +15,7 @@
               have the right conditions to flourish in your garden. Use the quick search option
               or side filters to get started. Detailed instructions are found <router-link to="/how-to-use#the-directions">here</router-link>
             </p>
+            <router-link to="/quick-search" tag="button">Quick Search</router-link>
           </div>
           <div class="two-up-image" :style="`background-image: url(/assets/images/two-up/${Math.floor(Math.random() * 17)}.jpg`"></div>
         </div>
@@ -61,24 +62,34 @@
         </div>
       </div>
     </article>
-    <main :class="{ 'filters-open': filtersOpen }">
+    <main :class="mainClasses">
       <div v-if="questions" class="questions">
         <form :class="questionClasses(index)" v-for="questionDetail, index in questionDetails" :key="index">
-          <fieldset>
-            <h4>{{ questionDetail.title }}</h4>
-            <label v-for="choice in questionDetail.filter.choices" :key="choice">
-              <span class="filter-contents">
-                <Checkbox :disabled="!filterCounts[questionDetail.filter.name][choice]" v-model="filterValues[questionDetail.filter.name]" :value="choice" />
-                <span class="text">{{ choice }} ({{ filterCounts[questionDetail.filter.name][choice] || 0 }})</span>
-              </span>
-              <img :src="`/assets/images/${choice}.svg`" class="choice-icon" />
+          <h4>{{ questionDetail.title }}</h4>
+          <div class="radio-inputs" v-if="questionDetail.type === 'boolean'">
+            <label>
+              <input name="{{ questionDetail.name }}" type="radio" value="1" v-model="questionDetail.value" />
+              <span class="label">Yes</span>
             </label>
-            <div class="question-buttons">
-              <button v-if="index > 0" @click.prevent="question = index - 1">Back</button>
-              <button v-if="index + 1 < questionDetails.length" @click.prevent="nextQuestion">Next Question</button>
-              <button v-else @click="endQuestions">View Plants</button>
-            </div>
-          </fieldset>
+            <label>
+              <input name="{{ questionDetail.name }}" type="radio" value="" v-model="questionDetail.value" />
+              <span class="label">No</span>
+            </label>
+          </div>
+          <div v-else-if="questionDetail.type === 'month'" class="month">
+            <button @click.stop.prevent="toggleMonth" class="list-button">
+              <span class="label">Planting Month</span>
+              <span class="value">{{ currentMonthLabel }}</span>
+              <span class="material-icons">{{ monthIsOpen ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
+            </button>
+            <Menu :open="monthIsOpen" :choices="questionDetail.choices" v-model="questionDetail.value" @close="toggleMonth" />
+          </div>
+          <div class="question-buttons">
+            <button class="primary" v-if="index + 1 < questionDetails.length" @click.prevent="nextQuestion">Next</button>
+            <button class="primary" v-if="index + 1 === questionDetails.length" @click.prevent="endQuestions">Show Plants</button>
+            <button v-if="index > 0" @click.prevent="question = index - 1">Back</button>
+            <button @click="quitQuestions">Quit Questions</button>
+          </div>
         </form>
       </div>
       <template v-else>
@@ -274,10 +285,18 @@ export default {
           min: 0,
           max: 0
         }
-      }
+      },
+      {
+        name: 'Showy',
+        label: 'Showy',
+        choices: [ 'Showy' ],
+        value: [],
+        array: true,
+        counts: {}
+      },
     ];
     const sorts = Object.entries({
-	'Sort by Recommendation Score': 'Recommendation Score',
+        'Sort by Recommendation Score': 'Recommendation Score',
         'Sort by Common Name (A-Z)': 'Common Name (A-Z)',
         'Sort by Common Name (Z-A)': 'Common Name (Z-A)',
         'Sort by Scientific Name (A-Z)': 'Scientific Name (A-Z)',
@@ -285,6 +304,200 @@ export default {
       }).map(([ value, label ]) => ({ value, label }));
 
     this.defaultFilterValues = getDefaultFilterValues(filters);
+
+    const questionDetails = [
+      {
+        name: 'flowers',
+        type: 'boolean',
+        def: '1',
+        filter(value) {
+          // QUIZ_FLOWER: Field "Plant Type" contains "Graminoid" or "Herb" or "Shrub" or "Vine" and Field "Showy" = "Yes"
+          return value ? {
+            'Plant Type Flags': [ 'Graminoid', 'Herb', 'Shrub', 'Vine' ],
+            'Showy': [ 'Showy' ]
+          } : {};
+        },
+        title: 'Do you want flowers?'
+      },
+      {
+        name: 'month',
+        type: 'month',
+        def: '0',
+        filter(value) {
+          return {
+            'Flowering Months': {
+              min: parseInt(value),
+              max: parseInt(value)
+            }
+          };
+        },
+        choices: [ 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December' ].map((value, i) => ({
+          value: i.toString(),
+          label: value
+        })),
+        title: 'When do you want to plant?'
+      },
+      {
+        name: 'perennial',
+        type: 'boolean',
+        def: '1',
+        filter() {
+          return {
+            'Life Cycle Flags': [ 'Perennial' ]
+          }
+        },
+        title: 'Do you want the plant to show up in your garden every year, without having to buy it again?'
+      },
+      {
+        name: 'sunny',
+        type: 'boolean',
+        def: '1',
+        filter() {
+          return {};
+        },
+        title: 'Is your garden sunny?'
+      },
+      {
+        name: 'shady',
+        type: 'boolean',
+        def: '1',
+        filter(value, others) {
+          const exposure = [];
+          if (value) {
+            exposure.push('Shade');
+          }
+          if (others.sunny) {
+            exposure.push('Sun');
+          }
+          if (value && others.sunny) {
+            exposure.push('Part Shade');
+          }
+          if (exposure.length) {
+            return {
+              'Sun Exposure': exposure
+            };
+          } else {
+            return {};
+          }
+        },
+        title: 'Is your garden shady?'
+      },
+      {
+        name: 'puddle',
+        type: 'boolean',
+        def: '1',
+        filter() {
+          return {};
+        },
+        title: 'Does your garden puddle when it rains?'
+      },
+      {
+        name: 'dry',
+        type: 'boolean',
+        def: '1',
+        filter() {
+          return {};
+        },
+        title: 'Does your garden ever looked cracked or dry?'
+      },
+      {
+        name: 'moist',
+        type: 'boolean',
+        def: '1',
+        filter(value, others) {
+          if (others.puddle) {
+            return {
+              'Soil Moisture': 'Wet'
+            };
+          } else if (others.dry) {
+            return {
+              'Soil Moisture': 'Dry'
+            };
+          } else if (value) {
+            return {
+              'Soil Moisture': 'Moist'
+            };
+          }
+        },
+        title: 'Is your garden a little damp when you stick your finger in the ground?'
+      },
+      {
+        name: 'bees',
+        type: 'boolean',
+        def: '1',
+        filter(value) {
+          // QUIZ_BEE: Field "Pollinators" contains "Native Bees (except Bombus)" or "Bombus" or "Honey Bees" or "Nesting and Structure (Bees)"
+          return value ? {
+            'Pollinator Flags': [ 'Native Bees', 'Bombus', 'Honey Bees', 'Nesting and Structure (Bees)' ]
+          } : {};
+        },
+        title: 'Do you want to attract bees?'
+      },
+      {
+        name: 'butterflies',
+        type: 'boolean',
+        def: '1',
+        filter(value) {
+          // QUIZ_BUTTERFLY: Field "Pollinators" contains "Butterflies" or "Larval Host (Butterfly)"
+          return value ? {
+            'Pollinator Flags': [ 'Butterflies', 'Larval Host (Butterfly)' ]
+          } : {};
+        },
+        title: 'Do you want to attract butterflies?'
+      },
+      {
+        name: 'birds',
+        type: 'boolean',
+        def: '1',
+        filter(value) {
+          return value ? {
+            'Pollinator Flags': [ 'Birds' ]
+          } : {};
+        },
+        title: 'Do you want to attract birds?'
+      },
+      {
+        name: 'hummingbirds',
+        type: 'boolean',
+        def: '1',
+        filter(value) {
+          // QUIZ_HUMMINGBIRD: Field "Pollinators" contains "Hummingbirds"
+          return value ? {
+            'Pollinator Flags': [ 'Hummingbirds' ]
+          } : {};
+        },
+        title: 'Do you want to attract hummingbirds?'
+      },
+      {
+        name: 'online',
+        type: 'boolean',
+        def: '1',
+        filter() {
+          return {};
+        },
+        title: 'Do you want to buy your plants online?'
+      },
+      {
+        name: 'local',
+        type: 'boolean',
+        def: '1',
+        filter(value, others) {
+          const availabilityFlags = [];
+          if (others.online) {
+            availabilityFlags.push('Online');
+          }
+          if (value) {
+            availabilityFlags.push('Local');
+          }
+          return {
+            'AvailabilityFlags': availabilityFlags
+          };
+        },
+        title: 'Do you want to buy your plants at a local store?'
+      },
+    ];
+
+    this.initQuestionValues(questionDetails);
 
     return {
       results: [],
@@ -303,37 +516,9 @@ export default {
       selected: null,
       sorts,
       sortIsOpen: false,
+      monthIsOpen: false,
       question: 0,
-      questionDetails: [
-        {
-          filter: filters.find(filter => filter.name === 'Plant Type Flags'),
-          title: 'What type of plants do you want?'
-        },
-        {
-          filter: filters.find(filter => filter.name === 'Life Cycle Flags'),
-          title: 'What life cycle do you want?'
-        },
-        {
-          filter: filters.find(filter => filter.name === 'Sun Exposure Flags'),
-          title: 'How much sun exposure does your planting site get?'
-        },
-        {
-          filter: filters.find(filter => filter.name === 'Soil Moisture Flags'),
-          title: 'How wet is the soil?'
-        },
-        {
-          filter: filters.find(filter => filter.name === 'Pollinator Flags'),
-          title: 'What pollinators do you want to attract?'
-        },
-        {
-          filter: filters.find(filter => filter.name === 'Availability Flags'),
-          title: 'Where would you like to purchase your plants?'
-        },
-        {
-          filter: filters.find(filter => filter.name === 'Superplant'),
-          title: 'You can further refine your search to only include Super Plants.'
-        }
-      ]
+      questionDetails
     };
   },
   computed: {
@@ -390,6 +575,16 @@ export default {
     },
     favoritesAvailable() {
       return !![...this.$store.state.favorites].length;
+    },
+    currentMonthLabel() {
+      const questionDetail = this.questionDetails.find(questionDetail => questionDetail.name === 'month');
+      const choice = questionDetail.choices.find(choice => choice.value === questionDetail.value);
+      return choice.label;
+    },
+    mainClasses() {
+      return {
+        'filters-open': this.filtersOpen
+      };
     }
   },
   watch: {
@@ -404,10 +599,14 @@ export default {
         this.filterValues = {...this.defaultFilterValues};
         this.determineFilterCountsAndSubmit();
         this.question = 0;
+        this.initQuestionValues(this.questionDetails);
       }
     },
     sortIsOpen() {
       this.$store.commit('setSortIsOpen', this.sortIsOpen);
+    },
+    monthIsOpen() {
+      this.$store.commit('setMonthIsOpen', this.monthIsOpen);
     },
     sort() {
       this.submit();
@@ -432,7 +631,6 @@ export default {
   async mounted() {
     await this.determineFilterCountsAndSubmit();
     await this.fetchSelectedIfNeeded();
-    console.log(JSON.stringify(this.selected, null, '  '));
   },
   destroy() {
     document.body.removeEventListener('click', this.bodyClick);
@@ -450,13 +648,11 @@ export default {
       }
       for (const filter of (active ? this.activeFilters : this.filters)) {
         let value = active ? this.filterValues[filter.name] : this.selected[filter.name];
-        console.log(value);
         if (filter.array) {
           value = value || [];
           if (value === true) {
             value = [ filter.label ];
           }
-          console.log(`value of ${filter.name} is`, value);
           if (filter.name === 'Flower Color Flags') {
             value.forEach(item => {
               chips.push({
@@ -494,13 +690,10 @@ export default {
           });
         }
       }
-      console.log(JSON.stringify(chips));
       return chips;
     },
     selectedImageStyle(selected) {
-      const style = `background-image: url("${this.imageUrl(selected, false)}")`;
-      console.log(style);
-      return style;
+      return `background-image: url("${this.imageUrl(selected, false)}")`;
     },
     imageStyle(image) {
       return `background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.4) 60.94%, rgba(0, 0, 0, 0.4) 100%), url("${this.imageUrl(image, true)}");`;
@@ -689,6 +882,9 @@ export default {
     toggleSort() {
       this.sortIsOpen = !this.sortIsOpen;
     },
+    toggleMonth() {
+      this.monthIsOpen = !this.monthIsOpen;
+    },
     sortLabel(sort) {
       return this.sorts.find(_sort => _sort.value === sort).label;
     },
@@ -734,9 +930,9 @@ export default {
     },
     questionClasses(index) {
       if (this.question === index) {
-        return 'filters question active-question';
+        return 'question active-question';
       } else {
-        return 'filters question inactive-question';
+        return 'question inactive-question';
       }
     },
     nextQuestion() {
@@ -744,10 +940,22 @@ export default {
     },
     endQuestions() {
       for (const questionDetail of this.questionDetails) {
-        this.filterIsOpen[questionDetail.filter.name] = true;
+        const filters = questionDetail.filter(questionDetail.value, Object.fromEntries(this.questionDetails.map(questionDetail => [ questionDetail.name, questionDetail.value ])));
+        for (const [ name, value ] of Object.entries(filters)) {
+          this.filterIsOpen[name] = true;
+          this.filterValues[name] = value;
+        }
       }
       this.filtersOpen = true;
       this.$router.push('/');
+    },
+    quitQuestions() {
+      this.$router.push('/');
+    },
+    initQuestionValues(questionDetails) {
+      for (const questionDetail of questionDetails) {
+        questionDetail.value = questionDetail.def;
+      }
     }
   }
 }
@@ -897,7 +1105,7 @@ button.favorites .favorites-label {
   height: 4em;
   white-space: nowrap;
   overflow: scroll;
-  /* https://stackoverflow.com/questions/36230944/prevent-flex-items-from-overflowing-a-container */
+  /* https://stackoverflow.com/quick-search/36230944/prevent-flex-items-from-overflowing-a-container */
   min-width: 0;
 }
 
@@ -1199,13 +1407,84 @@ td, th {
   text-align: center;
 }
 
+.questions-page main {
+  padding: 0;
+}
+
 .questions {
   display: flex;
   margin: auto;
+  padding-top: 48px;
+  background-color: #B74D15;
+  text-align: center;
+  font-family: Roboto;
 }
 
 .question {
   flex-grow: 1.0;
+  border-radius: 16px 16px 0 0;
+  background-color: #fcf9f4;
+  padding: 0 32px;
+}
+
+.question .radio-inputs {
+  display: flex;
+  flex-direction: column;
+  font-size: 18px;
+}
+
+.question .radio-inputs label {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 32px;
+}
+
+.question .radio-inputs .label {
+  width: 3em;
+}
+
+.question .month {
+  margin-bottom: 48px;
+}
+
+/* https://moderncss.dev/pure-css-custom-styled-radio-buttons/ */
+
+.question input[type="radio"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: #fcf9f4;
+  margin: 0;
+  font: inherit;
+  color: #B74D15;
+  width: 1.15em;
+  height: 1.15em;
+  border: 0.15em solid #B74D15;
+  border-radius: 50%;
+  display: grid;
+  place-content: center;
+}
+
+.question input[type="radio"]::before {
+  content: "";
+  width: 0.65em;
+  height: 0.65em;
+  border-radius: 50%;
+  transform: scale(0);
+  transition: 120ms transform ease-in-out;
+  box-shadow: inset 1em 1em #B74D15;
+}
+
+.question input[type="radio"]:checked::before {
+  transform: scale(1);
+}
+
+.question h4 {
+  font-weight: normal;
+  font-size: 24px;
+}
+
+.question .month {
+  position: relative;
 }
 
 .inactive-question {
@@ -1214,19 +1493,11 @@ td, th {
 
 .question-buttons {
   display: flex;
+  flex-direction: column;
 }
 
-.question-buttons > * {
-  flex-basis: 0;
-  flex-grow: 1.0;
-}
-
-.question-buttons > * {
-  margin-right: 16px;
-}
-
-.question-buttons > *:last-child {
-  margin-right: 0;
+.question-buttons button {
+  margin-bottom: 48px;
 }
 
 .modal-bar {

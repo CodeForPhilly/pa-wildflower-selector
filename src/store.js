@@ -6,6 +6,7 @@ export default ({ favorites }) => {
       return {
         navIsOpen: false,
         sortIsOpen: false,
+        monthIsOpen: false,
         selectedIsOpen: false,
         favorites
       }
@@ -19,6 +20,9 @@ export default ({ favorites }) => {
       },
       setSelectedIsOpen (state, selectedIsOpen) {
         state.selectedIsOpen = selectedIsOpen;
+      },
+      setMonthIsOpen (state, monthIsOpen) {
+        state.monthIsOpen = monthIsOpen;
       },
       toggleFavorite (state, plantId) {
         if (state.favorites.has(plantId)) {
