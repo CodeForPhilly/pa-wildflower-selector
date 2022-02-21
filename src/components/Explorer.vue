@@ -1626,6 +1626,12 @@ td, th {
   .selected .two-up-text {
     order: 1;
   }
+  .chips {
+    /* Per Cristina desktop chips wrap, they do not scroll */
+    white-space: normal;
+    overflow: visible;
+    height: auto;
+  }
 }
 
 </style>
