@@ -45,7 +45,10 @@ async function go() {
       await plants.removeOne({
        _id: name
       });
-      fs.renameSync(`${__dirname}/images/${name}.jpg`, `${__dirname}/images/${renamed}.jpg`);
+      const oldName = `${__dirname}/images/${name}.jpg`;
+      const newName = `${__dirname}/images/${renamed}.jpg`;
+      if (fs.existsSync(oldName))
+      fs.renameSync(oldName, newName);
     }
 
     // Process Flowering Months into an array of flags

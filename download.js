@@ -45,6 +45,7 @@ async function go() {
 async function downloadMain() {
   const limiter = new RateLimiter({ tokensPerInterval: 1, interval: "second" });
   const body = await get(settings.masterCsvUrl);
+  const articlesBody = await get(settings.articlesCsvUrl);
   const doc = new GoogleSpreadsheet(settings.imageUrlsSheetId);
   await doc.useServiceAccountAuth({
     client_email: serviceAccount.client_email,
@@ -62,6 +63,10 @@ async function downloadMain() {
     rowsByName[name] = row;
   }
   const records = parse(body, {
+    columns: true,
+    skip_empty_lines: true
+  });
+  const articleRecords = parse(articlesBody, {
     columns: true,
     skip_empty_lines: true
   });
@@ -139,6 +144,19 @@ async function downloadMain() {
       const end = row['Manual Attribution URL'] ? '</a>' : '';
       clean.source = 'manual';
       clean.attribution = `${start}${row['Manual Attribution']}${end}`;
+    }
+    clean.Articles = [];
+    for (const record of articleRecords) {
+      if (record['Scientific Name'] === clean['Scientific Name']) {
+        const sources = record['Source'].split(/\s*,\s*/);
+        const sourceUrls = record['Source URL'].split(/\s*,\s*/);
+        for (let i = 0; (i < sources.length); i++) {
+          clean.Articles.push({
+            'Source': sources[i],
+            'Source URL': sourceUrls[i]
+          });
+        }
+      }
     }
     await update(plants, clean);
     if (!rowsByName[name]) {
@@ -225,7 +243,7 @@ async function discoverViaWikimediaCommonsSearch(clean, name) {
     console.error(e);
     return null;
   }
-  const result = info.results.find(result => slugify(result.title).includes(slugify(name)));
+  const result = info && info.results && info.results.find(result => slugify(result.title).includes(slugify(name)));
   if (!result) {
     return null;
   }

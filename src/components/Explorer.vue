@@ -43,7 +43,7 @@
           <p>{{ selected['Local Names'] }}</p>
           <p><a v-for="storeLink in storeLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
           <h3>Mentioned in these articles:</h3>
-          <p>{{ selected['Article Names'] }}</p>
+          <p><a v-for="articleLink in selected.Articles" :key="articleLink['Source']" :href="articleLink['Source URL']" class="store-link">{{ articleLink['Source'] }}</a></p>
           <p v-if="selected['Flowering Months']">
             Flowering Months:
             {{ selected['Flowering Months'] }}
@@ -904,7 +904,7 @@ button.favorites .favorites-label {
 .chip {
   display: inline-block;
   border-radius: 30px;
-  margin: 8px 8px 8px 0;
+  margin: 0px 8px 16px 0;
   letter-spacing: 0.1em;
 }
 
