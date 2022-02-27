@@ -15,9 +15,9 @@
               have the right conditions to flourish in your garden. Use the quick search option
               or side filters to get started. Detailed instructions are found <router-link to="/how-to-use#the-directions">here</router-link>
             </p>
-            <router-link to="/quick-search" tag="button">Quick Search</router-link>
+            <button class="primary" @click="$router.push('/quick-search')">Quick Search</button>
           </div>
-          <div class="two-up-image" :style="`background-image: url(/assets/images/two-up/${Math.floor(Math.random() * 17)}.jpg`"></div>
+          <div class="two-up-image" :style="twoUpImage(twoUpIndex)"></div>
         </div>
       </template>
     </Header>
@@ -63,34 +63,58 @@
       </div>
     </article>
     <main :class="mainClasses">
-      <div v-if="questions" class="questions">
-        <form :class="questionClasses(index)" v-for="questionDetail, index in questionDetails" :key="index">
-          <h4>{{ questionDetail.title }}</h4>
-          <div class="radio-inputs" v-if="questionDetail.type === 'boolean'">
-            <label>
-              <input name="{{ questionDetail.name }}" type="radio" value="1" v-model="questionDetail.value" />
-              <span class="label">Yes</span>
-            </label>
-            <label>
-              <input name="{{ questionDetail.name }}" type="radio" value="" v-model="questionDetail.value" />
-              <span class="label">No</span>
-            </label>
+      <div v-if="questions" class="questions-box">
+        <div :class="questionsClasses">
+          <div v-if="!question" class="questions-prologue">
+            <h1 class="large">Quick search</h1>
+            <p class="small">
+              Novice gardener?
+            </p>
+            <p class="small">
+              Don't know where to start?
+            </p>
+            <p class="large">
+              Novice gardener? Don't know where to start?
+            </p>
+            <p>
+              Answering these easy questions will get you well on your way to a selection of plants for your garden.
+            </p>
           </div>
-          <div v-else-if="questionDetail.type === 'month'" class="month">
-            <button @click.stop.prevent="toggleMonth" class="list-button">
-              <span class="label">Planting Month</span>
-              <span class="value">{{ currentMonthLabel }}</span>
-              <span class="material-icons">{{ monthIsOpen ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
-            </button>
-            <Menu :open="monthIsOpen" :choices="questionDetail.choices" v-model="questionDetail.value" @close="toggleMonth" />
-          </div>
-          <div class="question-buttons">
-            <button class="primary" v-if="index + 1 < questionDetails.length" @click.prevent="nextQuestion">Next</button>
-            <button class="primary" v-if="index + 1 === questionDetails.length" @click.prevent="endQuestions">Show Plants</button>
-            <button v-if="index > 0" @click.prevent="question = index - 1">Back</button>
-            <button @click="quitQuestions">Quit Questions</button>
-          </div>
-        </form>
+          <form :class="questionClasses(index)" v-for="questionDetail, index in questionDetails" :key="index">
+            <h4>{{ questionDetail.title }}</h4>
+            <div class="radio-inputs" v-if="questionDetail.type === 'boolean'">
+              <label>
+                <input name="{{ questionDetail.name }}" type="radio" value="1" v-model="questionDetail.value" />
+                <span class="label">Yes</span>
+              </label>
+              <label>
+                <input name="{{ questionDetail.name }}" type="radio" value="" v-model="questionDetail.value" />
+                <span class="label">No</span>
+              </label>
+            </div>
+            <div v-else-if="questionDetail.type === 'month'" class="month">
+              <button @click.stop.prevent="toggleMonth" class="list-button">
+                <span class="label">Planting Month</span>
+                <span class="value">{{ currentMonthLabel }}</span>
+                <span class="material-icons">{{ monthIsOpen ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
+              </button>
+              <Menu :open="monthIsOpen" :choices="questionDetail.choices" v-model="questionDetail.value" @close="toggleMonth" />
+            </div>
+            <div class="question-buttons">
+              <div v-if="index + 1 === questionDetails.length" class="show-back">
+                <button class="primary" v-if="index + 1 === questionDetails.length" @click.prevent="endQuestions">Show Plants</button>
+                <button v-if="index > 0" @click.prevent="question = index - 1">Back</button>
+              </div>
+              <div v-else class="next-back">
+                <button class="primary next" v-if="index + 1 < questionDetails.length" @click.prevent="nextQuestion">Next</button>
+                <button class="back" v-if="index > 0" @click.prevent="question = index - 1">Back</button>
+              </div>
+              <button @click="quitQuestions">Quit Questions</button>
+            </div>
+          </form>
+        </div>
+        <div class="questions-decoration" :style="twoUpImage(questionsHeroIndex)">
+        </div>
       </div>
       <template v-else>
         <div class="controls">
@@ -157,7 +181,7 @@
                 <button @click="toggleFavorite(result._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
                 <div class="plant-controls-wrapper">
                   <div class="plant-controls">
-                    <router-link :to="`/plants/${result['Scientific Name']}`" tag="button" class="text">
+                    <router-link :to="`/plants/${result['Scientific Name']}`" class="text">
                       <span class="material-icons material-align info">info_outline</span> More Info
                     </router-link>
                     <button @click="toggleFavorite(result._id)" class="favorite-regular text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
@@ -322,7 +346,9 @@ export default {
       {
         name: 'month',
         type: 'month',
-        def: '0',
+        // Default month should have some plants when combined
+        // with the other default filters
+        def: '2',
         filter(value) {
           return {
             'Flowering Months': {
@@ -425,11 +451,8 @@ export default {
         name: 'bees',
         type: 'boolean',
         def: '1',
-        filter(value) {
-          // QUIZ_BEE: Field "Pollinators" contains "Native Bees (except Bombus)" or "Bombus" or "Honey Bees" or "Nesting and Structure (Bees)"
-          return value ? {
-            'Pollinator Flags': [ 'Native Bees', 'Bombus', 'Honey Bees', 'Nesting and Structure (Bees)' ]
-          } : {};
+        filter() {
+          return {};
         },
         title: 'Do you want to attract bees?'
       },
@@ -437,34 +460,37 @@ export default {
         name: 'butterflies',
         type: 'boolean',
         def: '1',
-        filter(value) {
-          // QUIZ_BUTTERFLY: Field "Pollinators" contains "Butterflies" or "Larval Host (Butterfly)"
-          return value ? {
-            'Pollinator Flags': [ 'Butterflies', 'Larval Host (Butterfly)' ]
-          } : {};
+        filter() {
+          return {};
         },
         title: 'Do you want to attract butterflies?'
-      },
-      {
-        name: 'birds',
-        type: 'boolean',
-        def: '1',
-        filter(value) {
-          return value ? {
-            'Pollinator Flags': [ 'Birds' ]
-          } : {};
-        },
-        title: 'Do you want to attract birds?'
       },
       {
         name: 'hummingbirds',
         type: 'boolean',
         def: '1',
-        filter(value) {
-          // QUIZ_HUMMINGBIRD: Field "Pollinators" contains "Hummingbirds"
-          return value ? {
-            'Pollinator Flags': [ 'Hummingbirds' ]
-          } : {};
+        filter(value, others) {
+          const flags = [];
+          if (others.bees) {
+            flags.push('Native Bees');
+            flags.push('Bombus');
+            flags.push('Honey Bees');
+            flags.push('Nesting and Structure (Bees)');
+          }
+          if (others.butterflies) {
+            flags.push('Butterflies');
+            flags.push('Larval Host (Butterfly)');
+          }
+          if (value) {
+            flags.push('Hummingbirds');
+          }
+          if (flags.length) {
+            return {
+              'Pollinator Flags': flags
+            };
+          } else {
+            return {};
+          }
         },
         title: 'Do you want to attract hummingbirds?'
       },
@@ -499,6 +525,8 @@ export default {
 
     this.initQuestionValues(questionDetails);
 
+    const twoUpIndex = Math.floor(Math.random() * 17);
+    const questionsHeroIndex = (twoUpIndex + 1) % 17;
     return {
       results: [],
       total: 0,
@@ -518,10 +546,18 @@ export default {
       sortIsOpen: false,
       monthIsOpen: false,
       question: 0,
-      questionDetails
+      questionDetails,
+      twoUpIndex,
+      questionsHeroIndex
     };
   },
   computed: {
+    questionsClasses() {
+      return {
+        questions: 1,
+        first: !this.question
+      };
+    },
     selectedName() {
       return this.$route.params.name;
     },
@@ -956,6 +992,9 @@ export default {
       for (const questionDetail of questionDetails) {
         questionDetail.value = questionDetail.def;
       }
+    },
+    twoUpImage(index) {
+      return `background-image: url(/assets/images/two-up/${index}.jpg`;
     }
   }
 }
@@ -1008,6 +1047,7 @@ button {
   border-radius: 8px;
   padding: 12px;
   font-size: 17px;
+  font-family: Roboto;
 }
 
 button.primary {
@@ -1291,8 +1331,7 @@ td, th {
 .filters {
   flex-direction: column;
   max-width: 350px;
-  margin: auto;
-  margin-bottom: 100%;
+  margin: 32px;
 }
 .filters fieldset {
   background-color: white;
@@ -1413,11 +1452,30 @@ td, th {
 
 .questions {
   display: flex;
+  flex-direction: column;
   margin: auto;
   padding-top: 48px;
   background-color: #B74D15;
   text-align: center;
   font-family: Roboto;
+}
+
+.questions.first {
+  padding-top: 0;
+}
+
+.questions-prologue {
+  background-image: url("/assets/images/questions-prologue-background.png");
+  background-repeat: no-repeat;
+  background-size: cover;
+  padding: 72px 32px;
+}
+
+.questions-prologue p {
+  color: white;
+  font-size: 20px;
+  font-family: Arvo;
+  font-weight: 700;
 }
 
 .question {
@@ -1491,7 +1549,7 @@ td, th {
   display: none;
 }
 
-.question-buttons {
+.question-buttons, .next-back, .show-back {
   display: flex;
   flex-direction: column;
 }
@@ -1668,6 +1726,10 @@ td, th {
   transform: translate(0, -4px);
 }
 
+.large {
+  display: none;
+}
+
 @media all and (min-width: 1280px) {
   .sort-and-favorites {
     margin-bottom: 0;
@@ -1713,6 +1775,9 @@ td, th {
   .inner-controls .clear {
     /* Chips have one and it is always visible at this size */
     display: none;
+  }
+  .filters {
+    margin-bottom: 100%;
   }
   .filters fieldset {
     padding: 16px;
@@ -1902,6 +1967,63 @@ td, th {
     white-space: normal;
     overflow: visible;
     height: auto;
+  }
+  .questions-box {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    height: calc(100vh - 140px);
+  }
+  .questions-box > * {
+    flex-basis: 0;
+    flex-grow: 1.0;
+  }
+  .questions-decoration {
+    background-size: cover;
+  }
+  .questions {
+    background-color: #FCF9F4;
+    color: #1D2E26;
+  }
+  .questions-prologue {
+    background: none;
+    background-color: #FCF9F4;
+    padding: 40px 32px 0;
+  }
+  .questions-prologue h1 {
+    font-family: Arvo;
+    font-size: 60px;
+    margin: 16px 0;
+  }
+  .questions-prologue p {
+    font-family: Roboto;
+    font-weight: 400;
+    font-size: 20px;
+    color: #1D2E26;
+  }
+  .questions form {
+    width: 70%;
+    margin: auto;
+  }
+  .next-back {
+    flex-direction: row;
+    gap: 32px;
+  }
+  .next-back > button {
+    flex-grow: 1.0;
+    flex-basis: 0;
+  }
+  .next-back .back {
+    order: 1;
+  }
+  .next-back .next {
+    order: 2;
+  }
+  .small {
+    display: none;
+  }
+  .large {
+    display: block;
   }
 }
 
