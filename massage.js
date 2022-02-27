@@ -201,7 +201,7 @@ async function go() {
         'Sun Exposure Flags': sunExposureFlags
       }
     });
-    const soilMoistureFlags = plant['Soil Moisture'].split(', ').map(capitalize).filter(flag => flag.length > 0);
+    const soilMoistureFlags = plant['Soil Moisture'].split(',\s*').map(capitalize).filter(flag => flag.length > 0);
     if (soilMoistureFlags.length) {
       await plants.updateOne({
         _id: plant._id
