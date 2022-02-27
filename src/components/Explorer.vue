@@ -696,7 +696,7 @@ export default {
       return `background-image: url("${this.imageUrl(selected, false)}")`;
     },
     imageStyle(image) {
-      return `background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.4) 60.94%, rgba(0, 0, 0, 0.4) 100%), url("${this.imageUrl(image, true)}");`;
+      return `background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.4) 60.94%, rgba(0, 0, 0, 0.4) 100%), url("${this.imageUrl(image, true)}"); background-size: cover`;
     },
     async fetchSelectedIfNeeded() {
       if (!this.selectedName) {
