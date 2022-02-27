@@ -12,7 +12,7 @@
             <img class="logo" src="/assets/images/logo.svg" />
           </h1>
         </router-link>
-        <h1>{{ h1 || 'Choose Native Plants PA' }}</h1>
+        <h1 class="local-h1">{{ h1 || 'Choose Native Plants PA' }}</h1>
         <button @click="openNav" class="material-icons router-button open-nav">menu</button>
         <menu>
           <button @click="closeNav" class="material-icons router-button close-nav">close</button>
@@ -25,7 +25,7 @@
       </div>
       <slot name="before-bar"></slot>
     </nav>
-    <h1 v-if="h1">{{ h1 }}</h1>
+    <h1 class="last-h1" v-if="h1">{{ h1 }}</h1>
     <slot name="after-bar"></slot>
   </header>
 </template>
@@ -65,11 +65,20 @@ header {
   padding-bottom: 24px;
 }
 
+.questions-page header {
+  padding-bottom: 0;
+}
+
 .main-nav {
   padding-bottom: 32px;
   border-bottom: 2px solid #d3d3d3;
   /* TODO reduce this when we have more text to make this space look good */
   margin-bottom: 32px;
+}
+
+.questions-page .main-nav {
+  margin-bottom: 0;
+  padding-bottom: 16px;
 }
 
 .custom-nav {
@@ -222,6 +231,7 @@ menu .copyright {
     border-bottom: none;
     padding: 0;
     margin: 0;
+    height: 140px;
   }
   a.logo-parent h1 {
     display: flex;
@@ -239,6 +249,12 @@ menu .copyright {
     text-decoration: none;
     color: white;
     border-bottom-style: none;
+  }
+  .questions-page header .local-h1 {
+    display: none;
+  }
+  .questions-page header .last-h1 {
+    display: none;
   }
   .logo {
     height: 100%;

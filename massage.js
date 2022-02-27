@@ -41,7 +41,7 @@ async function go() {
         _id: renamed,
         'Scientific Name': renamed
       };
-      await plants.insert(plant);
+      await plants.insertOne(plant);
       await plants.removeOne({
        _id: name
       });
@@ -201,7 +201,7 @@ async function go() {
         'Sun Exposure Flags': sunExposureFlags
       }
     });
-    const soilMoistureFlags = plant['Soil Moisture'].split(', ').map(capitalize).filter(flag => flag.length > 0);
+    const soilMoistureFlags = plant['Soil Moisture'].split(',\s*').map(capitalize).filter(flag => flag.length > 0);
     if (soilMoistureFlags.length) {
       await plants.updateOne({
         _id: plant._id

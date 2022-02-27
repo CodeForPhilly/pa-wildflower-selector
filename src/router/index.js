@@ -22,8 +22,8 @@ const routes = [
     }
   },
   {
-    path: "/questions",
-    name: "Answer 5 Questions",
+    path: "/quick-search",
+    name: "Quick Search",
     component: Explorer,
     props: {
       questions: true
