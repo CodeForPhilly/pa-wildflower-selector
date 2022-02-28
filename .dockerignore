@@ -1,0 +1,10 @@
+.git/
+Dockerfile
+docker-compose.yml
+deployment/
+dist/
+node_modules/
+public/dist/
+scripts/
+.env
+.env.example
