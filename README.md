@@ -88,3 +88,29 @@ In `src/`.
 ### Where is the server-side app code that answers queries?
 
 In the main folder of the project.
+
+## Running with Docker Compose
+
+### Start server
+
+This command starts or updates the existing docker-compose instances, forcing a rebuild of the Docker container image:
+
+```bash
+docker compose up -d --build
+```
+
+### Follow app logs
+
+```bash
+docker-compose logs -f app
+```
+
+### Open shell on app container
+
+```bash
+docker-compose exec app sh
+```
+
+## Open Questions
+
+- Does the deploy need two copies of the entire dist/ directory copied into both public/ and ssr/ ?
