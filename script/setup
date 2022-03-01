@@ -24,7 +24,7 @@ curl 'https://boutell.dev/pa-wildflower-selector/pa-wildflower-selector.archive.
 
 echo
 echo "==> Downloading and restoring test data into app…"
-docker-compose exec app rm -r /app/images
+docker-compose exec app sh -c 'rm -r /app/images/* || true'
 curl 'https://boutell.dev/pa-wildflower-selector/pa-wildflower-selector.tar' \
  | docker-compose exec -T app tar -xvf -
 
