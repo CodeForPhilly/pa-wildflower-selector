@@ -27,5 +27,8 @@ services:
       - DB_PORT=$MONGODB_DOCKER_PORT
     stdin_open: true
     tty: true
+    volumes:
+      - images:/app/images
 volumes:
   db:
+  images:
