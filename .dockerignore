@@ -6,6 +6,7 @@ deployment/
 dist/
 node_modules/
 public/dist/
+script/
 scripts/
 .env
 .env.example

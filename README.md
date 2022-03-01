@@ -96,8 +96,26 @@ In the main folder of the project.
 This command starts or updates the existing docker-compose instances, forcing a rebuild of the Docker container image:
 
 ```bash
-docker compose up -d --build
+script/server
 ```
+
+### Update server
+
+After making changes to source code or switching branches, this command will rebuild and update your running server:
+
+```bash
+script/update
+```
+
+### Initialize data
+
+This command will download sample data into your docker-compose environment and initialize your database:
+
+```bash
+script/setup
+```
+
+This only needs to be done once per workstation, or after major changes that require reinitializing the database.
 
 ### Follow app logs
 
