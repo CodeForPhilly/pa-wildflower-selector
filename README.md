@@ -129,6 +129,30 @@ docker-compose logs -f app
 docker-compose exec app sh
 ```
 
+### Open mongo shell
+
+```bash
+docker-compose exec mongodb bash -c '
+mongosh \
+    --username ${MONGO_INITDB_ROOT_USERNAME} \
+    --password ${MONGO_INITDB_ROOT_PASSWORD}
+'
+```
+
+To verify the connection, you can list databases from the mongo shell:
+
+```mongosh
+db.adminCommand( { listDatabases: 1 } )
+```
+
+### Clean up local environment
+
+This command both shuts down the local server AND erases all local state:
+
+```bash
+docker-compose down -v
+```
+
 ## Open Questions
 
 - Does the deploy need two copies of the entire dist/ directory copied into both public/ and ssr/ ?
