@@ -9,6 +9,12 @@ cd "$(dirname "$0")/.."
 
 script/bootstrap
 
+if [ ! -f ".env" ]; then
+    echo
+    echo "==> Initializing .env…"
+    cp .env.example .env
+fi
+
 echo
 echo "==> Starting containers with docker-compose…"
 docker-compose up -d --build
