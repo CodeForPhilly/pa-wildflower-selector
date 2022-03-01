@@ -91,6 +91,10 @@ In the main folder of the project.
 
 ## Running with Docker Compose
 
+For local development, `docker-compose` is used to create a consistent and disposable environment without any modification to or dependency on software installed to the developer's workstation. This approach also provides close parity between local development and container-based deployment in production to Kubernetes.
+
+[GitHub's  `Scripts To Rule Them All` pattern](https://github.com/github/scripts-to-rule-them-all) is leveraged to provide simple commands with reasonable default behavior for common developer steps.
+
 ### Start server
 
 This command starts or updates the existing docker-compose instances, forcing a rebuild of the Docker container image:
@@ -101,7 +105,7 @@ script/server
 
 ### Update server
 
-After making changes to source code or switching branches, this command will rebuild and update your running server:
+After making changes to source code or switching branches, this command will do anything needed to update your running server:
 
 ```bash
 script/update
