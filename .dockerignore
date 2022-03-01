@@ -8,5 +8,6 @@ node_modules/
 public/dist/
 script/
 scripts/
+README.md
 .env
 .env.example
