@@ -14,7 +14,9 @@ services:
   app:
     depends_on:
       - mongodb
-    build: ./
+    build:
+      context: .
+      target: 'develop-stage'
     restart: unless-stopped
     env_file: ./.env
     ports:
