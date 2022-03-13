@@ -12,7 +12,7 @@ go().then(() => {
 });
 
 async function go() {
-  const { plants, close } = await db();
+  const { plants, nurseries, close } = await db();
   let values = await plants.find().toArray();
 
   // Fix a small set of plants that already had duplicate records
@@ -258,7 +258,28 @@ async function go() {
       }
     });
   }
+
+  await updateNurseries();
   await close();
+
+  async function updateNurseries() {
+    const raw = await plants.distinct('Local Names');
+    const allNames = new Set();
+    for (const combo of raw) {
+      const names = combo.trim().split(/\s*,\s*/);
+      for (const name of names) {
+        if (name.length) {
+          allNames.add(name);
+        }
+      }
+    }
+    await nurseries.removeMany();
+    for (const name of allNames) {
+      await nurseries.insertOne({
+        Name: name
+      });
+    }
+  }
 }
 
 function capitalize(s) {

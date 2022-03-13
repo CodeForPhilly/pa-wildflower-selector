@@ -19,6 +19,7 @@
           <span class="regular-links">
             <router-link to="/people-page">People Page</router-link>
             <router-link to="/how-to-use">How to Use</router-link>
+            <router-link to="/map">PA Nurseries</router-link>
           </span>
           <div class="copyright">© 2021 Choose Native Plants - PA</div>
         </menu>

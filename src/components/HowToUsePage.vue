@@ -1,5 +1,5 @@
 <template>
-  <Page slug="/how-to-use" title="How to Use" h1="How to Use" theme="light">
+  <Page slug="/how-to-use" title="How to Use" h1="How to Use">
     <p>
       This page provides a lot of information about how to get the most out of
       using this website. If you run into difficulty, please

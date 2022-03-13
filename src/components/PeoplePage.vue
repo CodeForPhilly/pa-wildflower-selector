@@ -3,7 +3,6 @@
     slug="/people-page"
     title="People Page"
     h1="About us and the project"
-    theme="light"
   >
     <p>
       Many of us came together in April 2021, to join Zachary Leahan in this
