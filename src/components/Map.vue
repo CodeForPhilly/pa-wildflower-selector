@@ -85,6 +85,12 @@ export default {
       }
     }
   },
+  unmounted() {
+    if (this.map) {
+      this.map.off();
+      this.map.remove();
+    }
+  },
   methods: {
     async fetchNurseries() {
       const data = await this.get('/api/v1/nurseries');

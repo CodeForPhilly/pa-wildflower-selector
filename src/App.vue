@@ -38,7 +38,7 @@ html {
   width: 100%;
   height: 200%;
   opacity: 0.5;
-  z-index: 100;
+  z-index: 1000;
   top: -48px;
   background-color: black;
 }

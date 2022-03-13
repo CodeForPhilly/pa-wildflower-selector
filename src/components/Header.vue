@@ -200,7 +200,7 @@ menu .copyright {
     background-color: #fcf9f4;
     padding: 32px 0 0 0;
     border-radius: 16px 0 0 0;
-    z-index: 200;
+    z-index: 1100;
   }
   .nav-is-open .main-nav menu a {
     display: block;

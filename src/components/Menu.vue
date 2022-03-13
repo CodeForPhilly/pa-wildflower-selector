@@ -51,7 +51,7 @@ export default {
 <style scoped>
 menu {
   position: absolute;
-  z-index: 100;
+  z-index: 1100;
   right: 0;
   background-color: #FCF9F4;
   display: flex;
