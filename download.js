@@ -24,6 +24,7 @@ const terms = {
 go();
 
 let plants = null;
+let nurseries = null;
 let close = null;
 
 async function go() {
@@ -33,6 +34,7 @@ async function go() {
     }
     const info = await db();
     plants = info.plants;
+    nurseries = info.nurseries;
     close = info.close;
     await downloadMain();
     await close();
@@ -176,6 +178,29 @@ async function downloadMain() {
         }
       }
     }
+  }
+
+  await updateNurseries();
+
+}
+
+async function updateNurseries() {
+  await nurseries.removeMany();
+  const body = await get(settings.localMapCsvUrl);
+  const records = parse(body, {
+    columns: true,
+    skip_empty_lines: true
+  });
+  for (const record of records) {
+    const address = `${record.ADDRESS} ${record.CITY}, ${record.STATE} ${record.ZIP}`;
+    const location = await get(`https://api.openrouteservice.org/geocode/search?api_key=${encodeURIComponent(settings.openRouteServiceToken)}&text=${encodeURIComponent(address)}`, 'json');
+    console.log(JSON.stringify(location, null, '  '));
+    const coordinates = location?.features?.[0]?.geometry?.coordinates;
+    if (coordinates) {
+      record.lon = coordinates[0];
+      record.lat = coordinates[1];
+    }
+    await nurseries.insertOne(record);
   }
 }
 

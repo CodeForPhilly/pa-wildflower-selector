@@ -8,7 +8,7 @@
         <p>Please call the Nursery first to be sure the items you want are currently stocked</p>
         <div v-if="nurseries">
           <ul v-for="nursery in nurseries" v-bind:key="nursery._id">
-            <li><a @click.prevent="flyToNursery(nursery)" :href="nursery.URL">{{ nursery.Name }}</a></li>
+            <li><a @click.prevent="flyToNursery(nursery)" :href="nursery.URL">{{ nursery.SOURCE }}</a></li>
           </ul>
         </div>
         <p v-else>Loading...</p>
@@ -62,10 +62,10 @@ export default {
     for (const nursery of this.nurseries) {
       if (nursery.lat !== undefined) {
         const marker = L.marker([ nursery.lat, nursery.lon ]).addTo(this.map);
-        const name = esc(nursery.Name);
-        const address = esc(nursery.Address);
-        const phone = esc(nursery.Phone);
-        const email = esc(nursery.Email);
+        const name = esc(nursery.SOURCE);
+        const address = `${esc(nursery.ADDRESS)}<br />${esc(nursery.CITY)}, ${esc(nursery.STATE)} ${esc(nursery.ZIP)}`;
+        const phone = esc(nursery.PHONE);
+        const email = esc(nursery.EMAIL);
         nursery.marker = marker;
         marker.bindPopup(`
           <div class="map-popup">
@@ -96,31 +96,6 @@ export default {
     async fetchNurseries() {
       const data = await this.get('/api/v1/nurseries');
       this.nurseries = data.results;
-      const fakeData = {
-        'Arcadia Washington': {
-          Address: '2273 S Main St Extension, Washington, PA 15301',
-          Phone: '(724) 986-0907',
-          URL: 'https://arcadianatives.com/',
-          Email: ''
-        },
-        'Bowman\'s New Hope': {
-          Address: '1635 River Rd, New Hope, PA 18938',
-          Phone: '(215) 862-2924',
-          URL: 'https://bhwp.org/',
-          Email: 'bhwp@bhwp.org'
-        }
-      };
-      for (const nursery of this.nurseries) {
-        Object.assign(nursery, fakeData[nursery.Name] || {});
-        if (nursery.Address) {
-          const location = await this.get(`https://nominatim.openstreetmap.org/?format=json&q=${encodeURIComponent(nursery.Address)}&addressdetails=1&limit=1`);
-          if (!(location && location[0])) {
-            continue;
-          }
-          nursery.lon = location[0].lon;
-          nursery.lat = location[0].lat;
-        }
-      }
     },
     async get(url) {
       const response = await fetch(url);
