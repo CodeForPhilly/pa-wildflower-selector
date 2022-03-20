@@ -1,6 +1,6 @@
 <template>
   <header>
-    <nav :class="{ 'main-nav': true }">
+    <nav :class="{ 'main-nav': true, seamless: seamless }">
       <div class="custom-nav">
         <router-link class="logo-parent" to="/">
           <button v-if="$route.name !== 'Home'" class="material-icons router-button logo-substitute">chevron_left</button>
@@ -12,7 +12,7 @@
             <img class="logo" src="/assets/images/logo.svg" />
           </h1>
         </router-link>
-        <h1 class="local-h1">{{ h1 || 'Choose Native Plants PA' }}</h1>
+        <h1 class="local-h1" v-if="h1">{{ h1 || 'Choose Native Plants PA' }}</h1>
         <button @click="openNav" class="material-icons router-button open-nav">menu</button>
         <menu>
           <button @click="closeNav" class="material-icons router-button close-nav">close</button>
@@ -26,7 +26,7 @@
       </div>
       <slot name="before-bar"></slot>
     </nav>
-    <h1 class="last-h1" v-if="h1">{{ h1 }}</h1>
+    <h1 :class="{ 'last-h1': true, 'large-h1': largeH1 !== false }" v-if="h1">{{ h1 }}</h1>
     <slot name="after-bar"></slot>
   </header>
 </template>
@@ -38,6 +38,16 @@ export default {
       type: String,
       required: false,
       default: null
+    },
+    largeH1: {
+      type: Boolean,
+      required: false,
+      default: true
+    },
+    seamless: {
+      type: Boolean,
+      required: false,
+      default: false
     }
   },
   data() {
@@ -62,9 +72,6 @@ export default {
 </script>
 
 <style scoped>
-header {
-  padding-bottom: 24px;
-}
 
 .questions-page header {
   padding-bottom: 0;
@@ -75,6 +82,10 @@ header {
   border-bottom: 2px solid #d3d3d3;
   /* TODO reduce this when we have more text to make this space look good */
   margin-bottom: 32px;
+}
+
+.main-nav.seamless {
+  margin-bottom: 0;
 }
 
 .questions-page .main-nav {
@@ -287,6 +298,12 @@ menu .copyright {
   }
   .main-nav menu a {
     color: white;
+  }
+  .last-h1 {
+    display: none;
+  }
+  .last-h1.large-h1 {
+    display: block;
   }
 }
 </style>

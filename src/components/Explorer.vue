@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Header :h1="favorites ? 'Favorites' : questions ? 'Quick Search' : null">
+    <Header :h1="favorites ? 'Favorites' : questions ? 'Quick Search' : 'Choose Native Plants PA'" :large-h1="false">
       <template v-if="!(questions || favorites)" v-slot:after-bar>
         <p class="not-large-help">
           <router-link to="/quick-search">Not sure where to start?<br />Try quick search</router-link>

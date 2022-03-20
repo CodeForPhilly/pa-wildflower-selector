@@ -1,18 +1,25 @@
 <template>
   <div class="wrapper">
-    <Header h1="PA Nurseries" />
+    <Header h1="PA Nurseries" :large-h1="false" :seamless="true" />
     <div class="map-and-list">
-      <div ref="map" class="map">Loading...</div>
       <div class="list">
-        <h2>PA Native Plant Nurseries</h2>
-        <p>Please call the Nursery first to be sure the items you want are currently stocked</p>
+        <h1>PA Native Plant Nurseries</h1>
+        <p class="instructions">Please call the Nursery first to be sure the items you want are currently stocked</p>
         <div v-if="nurseries">
           <ul v-for="nursery in nurseries" v-bind:key="nursery._id">
-            <li><a @click.prevent="flyToNursery(nursery)" :href="nursery.URL">{{ nursery.SOURCE }}</a></li>
+            <li class="nursery">
+              <h4><a @click.prevent="flyToNursery(nursery)" :href="nursery.URL">{{ nursery.SOURCE }}</a></h4>
+              <div class="details">
+                <p>{{ nursery.ADDRESS  }} {{ nursery.CITY }}, {{ nursery.STATE }} {{ nursery.ZIP }}</p>
+                <p>{{ nursery.PHONE }}</p>
+                <p>{{ nursery.EMAIL }}</p>
+              </div>
+            </li>
           </ul>
         </div>
         <p v-else>Loading...</p>
       </div>
+      <div ref="map" class="map">Loading...</div>
     </div>
   </div>
 </template>
@@ -132,19 +139,28 @@ function esc(text) {
   }
   .map {
     flex-grow: 1.0;
+    flex-basis: 0;
   }
   .list {
+    order: 1;
     margin: 0 32px;
     color: #B74D15;
-    flex-grow: 0;
-    height: 224px;
+    flex-grow: 1.0;
+    flex-basis: 0;
     overflow: scroll;
   }
-  .list h2 {
+  .list h1 {
     font-weight: bold;
     font-size: 18px;
     font-family: Lato;
     letter-spacing: 0.1em;
+    text-align: center;
+  }
+  .list .instructions {
+    text-align: center;
+  }
+  .list h4 {
+    font-weight: 400;
   }
   .list p {
     font-size: 12px;
@@ -158,5 +174,67 @@ function esc(text) {
     color: #1D2E26;
     font-size: 12px;
     font-family: Roboto;
+  }
+  .list .nursery .details {
+    display: none;
+  }
+  @media all and (min-width: 1280px) {
+    .map-and-list {
+      display: block;
+    }
+    /* Because padding or margin on the list
+       messes up the 50-50 split */
+    .list > * {
+      padding: 0 180px;
+    }
+    .list {
+      display: inline-block;
+      width: 50%;
+      height: 100vh;
+      overflow: scroll;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    .list .instructions {
+      text-align: left;
+    }
+    .list .nursery .details {
+      display: block;
+    }
+    .map {
+      display: inline-block;
+      width: 50%;
+      height: 100vh;
+    }
+    .list p {
+      font-size: 16px;
+    }
+    .list h1 {
+      color: #1D2E26;
+      font-family: Arvo;
+      font-weight: 400;
+      font-size: 60px;
+      text-align: center;
+      padding: 0;
+      margin-block-end: 24px;
+      letter-spacing: 0;
+    }
+    .nursery h4 {
+      font-size: 20px;
+      font-weight: 400;
+      margin: 0.5em 0;
+    }
+    .nursery h4 a {
+      text-decoration: none;
+      font-size: 16px;
+      font-family: Lato;
+    }
+    .nursery p {
+      color: rgba(29, 46, 38, 0.7);
+      margin: 0;
+      padding: 0;
+      line-height: 24px;
+    }
   }
 </style>
