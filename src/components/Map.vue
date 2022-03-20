@@ -188,6 +188,9 @@ function esc(text) {
       padding: 0 180px;
     }
     .list {
+      /* Unfortunately flex-direction: row causes leaflet to
+        scroll away from the center when the zoom buttons are used,
+        so split the page the old-school way */
       display: inline-block;
       width: 50%;
       height: 100vh;
