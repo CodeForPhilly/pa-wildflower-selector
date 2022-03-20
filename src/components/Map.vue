@@ -6,8 +6,8 @@
         <h1>PA Native Plant Nurseries</h1>
         <p class="instructions">Please call the Nursery first to be sure the items you want are currently stocked</p>
         <div v-if="nurseries">
-          <ul v-for="nursery in nurseries" v-bind:key="nursery._id">
-            <li class="nursery">
+          <ul>
+            <li :ref="nursery._id" v-for="nursery in nurseries" v-bind:key="nursery._id" :class="{ nursery: true, focused: nursery === focused }">
               <h4><a @click.prevent="flyToNursery(nursery)" :href="nursery.URL">{{ nursery.SOURCE }}</a></h4>
               <div class="details">
                 <p>{{ nursery.ADDRESS  }} {{ nursery.CITY }}, {{ nursery.STATE }} {{ nursery.ZIP }}</p>
@@ -32,7 +32,8 @@ export default {
   name: 'Map',
   data() {
     return {
-      nurseries: null
+      nurseries: null,
+      focused: null
     };
   },
   components: {
@@ -89,7 +90,13 @@ export default {
           </div>
         `
         );
-        marker.on('click', () => marker.openPopup());
+        marker.on('click', () => {
+          this.focused = nursery;
+          marker.openPopup();
+          // inside v-for ref creates an array
+          const el = this.$refs[nursery._id][0];
+          el.scrollIntoView();
+        });
       }
     }
   },
@@ -113,6 +120,7 @@ export default {
     },
     flyToNursery(nursery) {
       if (nursery.lat !== undefined) {
+        this.focused = nursery;
         this.map.panTo([ nursery.lat, nursery.lon ]);
         nursery.marker.openPopup();
       }
@@ -174,6 +182,9 @@ function esc(text) {
     color: #1D2E26;
     font-size: 12px;
     font-family: Roboto;
+  }
+  .list .focused a {
+    color: #B74D15;
   }
   .list .nursery .details {
     display: none;
