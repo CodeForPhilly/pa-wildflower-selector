@@ -107,7 +107,11 @@ export default {
       const data = await this.get('/api/v1/nurseries');
       this.nurseries = data.results;
       // Trim to match on data with space issues
-      this.focused = this.nurseries.find(nursery => nursery.SOURCE.trim() === this.$route.query.name.trim());
+      if (this.$route.query.name) {
+        this.focused = this.nurseries.find(nursery => nursery.SOURCE.trim() === this.$route.query.name.trim());
+      } else {
+        this.focused = null;
+      }
       if (this.focused) {
         setTimeout(() => {
           this.setFocusedNursery(this.focused);
