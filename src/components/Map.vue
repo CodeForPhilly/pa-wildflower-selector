@@ -8,7 +8,7 @@
         <div v-if="nurseries">
           <ul>
             <li :ref="nursery._id" v-for="nursery in nurseries" v-bind:key="nursery._id" :class="{ nursery: true, focused: nursery === focused }">
-              <h4><a @click.prevent="flyToNursery(nursery)" :href="nursery.URL">{{ nursery.SOURCE }}</a></h4>
+              <h4><a @click.prevent="setFocusedNursery(nursery)" :href="nursery.URL">{{ nursery.SOURCE }}</a></h4>
               <div class="details">
                 <p>{{ nursery.ADDRESS  }} {{ nursery.CITY }}, {{ nursery.STATE }} {{ nursery.ZIP }}</p>
                 <p>{{ nursery.PHONE }}</p>
@@ -91,11 +91,7 @@ export default {
         `
         );
         marker.on('click', () => {
-          this.focused = nursery;
-          marker.openPopup();
-          // inside v-for ref creates an array
-          const el = this.$refs[nursery._id][0];
-          el.scrollIntoView();
+          this.setFocusedNursery(nursery);
         });
       }
     }
@@ -110,6 +106,13 @@ export default {
     async fetchNurseries() {
       const data = await this.get('/api/v1/nurseries');
       this.nurseries = data.results;
+      // Trim to match on data with space issues
+      this.focused = this.nurseries.find(nursery => nursery.SOURCE.trim() === this.$route.query.name.trim());
+      if (this.focused) {
+        setTimeout(() => {
+          this.setFocusedNursery(this.focused);
+        }, 100);
+      }
     },
     async get(url) {
       const response = await fetch(url);
@@ -118,11 +121,17 @@ export default {
       }
       return response.json();
     },
-    flyToNursery(nursery) {
+    setFocusedNursery(nursery) {
+      this.focused = nursery;
+      this.map.panTo([ nursery.lat, nursery.lon ]);
+      this.scrollNurseryIntoView(nursery);
+      nursery.marker.openPopup();
+    },
+    scrollNurseryIntoView(nursery) {
       if (nursery.lat !== undefined) {
-        this.focused = nursery;
-        this.map.panTo([ nursery.lat, nursery.lon ]);
-        nursery.marker.openPopup();
+        // inside v-for ref creates an array
+        const el = this.$refs[nursery._id][0];
+        el.scrollIntoView();
       }
     }
   }
