@@ -41,6 +41,7 @@ export default {
   },
   // Server only
   async serverPrefetch() {
+    this.server = true;
     await this.fetchNurseries();
   },
   // Browser only
@@ -112,7 +113,7 @@ export default {
       } else {
         this.focused = null;
       }
-      if (this.focused) {
+      if (this.focused && (!this.server)) {
         setTimeout(() => {
           this.setFocusedNursery(this.focused);
         }, 100);
