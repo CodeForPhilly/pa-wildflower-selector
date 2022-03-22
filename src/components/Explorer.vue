@@ -134,7 +134,7 @@
           </div>
           <form v-if="!favorites" class="filters" id="form" @submit.prevent="submit">
             <div class="inner-controls">
-              <input v-model="q" id="q" type="search" class="search-mobile" placeholder="🔎" />
+              <input v-model="q" id="q" type="search" class="search-mobile" placeholder="Search by Name 🔎" />
               <div class="go">
                 <button class="primary primary-bar clear" @click="clearAll">Clear</button>
                 <button class="primary primary-bar apply" type="submit">Apply</button>
