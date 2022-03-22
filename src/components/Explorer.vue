@@ -344,26 +344,6 @@ export default {
         title: 'Do you want flowers?'
       },
       {
-        name: 'month',
-        type: 'month',
-        // Default month should have some plants when combined
-        // with the other default filters
-        def: '2',
-        filter(value) {
-          return {
-            'Flowering Months': {
-              min: parseInt(value),
-              max: parseInt(value)
-            }
-          };
-        },
-        choices: [ 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December' ].map((value, i) => ({
-          value: i.toString(),
-          label: value
-        })),
-        title: 'When do you want to plant?'
-      },
-      {
         name: 'perennial',
         type: 'boolean',
         def: '1',

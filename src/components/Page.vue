@@ -103,6 +103,9 @@ export default {
     border: 0;
     max-width: 100%;
   }
+  .tone > .carrier-wave .wave {
+    width: 100%;
+  }
   @media screen and (max-width: 799px) {
     .tone > .carrier-wave .wave {
       width: 200%;
