@@ -49,7 +49,7 @@ sudo apt-get install -y mongodb-org
 mongod --version
 ```
 
-A commonly missed step is not creating a directory for mongo to write to (this step my not be listed in other instructions because its created during installing on Mac OS and Linux). 
+A commonly missed step is not creating a directory for mongo to write to (this step my not be listed in other instructions because the directory is created during installation on Mac OS and Linux). 
 
 ```
 mkdir -p ~/data/db
