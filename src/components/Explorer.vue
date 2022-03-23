@@ -1651,10 +1651,10 @@ td, th {
 }
 
 .selected .two-up h4 {
-  font-size: 16px;
+  font-size: 20px;
   font-family: Roboto;
   line-height: 1;
-  font-weight: 500;
+  font-weight: normal;
   margin: 0 0 8px 0;
 }
 
@@ -1918,7 +1918,7 @@ td, th {
   .selected .two-up h3 {
     font-size: 24px;
     font-weight: 500;
-    margin: 0 0 8px 0;
+    margin: 24px 0 8px 0;
   }
 
   .selected .two-up p {
