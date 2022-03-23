@@ -41,10 +41,12 @@
           <h2>{{ selected['Scientific Name'] }}</h2>
           <p v-if="selected['Blurb']">{{ selected['Blurb'] }}</p>
           <h3>Available at these stores:</h3>
-          <p><a v-for="storeLink in localStoreLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
-          <p><a v-for="storeLink in onlineStoreLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
+          <h4>Local Nurseries</h4>
+          <p class="store-links"><a v-for="storeLink in localStoreLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
+          <h4>Online Orders</h4>
+          <p class="store-links"><a v-for="storeLink in onlineStoreLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
           <h3>Mentioned in these articles:</h3>
-          <p><a v-for="articleLink in selected.Articles" :key="articleLink['Source']" :href="articleLink['Source URL']" class="store-link">{{ articleLink['Source'] }}</a></p>
+          <p class="store-links"><a v-for="articleLink in selected.Articles" :key="articleLink['Source']" :href="articleLink['Source URL']" class="store-link">{{ articleLink['Source'] }}</a></p>
           <p v-if="selected['Flowering Months']">
             Flowering Months:
             {{ selected['Flowering Months'] }}
@@ -52,13 +54,20 @@
           <p v-if="selected['Height (feet)']">
             Height: {{ selected['Height (feet)'] }} feet
           </p>
-          <div class="chips flags">
-            <span class="chip" v-for="flag in flags" v-bind:key="flag.key">
-              <img v-if="!flag.color" :src="`/assets/images/${flag.svg}.svg`" class="choice-icon" />
-              <span v-else class="chip-color" :style="chipColor(flag)"></span>
-              <span class="chip-label">{{ flag.label }}</span>
-            </span>
+          <div v-for="flagGroup in flagGroups(flags)" v-bind:key="flagGroup.title">
+            <h4 v-if="flagGroup.title">{{ flagGroup.title }}</h4>
+            <div class="chips flags">
+              <span class="chip" v-for="flag in flagGroup.flags" v-bind:key="flag.key">
+                <img v-if="!flag.color" :src="`/assets/images/${flag.svg}.svg`" class="choice-icon" />
+                <span v-else class="chip-color" :style="chipColor(flag)"></span>
+                <span class="chip-label">{{ flag.label }}</span>
+              </span>
+            </div>
           </div>
+          <p v-if="credit(selected)">
+            Photo Credit:
+            <span v-html="credit(selected).artist"></span> <a :href="credit(selected).licenseUrl">{{ credit(selected).license }}</a>
+          </p>
         </div>
       </div>
     </article>
@@ -981,6 +990,35 @@ export default {
     },
     twoUpImage(index) {
       return `background-image: url(/assets/images/two-up/${index}.jpg`;
+    },
+    credit(plant) {
+      const extmetadata = plant?.metadata?.extmetadata || {};
+      return {
+        artist: extmetadata?.Artist?.value || '',
+        license: extmetadata?.LicenseShortName?.value || '',
+        licenseUrl: extmetadata?.LicenseUrl?.value || ''
+      };
+    },
+    flagGroups(flags) {
+      const groups = [];
+      for (const flag of flags) {
+        const matches = flag.label.match(/^(.*)?\s*\((.*)?\)$/);
+        let groupTitle = matches ? matches[1] : '';
+        let flagName = matches ? matches[2] : flag.label;
+        let group = groups.find(group => group.title === groupTitle);
+        if (!group) {
+          group = {
+            title: groupTitle,
+            flags: []
+          };
+          groups.push(group);
+        }
+        group.flags.push({
+          ...flag,
+          label: flagName
+        });
+      }
+      return groups;
     }
   }
 }
@@ -1612,6 +1650,14 @@ td, th {
   margin: 0 0 8px 0;
 }
 
+.selected .two-up h4 {
+  font-size: 16px;
+  font-family: Roboto;
+  line-height: 1;
+  font-weight: 500;
+  margin: 0 0 8px 0;
+}
+
 .selected .two-up p {
   font-size: 16px;
   font-family: Lato;
@@ -1648,7 +1694,7 @@ td, th {
   line-height: 24px;
 }
 
-.two-up p a {
+.two-up p ::v-deep a {
   color: #B74D15;
 }
 
@@ -1695,17 +1741,16 @@ td, th {
   font-size: 16px;
 }
 
+.two-up .store-links {
+  display: grid;
+  grid-template-columns: 50% 50%;
+}
+
 .two-up a.store-link {
+  display: block;
   color: #B74D15;
   text-decoration: underline;
-}
-
-.store-link::after {
-  content: ', ';
-}
-
-.store-link:last-child::after {
-  content: '';
+  margin-right: 24px;
 }
 
 .favorite-regular {
@@ -1940,7 +1985,7 @@ td, th {
   }
   .selected .two-up {
     flex-direction: row;
-    height: auto;
+    height: 100%;
   }
   .selected .two-up-image {
     order: 2;
