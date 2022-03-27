@@ -1166,7 +1166,6 @@ button.favorites .favorites-label {
   margin-bottom: 32px;
   text-align: left;
   line-height: 1.5;
-  height: 4em;
   white-space: nowrap;
   overflow: scroll;
   /* https://stackoverflow.com/quick-search/36230944/prevent-flex-items-from-overflowing-a-container */
