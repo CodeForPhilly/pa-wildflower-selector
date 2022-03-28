@@ -1,0 +1,48 @@
+name: Publish container image
+
+on:
+  push:
+    tags: [ 'v*' ]
+
+
+jobs:
+  publish-container:
+    name: Build and Push
+    runs-on: ubuntu-latest
+    steps:
+
+    - uses: actions/checkout@v2
+
+    - name: Login to ghcr.io Docker registry
+      uses: docker/login-action@v1
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Compute Docker container image addresses
+      run: |
+        DOCKER_REPOSITORY="ghcr.io/${GITHUB_REPOSITORY,,}"
+        DOCKER_TAG="${GITHUB_REF:11}"
+
+        echo "DOCKER_REPOSITORY=${DOCKER_REPOSITORY}" >> $GITHUB_ENV
+        echo "DOCKER_TAG=${DOCKER_TAG}" >> $GITHUB_ENV
+
+        echo "Using: ${DOCKER_REPOSITORY}/*:${DOCKER_TAG}"
+
+    - name: 'Pull previous Docker container image: app:latest'
+      run: docker pull "${DOCKER_REPOSITORY}/app:latest" || true
+
+    - name: 'Build Docker container image: app:latest'
+      run: |
+        docker build \
+            --cache-from "${DOCKER_REPOSITORY}/app:latest" \
+            --tag "${DOCKER_REPOSITORY}/app:latest" \
+            --tag "${DOCKER_REPOSITORY}/app:${DOCKER_TAG}" \
+            .
+
+    - name: Push Docker container image app:latest"
+      run: docker push "${DOCKER_REPOSITORY}/app:latest"
+
+    - name: Push Docker container image app:v*"
+      run: docker push "${DOCKER_REPOSITORY}/app:${DOCKER_TAG}"
