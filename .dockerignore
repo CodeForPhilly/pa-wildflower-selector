@@ -1,0 +1,13 @@
+.git/
+.dockerignore
+Dockerfile
+docker-compose.yml
+deployment/
+dist/
+node_modules/
+public/dist/
+script/
+scripts/
+README.md
+.env
+.env.example
