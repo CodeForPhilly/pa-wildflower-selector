@@ -5,7 +5,6 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN npm run build \
-    && rm -r dist/
+RUN npm run build
 
 CMD node app.js
