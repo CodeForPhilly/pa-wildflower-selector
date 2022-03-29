@@ -7,13 +7,14 @@
     "dev": "PORT=3001 node app & vue-cli-service serve",
     "ssr-dev": "npm run build && node app",
     "lint": "vue-cli-service lint",
-    "build-browser": "rm -rf dist node_modules/.cache && vue-cli-service build && cp -r dist/ public && rm -f public/index.html",
-    "build-ssr": "rm -rf dist node_modules/.cache && SSR=true vue-cli-service build && cp -r dist/ ssr",
+    "build-browser": "rm -rf dist node_modules/.cache && vue-cli-service build && cp -r dist/* public/ && rm -rf public/index.html dist/",
+    "build-ssr": "rm -rf dist node_modules/.cache && SSR=true vue-cli-service build && rm -rf ssr && mv dist ssr",
     "build": "npm run build-ssr && npm run build-browser",
     "deploy": "npm run build && sc-deploy production",
     "sync-up": "./scripts/sync-up",
     "upload-test-data": "./scripts/upload-test-data",
-    "restore-test-data": "./scripts/restore-test-data"
+    "restore-test-data": "./scripts/restore-test-data",
+    "update": "node download && node massage"
   },
   "dependencies": {
     "@vue/cli-plugin-babel": "^4.5.16",

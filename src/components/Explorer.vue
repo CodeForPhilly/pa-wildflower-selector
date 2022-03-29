@@ -40,13 +40,6 @@
 </h1>
           <h2>{{ selected['Scientific Name'] }}</h2>
           <p v-if="selected['Blurb']">{{ selected['Blurb'] }}</p>
-          <h3>Available at these stores:</h3>
-          <h4>Local Nurseries</h4>
-          <p class="store-links"><a v-for="storeLink in localStoreLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
-          <h4>Online Orders</h4>
-          <p class="store-links"><a v-for="storeLink in onlineStoreLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
-          <h3>Mentioned in these articles:</h3>
-          <p class="store-links"><a v-for="articleLink in selected.Articles" :key="articleLink['Source']" :href="articleLink['Source URL']" class="store-link">{{ articleLink['Source'] }}</a></p>
           <p v-if="selected['Flowering Months']">
             Flowering Months:
             {{ selected['Flowering Months'] }}
@@ -54,6 +47,13 @@
           <p v-if="selected['Height (feet)']">
             Height: {{ selected['Height (feet)'] }} feet
           </p>
+          <h3>Available at these stores:</h3>
+          <h4>Local Nurseries</h4>
+          <p class="store-links"><a v-for="storeLink in localStoreLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
+          <h4>Online Orders</h4>
+          <p class="store-links"><a v-for="storeLink in onlineStoreLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
+          <h3>Mentioned in these articles:</h3>
+          <p class="store-links"><a v-for="articleLink in selected.Articles" :key="articleLink['Source']" :href="articleLink['Source URL']" class="store-link">{{ articleLink['Source'] }}</a></p>
           <div v-for="flagGroup in flagGroups(flags)" v-bind:key="flagGroup.title">
             <h4 v-if="flagGroup.title">{{ flagGroup.title }}</h4>
             <div class="chips flags">
@@ -1166,7 +1166,6 @@ button.favorites .favorites-label {
   margin-bottom: 32px;
   text-align: left;
   line-height: 1.5;
-  height: 4em;
   white-space: nowrap;
   overflow: scroll;
   /* https://stackoverflow.com/quick-search/36230944/prevent-flex-items-from-overflowing-a-container */

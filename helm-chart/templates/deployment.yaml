@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "helm-chart.fullname" . }}
+  labels:
+    {{- include "helm-chart.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "helm-chart.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "helm-chart.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.hostAliases }}
+      hostAliases:
+        {{ toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: {{ .Release.Name }}-app-images
+        persistentVolumeClaim:
+          claimName: {{ .Release.Name }}-app-images
+      - name: {{ .Release.Name }}-mongo-data
+        persistentVolumeClaim:
+          claimName: {{ .Release.Name }}-mongo-data
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        {{- with .Values.db }}
+        - name: {{ $.Chart.Name }}-db
+          image: "{{ .image.repository }}:{{ .image.tag | default $.Chart.AppVersion }}"
+          imagePullPolicy: {{ .image.pullPolicy }}
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongo
+                  key: username
+                  optional: false
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongo
+                  key: password
+                  optional: false
+          ports:
+            - name: mongo
+              containerPort: 27017
+              protocol: TCP
+          volumeMounts:
+            - name: {{ $.Release.Name }}-mongo-data
+              mountPath: /data/db
+              subPath: mongo-data
+        {{- end }}
+        {{- with .Values.app }}
+        - name: {{ $.Chart.Name }}-app
+          image: "{{ .image.repository }}:{{ .image.tag | default $.Chart.AppVersion }}"
+          imagePullPolicy: {{ .image.pullPolicy }}
+          env:
+            - name: PORT
+              value: '3000'
+            - name: DB_HOST
+              value: {{ include "helm-chart.fullname" $ }}
+            - name: DB_POST
+              value: '27017'
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mongo
+                  key: username
+                  optional: false
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongo
+                  key: password
+                  optional: false
+            - name: DB_NAME
+              value: {{ $.Values.db.name }}
+          envFrom:
+            - configMapRef:
+                name: app-config
+                optional: true
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          volumeMounts:
+            - name: {{ $.Release.Name }}-app-images
+              mountPath: /app/images
+              subPath: app-images
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
