@@ -14,7 +14,8 @@
     "sync-up": "./scripts/sync-up",
     "upload-test-data": "./scripts/upload-test-data",
     "restore-test-data": "./scripts/restore-test-data",
-    "update": "node download && node massage"
+    "update-data": "node download && node massage",
+    "fast-update-data": "node download --skip-images && node massage"
   },
   "dependencies": {
     "@vue/cli-plugin-babel": "^4.5.16",
