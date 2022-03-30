@@ -16,6 +16,54 @@ Your development system must have:
 * nodejs (16.x)
 * imagemagick command line utilities
 
+## Developing on Windows in WSL 
+
+First, make sure the that you have WSL installed on your system and that you're using version 2. 
+You can check both of these requirements by running ```wsl -l -v``` in your Powershell Terminal or Commmand Prompt. 
+If this returns an error follow the instructions [here](https://docs.microsoft.com/en-us/windows/wsl/install). 
+
+WSL comes with an outdated version of Node. Run the following commands in your WSL shell to remove node, install a node version manager and install 
+the latest stable version of node ([reference](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-wsl)). 
+
+```
+sudo apt-get purge --auto-remove nodejs
+
+sudo apt-get install curl
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+command -v nvm
+
+nvm install --lts
+nvm ls
+```
+
+There are many ways to download Mongo but Microsoft [suggests](https://docs.microsoft.com/en-us/windows/wsl/tutorials/wsl-database) doing so in the following steps: 
+
+```
+cd ~
+sudo apt update
+wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | sudo apt-key add -
+echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/5.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-5.0.list
+sudo apt-get update
+sudo apt-get install -y mongodb-org
+
+mongod --version
+```
+
+A commonly missed step is not creating a directory for mongo to write to (this step my not be listed in other instructions because the directory is created during installation on Mac OS and Linux). 
+
+```
+mkdir -p ~/data/db
+sudo chown -R `id -un` ~/data/db
+```
+
+Run a Mongo instance: 
+
+```
+sudo mongod --dbpath ~/data/db
+```
+
+Open a new terminal to continue with instructions from here. 
+
 ## Project setup
 
 First install the imagemagick command line utilities and MongoDB community edition on your machine, including the MongoDB command line utilities.
