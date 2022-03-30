@@ -93,13 +93,19 @@ npm run restore-test-data
 
 You can also rebuild it from scratch, but this takes hours to run because of the need to obtain images from wikipedia and wikimedia.
 
-> First, you will need to obtain the files `settings.json` and `service-account.json` from Tom, Zach or Kio. These files are not in the repository because they grant API access to certain google sheets resources. You do not need these files unless you wish to run `npm run update` yourself. You can use `npm run restore-test-data` for most work.
+> First, you will need to obtain the files `settings.json` and `service-account.json` from Tom, Zach or Kio. These files are not in the repository because they grant API access to certain google sheets resources. You do not need these files unless you wish to run `npm run update-data` yourself. You can use `npm run restore-test-data` for most work.
 
 ```
-npm run update
+npm run update-data
 ```
 
 This takes time because it contacts Google Sheets and Wikimedia.
+
+```
+npm run fast-update-data
+```
+
+Significantly faster, but **skips images**, so use it only if you already have the images you need.
 
 ## Routine stuff
 

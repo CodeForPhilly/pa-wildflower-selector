@@ -194,7 +194,6 @@ async function updateNurseries() {
   for (const record of records) {
     const address = `${record.ADDRESS} ${record.CITY}, ${record.STATE} ${record.ZIP}`;
     const location = await get(`https://api.openrouteservice.org/geocode/search?api_key=${encodeURIComponent(settings.openRouteServiceToken)}&text=${encodeURIComponent(address)}`, 'json');
-    console.log(JSON.stringify(location, null, '  '));
     const coordinates = location?.features?.[0]?.geometry?.coordinates;
     if (coordinates) {
       record.lon = coordinates[0];
