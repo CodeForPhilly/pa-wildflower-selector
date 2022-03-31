@@ -11,7 +11,7 @@ Your development system must have:
 * [imagemagick](https://imagemagick.org/index.php) command line utilities
 
 For more information on installing MongoDB see instruction below.
-  
+
 
 ## Developing on Windows in WSL 
 
@@ -113,6 +113,12 @@ Significantly faster, but **skips images**, so use it only if you already have t
 For local development, `docker-compose` is used to create a consistent and disposable environment without any modification to or dependency on software installed to the developer's workstation. This approach also provides close parity between local development and container-based deployment in production to Kubernetes.
 
 [GitHub's  `Scripts To Rule Them All` pattern](https://github.com/github/scripts-to-rule-them-all) is leveraged to provide simple commands with reasonable default behavior for common developer steps.
+
+From within the project folder, run command:
+
+```
+docker-compose up
+```
 
 ### Start server
 
