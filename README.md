@@ -5,10 +5,12 @@
 Your development system must have:
 
 * MacOS, Linux, or WSL (Windows Subsystem for Linux)
-* mongodb (100.5.2 or better)
-* mongodb database tools (4.x or better)
-* nodejs (16.x)
-* imagemagick command line utilities
+* MongoDB (4.x or better)
+* [MongoDB Database Tools](https://www.mongodb.com/try/download/database-tools)
+* [nodejs (16.x)](https://nodejs.org/en/download/)
+* [imagemagick](https://imagemagick.org/index.php) command line utilities
+
+For more information on installing MongoDB see instruction below.
   
 
 ## Developing on Windows in WSL 
