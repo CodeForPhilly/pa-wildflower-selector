@@ -114,11 +114,7 @@ For local development, `docker-compose` is used to create a consistent and dispo
 
 [GitHub's  `Scripts To Rule Them All` pattern](https://github.com/github/scripts-to-rule-them-all) is leveraged to provide simple commands with reasonable default behavior for common developer steps.
 
-From within the project folder, run command:
-
-```
-docker-compose up
-```
+Make sure docker is installed and running. For info on installing docker go to: https://docs.docker.com/compose/install/. Once docker is installed, you can use the GitHub script commands below to run the docker environment on your local machine.
 
 ### Start server
 
