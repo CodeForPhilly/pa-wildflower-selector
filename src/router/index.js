@@ -1,6 +1,7 @@
 import Explorer from "../components/Explorer.vue";
 import PeoplePage from "../components/PeoplePage.vue";
 import HowToUsePage from "../components/HowToUsePage.vue";
+import ContactPage from "../components/ContactPage.vue";
 import Map from "../components/Map.vue";
 import { createRouter } from "vue-router";
 
@@ -44,6 +45,11 @@ const routes = [
     path: "/map",
     name: "PA Nurseries",
     component: Map
+  },
+  {
+    path: "/contact",
+    name: "Contact Us",
+    component: ContactPage
   }
 ];
 
