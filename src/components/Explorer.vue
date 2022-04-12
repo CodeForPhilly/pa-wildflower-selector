@@ -977,7 +977,6 @@ export default {
           this.filterValues[name] = value;
         }
       }
-      this.filtersOpen = true;
       this.$router.push('/');
     },
     quitQuestions() {
