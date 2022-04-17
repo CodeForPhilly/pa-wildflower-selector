@@ -596,7 +596,7 @@ export default {
       // })
     },
     localStoreLinks() {
-      return this.selected['Local Names'].split(',').map(name => ({
+      return this.selected['Local Names'].split(/\s*,\s*/).map(name => ({
         label: name,
         url: `/map?name=${encodeURIComponent(name)}`
       }));

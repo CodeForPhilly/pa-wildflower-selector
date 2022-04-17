@@ -10,7 +10,7 @@
             <li :ref="nursery._id" v-for="nursery in nurseries" v-bind:key="nursery._id" :class="{ nursery: true, focused: nursery === focused }">
               <h4><a @click.prevent="setFocusedNursery(nursery)" :href="nursery.URL">{{ nursery.SOURCE }}</a></h4>
               <div class="details">
-                <p>{{ nursery.ADDRESS  }} {{ nursery.CITY }}, {{ nursery.STATE }} {{ nursery.ZIP }}</p>
+                <p>{{ nursery.ADDRESS }} {{ nursery.CITY }}, {{ nursery.STATE }} {{ nursery.ZIP }}</p>
                 <p>{{ nursery.PHONE }}</p>
                 <p>{{ nursery.EMAIL }}</p>
               </div>
@@ -75,10 +75,11 @@ export default {
         const address = `${esc(nursery.ADDRESS)}<br />${esc(nursery.CITY)}, ${esc(nursery.STATE)} ${esc(nursery.ZIP)}`;
         const phone = esc(nursery.PHONE);
         const email = esc(nursery.EMAIL);
+        const url = esc(nursery.URL);
         nursery.marker = marker;
         marker.bindPopup(`
           <div class="map-popup">
-            <h3>${name}</h3>
+            <h3><a href="${url}">${name}</a></h3>
             <p class="map-address">
               ${address}
             </p>
