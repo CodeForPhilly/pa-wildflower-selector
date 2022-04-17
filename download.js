@@ -194,12 +194,8 @@ async function updateNurseries() {
   });
   for (const record of records) {
     const address = `${record.ADDRESS} ${record.CITY}, ${record.STATE} ${record.ZIP}`;
-    const location = await get(`https://api.openrouteservice.org/geocode/search?api_key=${encodeURIComponent(settings.openRouteServiceToken)}&text=${encodeURIComponent(address)}`, 'json');
-    const coordinates = location?.features?.[0]?.geometry?.coordinates;
-    if (coordinates) {
-      record.lon = coordinates[0];
-      record.lat = coordinates[1];
-    }
+    record.lon = parseFloat(record.Long);
+    record.lat = parseFloat(record.Lat);
     await nurseries.insertOne(record);
   }
 }
