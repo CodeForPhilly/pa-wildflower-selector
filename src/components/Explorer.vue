@@ -28,6 +28,9 @@
         <button type="submit" class="text" :disabled="q.length == 0"><span class="material-icons">chevron_right</span></button>
       </form>
     </div>
+    <h1 class="large favorites" v-if="favorites">
+      Favorites List
+    </h1>
     <article v-if="selected" class="selected">
       <div class="modal-bar">
         <span class="title">More Info</span>
@@ -2053,6 +2056,9 @@ td, th {
   }
   .large {
     display: block;
+  }
+  h1.large.favorites {
+    margin-bottom: 1em;
   }
 }
 
