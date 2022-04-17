@@ -602,10 +602,7 @@ export default {
       }));
     },
     onlineStoreLinks() {
-      return this.selected['Online Names'].split(',').map(url => url.trim()).map(url => ({
-        label: url,
-        url
-      }));
+      return this.selected['Online Stores'];
     },
     favoritesAvailable() {
       return !![...this.$store.state.favorites].length;
@@ -1740,11 +1737,6 @@ td, th {
   color: #B74D15;
   font-family: Roboto;
   font-size: 16px;
-}
-
-.two-up .store-links {
-  display: grid;
-  grid-template-columns: 50% 50%;
 }
 
 .two-up a.store-link {

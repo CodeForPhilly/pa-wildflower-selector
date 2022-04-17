@@ -181,6 +181,7 @@ async function downloadMain() {
   }
 
   await updateNurseries();
+  await updateOnlineStores();
 
 }
 
@@ -200,6 +201,33 @@ async function updateNurseries() {
       record.lat = coordinates[1];
     }
     await nurseries.insertOne(record);
+  }
+}
+
+async function updateOnlineStores() {
+  const body = await get(settings.onlineStoresCsvUrl);
+  const records = parse(body, {
+    columns: true,
+    skip_empty_lines: true
+  });
+  await plants.updateMany({},
+    {
+      $unset: {
+        'Online Stores': 1
+      }
+    }
+  );
+  for (const record of records) {
+    await plants.updateOne({
+      'Scientific Name': record['Scientific Name']
+    }, {
+      $push: {
+        'Online Stores': {
+          url: `https://${record.Root.trim()}`,
+          label: record.Root.trim()
+        }
+      }
+    });
   }
 }
 
