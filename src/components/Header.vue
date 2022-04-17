@@ -191,10 +191,12 @@ menu .copyright {
     padding-right: 24px;
     background-color: #fcf9f4;
     padding-bottom: 32px;
+    color: black;
   }
   .main-nav .open-nav {
     display: inline;
     text-align: right;
+    color: black;
   }
   .nav-is-open .main-nav .open-nav {
     visibility: hidden;

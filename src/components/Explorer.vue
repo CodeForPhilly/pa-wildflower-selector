@@ -1459,6 +1459,7 @@ td, th {
   font-size: 12px;
   line-height: 16px;
   font-family: Roboto;
+  margin-bottom: 18px;
 }
 .not-large-help a {
   color: inherit;
