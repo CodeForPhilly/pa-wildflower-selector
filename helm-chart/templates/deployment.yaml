@@ -89,6 +89,42 @@ spec:
                   optional: false
             - name: DB_NAME
               value: {{ $.Values.db.name }}
+            - name: MASTER_CSV_URL
+              valueFrom:
+                secretKeyRef:
+                  name: app
+                  key: MASTER_CSV_URL
+                  optional: false
+            - name: ARTICLES_CSV_URL
+              valueFrom:
+                secretKeyRef:
+                  name: app
+                  key: ARTICLES_CSV_URL
+                  optional: false
+            - name: IMAGE_URLS_SHEET_ID
+              valueFrom:
+                secretKeyRef:
+                  name: app
+                  key: IMAGE_URLS_SHEET_ID
+                  optional: false
+            - name: SUPERPLANTS_CSV_URL
+              valueFrom:
+                secretKeyRef:
+                  name: app
+                  key: SUPERPLANTS_CSV_URL
+                  optional: false
+            - name: LOCAL_MAP_CSV_URL
+              valueFrom:
+                secretKeyRef:
+                  name: app
+                  key: LOCAL_MAP_CSV_URL
+                  optional: false
+            - name: ONLINE_STORES_CSV_URL
+              valueFrom:
+                secretKeyRef:
+                  name: app
+                  key: ONLINE_STORES_CSV_URL
+                  optional: false
           envFrom:
             - configMapRef:
                 name: app-config
