@@ -10,8 +10,8 @@
             <li :ref="nursery._id" v-for="nursery in nurseries" v-bind:key="nursery._id" :class="{ nursery: true, focused: nursery === focused }">
               <h4><a @click.prevent="setFocusedNursery(nursery)" :href="nursery.URL">{{ nursery.SOURCE }}</a></h4>
               <div class="details">
-                <p>{{ nursery.ADDRESS }} {{ nursery.CITY }}, {{ nursery.STATE }} {{ nursery.ZIP }}</p>
-                <p>{{ nursery.PHONE }}</p>
+                <p><a :href="addressLink(nursery)">{{ nursery.ADDRESS }}<br />{{ nursery.CITY }}, {{ nursery.STATE }} {{ nursery.ZIP }}</a></p>
+                <p><a :href="phoneLink(nursery)">{{ nursery.PHONE }}</a></p>
                 <p>{{ nursery.EMAIL }}</p>
               </div>
             </li>
@@ -81,10 +81,10 @@ export default {
           <div class="map-popup">
             <h3><a href="${url}">${name}</a></h3>
             <p class="map-address">
-              ${address}
+              <a href="${this.addressLink(nursery)}">${address}</a>
             </p>
             <p class="map-phone">
-              ${phone}
+             <a href="${this.phoneLink(nursery)}">${phone}</a>
             </p>
             <p class="map-email">
               <a href="mailto:${email}">${email}</a>
@@ -139,6 +139,13 @@ export default {
         const el = this.$refs[nursery._id][0];
         el.scrollIntoView();
       }
+    },
+    addressLink(nursery) {
+      const text = `${nursery.ADDRESS} ${nursery.CITY}, ${nursery.STATE} ${nursery.ZIP}`;
+      return `https://www.google.com/maps/place/${encodeURIComponent(text)}`;
+    },
+    phoneLink(nursery) {
+      return `tel:${esc(nursery.PHONE)}`;
     }
   }
 };
