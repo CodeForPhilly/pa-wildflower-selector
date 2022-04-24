@@ -10,6 +10,7 @@ node_modules
 /designs.fig
 /dist
 /ssr
+/secrets.yml
 
 # local copy of .env.example
 .env
