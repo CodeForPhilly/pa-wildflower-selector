@@ -12,6 +12,7 @@
     "build": "npm run build-ssr && npm run build-browser",
     "deploy": "npm run build && sc-deploy production",
     "sync-up": "./scripts/sync-up",
+    "sign-secrets": "./script/sign-secrets",
     "upload-test-data": "./scripts/upload-test-data",
     "restore-test-data": "./scripts/restore-test-data",
     "update-data": "node download && node massage",
@@ -43,7 +44,8 @@
     "vue-router": "^4.0.14",
     "vuex": "^4.0.2",
     "webpack-manifest-plugin": "^4.0.2",
-    "webpack-node-externals": "^3.0.0"
+    "webpack-node-externals": "^3.0.0",
+    "yaml": "^2.0.1"
   },
   "eslintConfig": {
     "root": true,

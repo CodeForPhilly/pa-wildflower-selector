@@ -4,8 +4,8 @@
 /images
 .DS_Store
 node_modules
+/secrets.yaml
 /service-account.json
-/settings.json
 /pa-wildflower-selector-media.tar
 /designs.fig
 /dist

@@ -6,8 +6,22 @@ const fs = require('fs');
 const db = require('./lib/db');
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 const { RateLimiter } = require('limiter');
-const settings = require('./settings.json');
-const serviceAccount = require('./service-account.json');
+const yaml = require('yaml');
+
+if (fs.existsSync(`${__dirname}/secrets.yaml`)) {
+  // In local development we pull these secrets directly from secrets.yaml,
+  // in production they are present as environment variables already and
+  // secrets.yaml is not present
+  const secrets = yaml.parse(fs.readFileSync(`${__dirname}/secrets.yaml`, { encoding: 'utf8' })).stringData;
+  Object.assign(process.env, secrets);
+}
+
+if (!process.env.MASTER_CSV_URL) {
+  console.error('MASTER_CSV_URL is not set and secrets.yaml is not present either, see the README');
+  process.exit(1);
+}
+
+const serviceAccount = JSON.parse(process.env.SERVICE_ACCOUNT);
 const argv = require('boring')();
 const slugify = require('sluggo');
 
@@ -46,9 +60,9 @@ async function go() {
 
 async function downloadMain() {
   const limiter = new RateLimiter({ tokensPerInterval: 1, interval: "second" });
-  const body = await get(settings.masterCsvUrl);
-  const articlesBody = await get(settings.articlesCsvUrl);
-  const doc = new GoogleSpreadsheet(settings.imageUrlsSheetId);
+  const body = await get(process.env.MASTER_CSV_URL);
+  const articlesBody = await get(process.env.ARTICLES_CSV_URL);
+  const doc = new GoogleSpreadsheet(process.env.IMAGE_URLS_SHEET_ID);
   await doc.useServiceAccountAuth({
     client_email: serviceAccount.client_email,
     private_key: serviceAccount.private_key
@@ -187,7 +201,7 @@ async function downloadMain() {
 
 async function updateNurseries() {
   await nurseries.removeMany();
-  const body = await get(settings.localMapCsvUrl);
+  const body = await get(process.env.LOCAL_MAP_CSV_URL);
   const records = parse(body, {
     columns: true,
     skip_empty_lines: true
@@ -201,7 +215,7 @@ async function updateNurseries() {
 }
 
 async function updateOnlineStores() {
-  const body = await get(settings.onlineStoresCsvUrl);
+  const body = await get(process.env.ONLINE_STORES_CSV_URL);
   const records = parse(body, {
     columns: true,
     skip_empty_lines: true
