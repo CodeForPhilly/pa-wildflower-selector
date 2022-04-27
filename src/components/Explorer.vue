@@ -28,6 +28,9 @@
         <button type="submit" class="text" :disabled="q.length == 0"><span class="material-icons">chevron_right</span></button>
       </form>
     </div>
+    <h1 class="large favorites" v-if="favorites">
+      Favorites List
+    </h1>
     <article v-if="selected" class="selected">
       <div class="modal-bar">
         <span class="title">More Info</span>
@@ -143,7 +146,10 @@
           </div>
           <form v-if="!favorites" class="filters" id="form" @submit.prevent="submit">
             <div class="inner-controls">
-              <input v-model="q" id="q" type="search" class="search-mobile" placeholder="Search by Name 🔎" />
+              <div class="search-mobile-box">
+                <span class="material-icons">search</span>
+                <input v-model="q" id="q" type="text" class="search-mobile" placeholder="Search plant name" />
+              </div>
               <div class="go">
                 <button class="primary primary-bar clear" @click="clearAll">Clear</button>
                 <button class="primary primary-bar apply" type="submit">Apply</button>
@@ -152,7 +158,7 @@
             <fieldset v-for="filter in filters" :key="filter.name" :class="filterClass(filter)">
               <button class="fieldset-toggle" @click.prevent="toggleFilter(filter)">
                 {{ filter.label || filter.name }}
-                <span class="material-icons">{{ filterIsOpen[filter.name] ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
+                <span v-if="!filter.alwaysOpen" class="material-icons">{{ filterIsOpen[filter.name] ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
               </button>
               <template v-if="filterIsOpen[filter.name]">
                 <template v-if="filter.range">
@@ -241,7 +247,8 @@ export default {
         value: [],
         array: true,
         counts: {},
-        initiallyOpen: true
+        initiallyOpen: true,
+        alwaysOpen: true
       },
       {
         name: 'Sun Exposure Flags',
@@ -593,16 +600,13 @@ export default {
       // })
     },
     localStoreLinks() {
-      return this.selected['Local Names'].split(',').map(name => ({
+      return this.selected['Local Names'].split(/\s*,\s*/).map(name => ({
         label: name,
         url: `/map?name=${encodeURIComponent(name)}`
       }));
     },
     onlineStoreLinks() {
-      return this.selected['Online Names'].split(',').map(url => url.trim()).map(url => ({
-        label: url,
-        url
-      }));
+      return this.selected['Online Stores'];
     },
     favoritesAvailable() {
       return !![...this.$store.state.favorites].length;
@@ -927,6 +931,9 @@ export default {
       }
     },
     toggleFilter(filter) {
+      if (filter.alwaysOpen === true ) {
+        return;
+      }
       this.filterIsOpen[filter.name] = !this.filterIsOpen[filter.name];
     },
     flowerColorStyle(choice) {
@@ -977,7 +984,6 @@ export default {
           this.filterValues[name] = value;
         }
       }
-      this.filtersOpen = true;
       this.$router.push('/');
     },
     quitQuestions() {
@@ -1354,7 +1360,7 @@ td, th {
 .filters {
   flex-direction: column;
   max-width: 350px;
-  margin: 32px;
+  margin: 32px 0;
 }
 .filters fieldset {
   background-color: white;
@@ -1370,6 +1376,7 @@ td, th {
 .filters fieldset label {
   display: flex;
   justify-content: space-between;
+  font-family: Roboto;
 }
 .filters fieldset:last-child {
   margin-bottom: 0;
@@ -1407,13 +1414,22 @@ td, th {
   padding: 0;
   font-size: inherit;
 }
-.search-mobile {
-  display: block;
-  height: 64px;
-  font-size: 24px;
-  padding: 16px;
+.search-mobile-box {
+  display: flex;
+  height: 32px;
   margin-bottom: 8px;
   width: 100%;
+  border-bottom: 1px solid rgb(192, 192, 192);
+}
+.search-mobile-box .material-icons {
+  transform: translate(0, 6px);
+}
+.search-mobile {
+  font-size: 16px;
+  padding: 0 0 0 8px;
+  background: inherit;
+  flex-grow: 1.0;
+  border: none;
 }
 .search-desktop-parent {
   display: none;
@@ -1460,6 +1476,7 @@ td, th {
   font-size: 12px;
   line-height: 16px;
   font-family: Roboto;
+  margin-bottom: 18px;
 }
 .not-large-help a {
   color: inherit;
@@ -1740,11 +1757,6 @@ td, th {
   font-size: 16px;
 }
 
-.two-up .store-links {
-  display: grid;
-  grid-template-columns: 50% 50%;
-}
-
 .two-up a.store-link {
   display: block;
   color: #B74D15;
@@ -1831,7 +1843,7 @@ td, th {
   .filters.inactive-question {
     display: none;
   }
-  .search-mobile {
+  .search-mobile-box {
     display: none;
   }
   .search-desktop-parent {
@@ -2054,6 +2066,9 @@ td, th {
   }
   .large {
     display: block;
+  }
+  h1.large.favorites {
+    margin-bottom: 1em;
   }
 }
 

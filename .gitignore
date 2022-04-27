@@ -5,11 +5,11 @@
 .DS_Store
 node_modules
 /service-account.json
-/settings.json
 /pa-wildflower-selector-media.tar
 /designs.fig
 /dist
 /ssr
+/secrets.yaml
 
 # local copy of .env.example
 .env
