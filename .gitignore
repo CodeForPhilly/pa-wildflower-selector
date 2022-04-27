@@ -4,13 +4,12 @@
 /images
 .DS_Store
 node_modules
-/secrets.yaml
 /service-account.json
 /pa-wildflower-selector-media.tar
 /designs.fig
 /dist
 /ssr
-/secrets.yml
+/secrets.yaml
 
 # local copy of .env.example
 .env
