@@ -119,11 +119,29 @@ spec:
                   name: app
                   key: LOCAL_MAP_CSV_URL
                   optional: false
+            - name: CONTACT_SHEET_ID
+              valueFrom:
+                secretKeyRef:
+                  name: app
+                  key: CONTACT_SHEET_ID
+                  optional: false
+            - name: CONTACT_FILES_FOLDER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: app
+                  key: CONTACT_FILES_FOLDER_ID
+                  optional: false
             - name: ONLINE_STORES_CSV_URL
               valueFrom:
                 secretKeyRef:
                   name: app
                   key: ONLINE_STORES_CSV_URL
+                  optional: false
+            - name: SERVICE_ACCOUNT
+              valueFrom:
+                secretKeyRef:
+                  name: app
+                  key: SERVICE_ACCOUNT
                   optional: false
           envFrom:
             - configMapRef:
