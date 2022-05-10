@@ -1915,6 +1915,14 @@ td, th {
     padding: 40px;
   }
 
+  .selected {
+    overflow: hidden;
+  }
+
+  .selected .two-up-text {
+    overflow: scroll;
+  }
+
   .selected .two-up h1, .selected .two-up h2, .selected .two-up h3, .selected .two-up h4 {
     font-family: Roboto;
     text-align: left;
