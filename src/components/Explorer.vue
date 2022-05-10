@@ -1629,6 +1629,7 @@ td, th {
   height: 100vh;
   background-color: #fcf9f4;
   z-index: 1100;
+  overflow: scroll;
 }
 
 .favorite-selected > * {
@@ -1685,6 +1686,10 @@ td, th {
   display: flex;
 }
 
+.selected .two-up .two-up-image {
+  min-height: 40vh;
+}
+
 .two-up-text {
   box-sizing: border-box;
   padding: 24px;
@@ -1739,7 +1744,7 @@ td, th {
 }
 
 .selected .two-up-text {
-  overflow: scroll;
+  /* overflow: scroll; */
 }
 
 .two-up .chips {
