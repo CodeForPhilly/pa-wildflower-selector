@@ -185,21 +185,10 @@
             sellers.
           </li>
         </ul>
-        <h4>Reporting bugs</h4>
-        <ul>
-          <li>
-            If you find a glitch in the website or incorrect information, tap the
-            hamburger menu and then tap Bug Report. This will take you to the bug
-            report page. Follow the directions on this page to file a bug report
-          </li>
-        </ul>
         <h4>Contact us</h4>
         <ul>
           <li>
-            Open the hamburger menu. Tap on Contact to open the Contact page.
-            Follow the directions on the page to Contact the site administrator if
-            you have a question about the project, the data, a suggestion or
-            information about additional PA Nurseries that can be added.
+            To contact us, <a href="mailto:contact@choosenativeplants.com">reach out via email to contact@choosenativeplants.com</a>.
           </li>
         </ul>
       </article>
