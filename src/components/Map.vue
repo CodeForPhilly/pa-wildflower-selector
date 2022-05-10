@@ -169,7 +169,7 @@ function esc(text) {
   }
   .map {
     flex-grow: 1.0;
-    flex-basis: 0;
+    flex-basis: 40vh;
   }
   .list {
     order: 1;
@@ -177,7 +177,6 @@ function esc(text) {
     color: #B74D15;
     flex-grow: 1.0;
     flex-basis: 0;
-    overflow: scroll;
   }
   .list h1 {
     font-weight: bold;

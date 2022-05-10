@@ -188,18 +188,18 @@
             <button class="text clear" @click="clearAll">Clear all</button>
           </div>
           <article class="plants">
-            <article v-for="result in results" :key="result._id" class="plant-preview-wrapper">
+            <article v-for="result in results" :key="result._id" @click="this.$router.push(plantLink(result))" class="plant-preview-wrapper">
               <div class="plant-preview">
                 <div class="photo" :style="imageStyle(result, true)"></div>
                 <h4 class="common-name">{{ result['Common Name'] }}</h4>
                 <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
-                <button @click="toggleFavorite(result._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
+                <button @click.stop="toggleFavorite(result._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
                 <div class="plant-controls-wrapper">
                   <div class="plant-controls">
-                    <router-link :to="`/plants/${result['Scientific Name']}`" class="text">
+                    <router-link :to="plantLink(result)" class="text">
                       <span class="material-icons material-align info">info_outline</span> More Info
                     </router-link>
-                    <button @click="toggleFavorite(result._id)" class="favorite-regular text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
+                    <button @click.stop="toggleFavorite(result._id)" class="favorite-regular text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
                   </div>
                 </div>
               </div>
@@ -1025,6 +1025,9 @@ export default {
         });
       }
       return groups;
+    },
+    plantLink(plant) {
+      return `/plants/${plant['Scientific Name']}`;
     }
   }
 }
@@ -1687,6 +1690,7 @@ td, th {
 }
 
 .selected .two-up .two-up-image {
+  /* flex-basis doesn't do the job at least on iPhone */
   min-height: 40vh;
 }
 
@@ -1743,10 +1747,6 @@ td, th {
   height: auto;
 }
 
-.selected .two-up-text {
-  /* overflow: scroll; */
-}
-
 .two-up .chips {
   display: grid;
   overflow: visible;
@@ -1767,6 +1767,7 @@ td, th {
   color: #B74D15;
   text-decoration: underline;
   margin-right: 24px;
+  padding: 20px 0;
 }
 
 .favorite-regular {
