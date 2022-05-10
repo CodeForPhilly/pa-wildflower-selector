@@ -185,7 +185,7 @@
           <li>Many iterations of hi-fi prototype design were completed</li>
           <li>The responsive mobile-first website design was coded</li>
           <li>
-            The project was launched on [insert date] in time for Spring planting
+            The project was launched on May 7th, 2022 in time for Spring planting
             season in Pennsylvania.
           </li>
         </ul>
