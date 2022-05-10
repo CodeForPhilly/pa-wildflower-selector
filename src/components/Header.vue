@@ -278,6 +278,7 @@ menu .copyright {
   }
   .logo-substitute {
     display: none;
+    color: black;
   }
   .custom-nav {
     padding: 0 40px;
