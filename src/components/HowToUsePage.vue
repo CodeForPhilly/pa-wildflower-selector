@@ -242,7 +242,7 @@
         tracking or cookies are used. By using these features you consent to the
         collection of this information.
       </p>
-      <p>Copyright 2021 ChooseNativePlants.com</p>
+      <p>© 2021, 2022 Choose Native Plants - PA</p>
     </article>
     <div class="tone">
       <div class="carrier-wave">
