@@ -17,7 +17,9 @@
             </p>
             <button class="primary" @click="$router.push('/quick-search')">Quick Search</button>
           </div>
-          <div class="two-up-image" :style="twoUpImage(twoUpIndex)"></div>
+          <div class="two-up-image" :style="twoUpImage(twoUpIndex)">
+            <span class="two-up-credit"><a :href="twoUpImageCredit(twoUpIndex).href">{{ twoUpImageCredit(twoUpIndex).title }}</a></span>
+          </div>
         </div>
       </template>
     </Header>
@@ -126,6 +128,7 @@
           </form>
         </div>
         <div class="questions-decoration" :style="twoUpImage(questionsHeroIndex)">
+          <span class="two-up-credit"><a :href="twoUpImageCredit(twoUpIndex).href">{{ twoUpImageCredit(twoUpIndex).title }}</a></span>
         </div>
       </div>
       <template v-else>
@@ -997,6 +1000,90 @@ export default {
     twoUpImage(index) {
       return `background-image: url(/assets/images/two-up/${index}.jpg`;
     },
+    twoUpImageCredit(index) {
+      return [
+        {
+          title: 'Photo by Aaron Burden on Unsplash',
+          href: 'https://unsplash.com/photos/6csuZQ9oZcI'
+        },
+        {
+          title: 'Photo by @pixeldebris on Unsplash',
+          href: 'https://unsplash.com/photos/Ta04gmhMHXk'
+        },
+        {
+          title: 'Photo by @gyostimages on Unsplash',
+          href: 'https://unsplash.com/photos/_ZGVUnzV5hs'
+        },
+        {
+          title: 'Photo by @michele_bergami on Unsplash',
+          href: 'https://unsplash.com/photos/NtSn6A6FH_M'
+        },
+        {
+          title: 'Photo by @aryansudhakar on Unsplash',
+          href: 'https://unsplash.com/photos/mRWZ8jpRXto'
+        },
+        {
+          title: 'Photo by @anniespratt on Unsplash',
+          href: 'https://unsplash.com/photos/uIgyq1Eq_Us'
+        },
+        {
+          title: 'Photo by @anniespratton Unsplash',
+          href: 'https://unsplash.com/photos/7SXNxz8UIw4'
+        },
+        {
+          title: 'Photo by @babybluecat on Unsplash',
+          href: 'https://unsplash.com/photos/U2Ap6muz50Q'
+        },
+        {
+          title: 'Photo by @darkocv on Unsplash',
+          href: 'https://unsplash.com/photos/6NT9ZRfOCA8'
+        },
+        {
+          title: 'Photo by @tumbao1949 on Unsplash',
+          href: 'https://unsplash.com/photos/PWR9m_ebonQ'
+        },
+        {
+          title: 'Photo by @ninaada on Unsplash',
+          href: 'https://unsplash.com/photos/NkSTFeELgUo'
+        },
+        {
+          title: 'Photo by @erik_karits on Unsplash',
+          href: 'https://unsplash.com/photos/IP-ci3KQljU'
+        },
+        {
+          title: 'Photo by Lenstravelier on Unsplash',
+          href: 'https://unsplash.com/photos/xcteDQPhZBI'
+        },
+        {
+          title: 'Photo by @ahmad_sp on Unsplash',
+          href: 'https://unsplash.com/photos/XHvBYXH3_dA'
+        },
+        {
+          title: 'Photo by Jason Gardner on Unsplash',
+          href: 'https://unsplash.com/photos/lWbu1dkEAoo'
+        },
+        {
+          title: 'Photo by @rebecca_lee_creative on Unsplash',
+          href: 'https://unsplash.com/photos/qMvCn9Losrk'
+        },
+        {
+          title: 'Photo by Jenna Lee on Unsplash',
+          href: 'https://unsplash.com/photos/f0OL01IHbCM'
+        },
+        {
+          title: 'Photo by Heather McKean on Unsplash',
+          href: 'https://unsplash.com/photos/2ZplT45TfBM'
+        },
+        {
+          title: 'Photo by Adonyi Gáboron Unsplash',
+          href: 'https://unsplash.com/photos/CBCQdXXhfbA'
+        },
+        {
+          title: 'Photo by @hoperivers on Unsplash',
+          href: 'https://unsplash.com/photos/TGhslf4DYlE'
+        },
+      ][index];
+    },
     credit(plant) {
       const extmetadata = plant?.metadata?.extmetadata || {};
       return {
@@ -1687,6 +1774,25 @@ td, th {
 
 .two-up {
   display: flex;
+}
+
+.two-up-image, .questions-decoration {
+  position: relative;
+}
+
+.two-up-credit {
+  position: absolute;
+  right: 1em;
+  bottom: 1em;
+  font-family: Lato;
+  font-size: 12px;
+}
+
+.two-up-credit a, .large-help .two-up-credit a {
+  text-decoration: none;
+  color: white;
+  background: none;
+  text-shadow: 0px 0px 2px black;
 }
 
 .selected .two-up .two-up-image {

@@ -157,7 +157,7 @@
       </div>
     </div>
     <article>
-      <div class="facing">
+      <div>
         <h3 id="the-method">The method</h3>
         <ul>
           <li>We began meeting April 12, 2021</li>
@@ -189,6 +189,14 @@
             season in Pennsylvania.
           </li>
         </ul>
+      </div>
+    </article>
+    <article>
+      <div class="facing">
+        <h3 id="acknowledgements">Acknowledgements</h3>
+        <p>Some icons by <a href="https://www.svgrepo.com">svgrepo</a></p>
+        <p>Some icons by <a href="https://www.freepik.com">Freepik</a></p>
+        <p>Some icons by <a href="https://www.flaticon.com">Flaticon</a></p>
       </div>
     </article>
     <div class="tone">
