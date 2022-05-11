@@ -10,7 +10,7 @@
     "build-browser": "rm -rf dist node_modules/.cache && vue-cli-service build && cp -r dist/* public/ && rm -rf public/index.html dist/",
     "build-ssr": "rm -rf dist node_modules/.cache && SSR=true vue-cli-service build && rm -rf ssr && mv dist ssr",
     "build": "npm run build-ssr && npm run build-browser",
-    "deploy": "npm run build && sc-deploy production",
+    "deploy-to-staging": "npm run build && sc-deploy staging",
     "sync-up": "./scripts/sync-up",
     "sign-secrets": "./script/sign-secrets",
     "upload-test-data": "./scripts/upload-test-data",
