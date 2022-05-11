@@ -21,6 +21,7 @@
       <li><a href="#the-team">The team</a></li>
       <li><a href="#the-tools">The tools</a></li>
       <li><a href="#the-method">The method</a></li>
+      <li><a href="#acknowledgements">Acknowledgements</a></li>
     </menu>
     <div class="tone">
       <div class="carrier-wave">
@@ -149,6 +150,7 @@
           <li>Github</li>
           <li>Javascript</li>
           <li>Vue</li>
+          <li>Node.js</li>
           <li>MongoDB</li>
         </ul>
       </article>
@@ -180,7 +182,7 @@
           <li>A high fidelity prototype was completed</li>
           <li>
             A Maze test was completed by testers from the facebook groups and
-            subredits
+            subreddits
           </li>
           <li>Many iterations of hi-fi prototype design were completed</li>
           <li>The responsive mobile-first website design was coded</li>
@@ -192,11 +194,13 @@
       </div>
     </article>
     <article>
-      <div class="facing">
-        <h3 id="acknowledgements">Acknowledgements</h3>
-        <p>Some icons by <a href="https://www.svgrepo.com">svgrepo</a></p>
-        <p>Some icons by <a href="https://www.freepik.com">Freepik</a></p>
-        <p>Some icons by <a href="https://www.flaticon.com">Flaticon</a></p>
+      <div id="acknowledgements">
+        <h3>Acknowledgements</h3>
+        <ul>
+          <li>Some icons by <a href="https://www.svgrepo.com">svgrepo</a></li>
+          <li>Some icons by <a href="https://www.freepik.com">Freepik</a></li>
+          <li>Some icons by <a href="https://www.flaticon.com">Flaticon</a></li>
+        </ul>
       </div>
     </article>
     <div class="tone">
