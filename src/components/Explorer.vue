@@ -1781,18 +1781,7 @@ td, th {
 }
 
 .two-up-credit {
-  position: absolute;
-  right: 1em;
-  bottom: 1em;
-  font-family: Lato;
-  font-size: 12px;
-}
-
-.two-up-credit a, .large-help .two-up-credit a {
-  text-decoration: none;
-  color: white;
-  background: none;
-  text-shadow: 0px 0px 2px black;
+  display: none;
 }
 
 .selected .two-up .two-up-image {
@@ -2190,6 +2179,23 @@ td, th {
   h1.large.favorites {
     margin-bottom: 1em;
   }
+
+  .two-up-credit {
+    display: block;
+    position: absolute;
+    right: 1em;
+    bottom: 1em;
+    font-family: Lato;
+    font-size: 12px;
+  }
+
+  .two-up-credit a, .large-help .two-up-credit a {
+    text-decoration: none;
+    color: white;
+    background: none;
+    text-shadow: 0px 0px 2px black;
+  }
+
 }
 
 </style>
