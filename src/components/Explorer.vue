@@ -1851,6 +1851,10 @@ td, th {
   font-family: Roboto;
 }
 
+.chips .clear {
+  font-family: Roboto;
+}
+
 .two-up .chips .chip {
   white-space: normal;
   letter-spacing: 0;
