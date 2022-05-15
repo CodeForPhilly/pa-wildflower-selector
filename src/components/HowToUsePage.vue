@@ -82,6 +82,10 @@
             whether online, local or both, height and bloom month
           </li>
           <li>
+            "What's a Super Plant?" The first filter choice offered is "Super Plant."
+            Super Plants are popular and highly recommended in some local gardening circles.
+          </li>
+          <li>
             After selecting all that apply to your needs, tap the apply button to
             the top left of the filter drawer
           </li>
@@ -238,9 +242,10 @@
       <p>
         If you choose to use the features of the site that allow you to identify
         your favorite plants, these will be tracked only in your browser's local
-        storage, unless you choose to create an account. No other session
-        tracking or cookies are used. By using these features you consent to the
-        collection of this information.
+        storage. A cookie is also used to enable Google Analytics so that we can
+        analyze how much traffic the site is receiving. No other session tracking
+        or cookies are used. By using these features you consent to the collection
+        of this information.
       </p>
       <p>© 2021, 2022 Choose Native Plants - PA</p>
     </article>
