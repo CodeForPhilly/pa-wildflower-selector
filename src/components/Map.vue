@@ -8,7 +8,7 @@
         <div v-if="nurseries">
           <ul>
             <li :ref="nursery._id" v-for="nursery in nurseries" v-bind:key="nursery._id" :class="{ nursery: true, focused: nursery === focused }">
-              <h4><a @click.prevent="setFocusedNursery(nursery)" :href="nursery.URL">{{ nursery.SOURCE }}</a></h4>
+              <h4><a @click.prevent="setFocusedNursery(nursery)" target="_blank" :href="nursery.URL">{{ nursery.SOURCE }}</a></h4>
               <div class="details">
                 <p><a :href="addressLink(nursery)">{{ nursery.ADDRESS }}<br />{{ nursery.CITY }}, {{ nursery.STATE }} {{ nursery.ZIP }}</a></p>
                 <p><a :href="phoneLink(nursery)">{{ nursery.PHONE }}</a></p>

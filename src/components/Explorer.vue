@@ -194,8 +194,10 @@
             <article v-for="result in results" :key="result._id" @click="this.$router.push(plantLink(result))" class="plant-preview-wrapper">
               <div class="plant-preview">
                 <div class="photo" :style="imageStyle(result, true)"></div>
-                <h4 class="common-name">{{ result['Common Name'] }}</h4>
-                <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
+                <div class="names">
+                  <h4 class="common-name">{{ result['Common Name'] }}</h4>
+                  <h5 class="scientific-name">{{ result['Scientific Name'] }}</h5>
+                </div>
                 <button @click.stop="toggleFavorite(result._id)" class="favorite-large text"><span class="material-icons material-align">{{ renderFavorite(result._id) }}</span></button>
                 <div class="plant-controls-wrapper">
                   <div class="plant-controls">
@@ -1395,28 +1397,28 @@ td, th {
   aspect-ratio: 1/1;
   border-radius: 8px 8px 0 0;
 }
-.common-name {
+.names {
   position: absolute;
-  bottom: 74px;
+  top: calc(50% - 16px);
   left: 16px;
   margin: 0;
   padding: 0;
   font-size: 14px;
-  font-weight: normal;
   font-family: Lato;
   color: white;
 }
-.scientific-name {
-  position: absolute;
-  bottom: 56px;
-  left: 16px;
+.common-name {
+  font-size: 14px;
   margin: 0;
   padding: 0;
+  font-weight: normal;
+}
+.scientific-name {
   font-size: 12px;
   font-style: italic;
+  margin: 0;
+  padding: 0;
   font-weight: normal;
-  font-family: Lato;
-  color: white;
 }
 .plant-controls-wrapper {
   position: absolute;
