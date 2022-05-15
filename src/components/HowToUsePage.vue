@@ -124,11 +124,13 @@
             You can sort this list by tapping on the Sort By drop down. Choices
             for sort by include, height, name (latin and common), and color
           </li>
+          <!--
           <li>
             The small “i” ‘s that are superscripts on some terms are info
             tooltips. Hover if on a desktop or long press on a mobile device and
             the tooltip will explain the term.
           </li>
+          -->
         </ul>
         <h4>Favoriting Plants</h4>
         <ul>
@@ -163,20 +165,18 @@
         <ul>
           <li>
             Any of the image blocks has a “more info” link on it. Tap this link to
-            open a POP UP that shows a larger picture of the plant, might give a
-            description, and lists more characteristics of the plant. All the
-            labels have tooltips which when hovered on or long pressed will give
-            the definition of the label if needed
+            open a popup that shows a larger picture of the plant, might give a
+            description, and lists more characteristics of the plant.
           </li>
         </ul>
         <h4>Find the plants</h4>
         <ul>
           <li>
             Open the hamburger menu and tap on PA Nurseries. This will lead you to
-            a page that lists 5 PA nurseries that are known to carry many species.
+            a page that lists PA nurseries that are known to carry many species.
           </li>
           <li>
-            The Nursery’s address, phone number and email are listed. Please
+            The nursery’s address, phone number and email are listed. Please
             contact the Nursery to determine if your favorite plants are in stock
             yet.
           </li>
@@ -207,8 +207,8 @@
         outlined below.
       </p>
       <p>
-        The developers and contributors of this website and the data that
-        enables it is maintained by volunteers with periodic assistance from
+        The source code of this website and the data that
+        enables it are maintained by volunteers with periodic assistance from
         botanists. This website is offered "as is." The creators of this website
         offer no warranty of the completeness and accuracy of the data within
         this website. The data provided on this website should not be cited in
@@ -249,6 +249,7 @@
       </p>
       <p>© 2021, 2022 Choose Native Plants - PA</p>
     </article>
+    <Up />
     <div class="tone">
       <div class="carrier-wave">
         <img src="/assets/images/wave-top-light.png" class="wave" />
@@ -259,11 +260,13 @@
 
 <script>
 import Page from './Page.vue';
+import Up from './Up.vue';
 
 export default {
   name: 'HowToUsePage',
   components: {
-    Page
+    Page,
+    Up
   }
 };
 

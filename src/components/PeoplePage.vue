@@ -203,6 +203,7 @@
         </ul>
       </div>
     </article>
+    <Up />
     <div class="tone">
       <div class="carrier-wave">
         <img src="/assets/images/wave-top-dark.png" class="wave" />
@@ -214,11 +215,12 @@
 <script>
 import Page from './Page.vue';
 import Person from './Person.vue';
+import Up from './Up.vue';
 
 export default {
   name: 'PeoplePage',
   components: {
-    Page, Person
+    Page, Person, Up
   }
 };
 
