@@ -226,6 +226,87 @@ import Checkbox from './Checkbox.vue';
 import Header from './Header.vue';
 import Menu from './Menu.vue';
 
+const twoUpImageCredits = [
+  // Order is synced with the public/assets/images/two-up folder filenames,
+  // please do not change or images will show the wrong credits
+  {
+    title: 'Photo by Aaron Burden on Unsplash',
+    href: 'https://unsplash.com/photos/6csuZQ9oZcI'
+  },
+  {
+    title: 'Photo by @pixeldebris on Unsplash',
+    href: 'https://unsplash.com/photos/Ta04gmhMHXk'
+  },
+  {
+    title: 'Photo by @gyostimages on Unsplash',
+    href: 'https://unsplash.com/photos/_ZGVUnzV5hs'
+  },
+  {
+    title: 'Photo by @michele_bergami on Unsplash',
+    href: 'https://unsplash.com/photos/NtSn6A6FH_M'
+  },
+  {
+    title: 'Photo by @aryansudhakar on Unsplash',
+    href: 'https://unsplash.com/photos/mRWZ8jpRXto'
+  },
+  {
+    title: 'Photo by @anniespratt on Unsplash',
+    href: 'https://unsplash.com/photos/uIgyq1Eq_Us'
+  },
+  {
+    title: 'Photo by @babybluecat on Unsplash',
+    href: 'https://unsplash.com/photos/U2Ap6muz50Q'
+  },
+  {
+    title: 'Photo by @darkocv on Unsplash',
+    href: 'https://unsplash.com/photos/6NT9ZRfOCA8'
+  },
+  {
+    title: 'Photo by @tumbao1949 on Unsplash',
+    href: 'https://unsplash.com/photos/PWR9m_ebonQ'
+  },
+  {
+    title: 'Photo by @ninaada on Unsplash',
+    href: 'https://unsplash.com/photos/NkSTFeELgUo'
+  },
+  {
+    title: 'Photo by @erik_karits on Unsplash',
+    href: 'https://unsplash.com/photos/IP-ci3KQljU'
+  },
+  {
+    title: 'Photo by Lenstravelier on Unsplash',
+    href: 'https://unsplash.com/photos/xcteDQPhZBI'
+  },
+  {
+    title: 'Photo by @ahmad_sp on Unsplash',
+    href: 'https://unsplash.com/photos/XHvBYXH3_dA'
+  },
+  {
+    title: 'Photo by Jason Gardner on Unsplash',
+    href: 'https://unsplash.com/photos/lWbu1dkEAoo'
+  },
+  {
+    title: 'Photo by @rebecca_lee_creative on Unsplash',
+    href: 'https://unsplash.com/photos/qMvCn9Losrk'
+  },
+  {
+    title: 'Photo by Jenna Lee on Unsplash',
+    href: 'https://unsplash.com/photos/f0OL01IHbCM'
+  },
+  {
+    title: 'Photo by Heather McKean on Unsplash',
+    href: 'https://unsplash.com/photos/2ZplT45TfBM'
+  },
+  {
+    title: 'Photo by Adonyi Gábor on Unsplash',
+    href: 'https://unsplash.com/photos/CBCQdXXhfbA'
+  },
+  {
+    title: 'Photo by @hoperivers on Unsplash',
+    href: 'https://unsplash.com/photos/TGhslf4DYlE'
+  }
+];
+
 export default {
   name: 'Explorer',
   components: {
@@ -524,8 +605,7 @@ export default {
 
     this.initQuestionValues(questionDetails);
 
-    const twoUpIndex = Math.floor(Math.random() * 17);
-    const questionsHeroIndex = (twoUpIndex + 1) % 17;
+    const twoUpIndex = Math.floor(Math.random() * twoUpImageCredits.length);
     return {
       results: [],
       total: 0,
@@ -546,11 +626,13 @@ export default {
       monthIsOpen: false,
       question: 0,
       questionDetails,
-      twoUpIndex,
-      questionsHeroIndex
+      twoUpIndex
     };
   },
   computed: {
+    questionsHeroIndex() {
+      return (this.twoUpIndex + this.question + 1) % twoUpImageCredits.length;
+    },
     questionsClasses() {
       return {
         questions: 1,
@@ -1001,88 +1083,7 @@ export default {
       return `background-image: url(/assets/images/two-up/${index}.jpg`;
     },
     twoUpImageCredit(index) {
-      return [
-        {
-          title: 'Photo by Aaron Burden on Unsplash',
-          href: 'https://unsplash.com/photos/6csuZQ9oZcI'
-        },
-        {
-          title: 'Photo by @pixeldebris on Unsplash',
-          href: 'https://unsplash.com/photos/Ta04gmhMHXk'
-        },
-        {
-          title: 'Photo by @gyostimages on Unsplash',
-          href: 'https://unsplash.com/photos/_ZGVUnzV5hs'
-        },
-        {
-          title: 'Photo by @michele_bergami on Unsplash',
-          href: 'https://unsplash.com/photos/NtSn6A6FH_M'
-        },
-        {
-          title: 'Photo by @aryansudhakar on Unsplash',
-          href: 'https://unsplash.com/photos/mRWZ8jpRXto'
-        },
-        {
-          title: 'Photo by @anniespratt on Unsplash',
-          href: 'https://unsplash.com/photos/uIgyq1Eq_Us'
-        },
-        {
-          title: 'Photo by @anniespratton Unsplash',
-          href: 'https://unsplash.com/photos/7SXNxz8UIw4'
-        },
-        {
-          title: 'Photo by @babybluecat on Unsplash',
-          href: 'https://unsplash.com/photos/U2Ap6muz50Q'
-        },
-        {
-          title: 'Photo by @darkocv on Unsplash',
-          href: 'https://unsplash.com/photos/6NT9ZRfOCA8'
-        },
-        {
-          title: 'Photo by @tumbao1949 on Unsplash',
-          href: 'https://unsplash.com/photos/PWR9m_ebonQ'
-        },
-        {
-          title: 'Photo by @ninaada on Unsplash',
-          href: 'https://unsplash.com/photos/NkSTFeELgUo'
-        },
-        {
-          title: 'Photo by @erik_karits on Unsplash',
-          href: 'https://unsplash.com/photos/IP-ci3KQljU'
-        },
-        {
-          title: 'Photo by Lenstravelier on Unsplash',
-          href: 'https://unsplash.com/photos/xcteDQPhZBI'
-        },
-        {
-          title: 'Photo by @ahmad_sp on Unsplash',
-          href: 'https://unsplash.com/photos/XHvBYXH3_dA'
-        },
-        {
-          title: 'Photo by Jason Gardner on Unsplash',
-          href: 'https://unsplash.com/photos/lWbu1dkEAoo'
-        },
-        {
-          title: 'Photo by @rebecca_lee_creative on Unsplash',
-          href: 'https://unsplash.com/photos/qMvCn9Losrk'
-        },
-        {
-          title: 'Photo by Jenna Lee on Unsplash',
-          href: 'https://unsplash.com/photos/f0OL01IHbCM'
-        },
-        {
-          title: 'Photo by Heather McKean on Unsplash',
-          href: 'https://unsplash.com/photos/2ZplT45TfBM'
-        },
-        {
-          title: 'Photo by Adonyi Gáboron Unsplash',
-          href: 'https://unsplash.com/photos/CBCQdXXhfbA'
-        },
-        {
-          title: 'Photo by @hoperivers on Unsplash',
-          href: 'https://unsplash.com/photos/TGhslf4DYlE'
-        },
-      ][index];
+      return twoUpImageCredits[index];
     },
     credit(plant) {
       const extmetadata = plant?.metadata?.extmetadata || {};
