@@ -130,15 +130,8 @@ export default {
     setFocusedNursery(nursery) {
       this.focused = nursery;
       this.map.panTo([ nursery.lat, nursery.lon ]);
-      this.scrollNurseryIntoView(nursery);
+      this.$refs.map.scrollIntoView();
       nursery.marker.openPopup();
-    },
-    scrollNurseryIntoView(nursery) {
-      if (nursery.lat !== undefined) {
-        // inside v-for ref creates an array
-        const el = this.$refs[nursery._id][0];
-        el.scrollIntoView();
-      }
     },
     addressLink(nursery) {
       const text = `${nursery.ADDRESS} ${nursery.CITY}, ${nursery.STATE} ${nursery.ZIP}`;

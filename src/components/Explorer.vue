@@ -57,7 +57,7 @@
           <p class="store-links"><a v-for="storeLink in localStoreLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
           <h4>Online Orders</h4>
           <p class="store-links"><a v-for="storeLink in onlineStoreLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
-          <h3>Mentioned in these articles:</h3>
+          <h3 v-if="selected.Articles.length">Mentioned in these articles:</h3>
           <p class="store-links"><a v-for="articleLink in selected.Articles" :key="articleLink['Source']" :href="articleLink['Source URL']" class="store-link">{{ articleLink['Source'] }}</a></p>
           <div v-for="flagGroup in flagGroups(flags)" v-bind:key="flagGroup.title">
             <h4 v-if="flagGroup.title">{{ flagGroup.title }}</h4>
@@ -1690,14 +1690,14 @@ td, th {
 
 .modal-bar {
   padding: 12px;
-  height: 96px;
+  height: 56px;
   text-align: center;
   border-bottom: 1px solid black;
   position: relative;
 }
 .modal-bar .title {
   display: block;
-  transform: translate(0, 48px);
+  transform: translate(0, 4px);
   font-family: Arvo;
   font-size: 20px;
   font-weight: normal;
@@ -1847,13 +1847,13 @@ td, th {
   overflow: visible;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   white-space: normal;
+  font-family: Roboto;
 }
 
 .two-up .chips .chip {
   white-space: normal;
   letter-spacing: 0;
   color: #B74D15;
-  font-family: Roboto;
   font-size: 16px;
 }
 

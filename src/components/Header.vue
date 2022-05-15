@@ -124,6 +124,7 @@ a.logo-parent {
   position: relative;
   border-bottom: none;
   text-decoration: none;
+  color: black;
 }
 
 a.logo-parent h1 {
