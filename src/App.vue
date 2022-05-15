@@ -31,7 +31,6 @@ html {
   position: relative;
   padding-top: 48px;
 }
-
 .menu-is-open .modal-cover {
   display: block;
   position: fixed;

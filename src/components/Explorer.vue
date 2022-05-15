@@ -2089,7 +2089,9 @@ td, th {
   }
   .selected {
     flex-direction: row;
-    height: 66vh;
+    width: calc(100vw - 64px);
+    height: calc(100vh - 32px);
+    margin: 16px 32px;
   }
   .selected .two-up {
     height: auto;
