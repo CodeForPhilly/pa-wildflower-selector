@@ -18,7 +18,7 @@
             <button class="primary" @click="$router.push('/quick-search')">Quick Search</button>
           </div>
           <div class="two-up-image" :style="twoUpImage(twoUpIndex)">
-            <span class="two-up-credit"><a :href="twoUpImageCredit(twoUpIndex).href">{{ twoUpImageCredit(twoUpIndex).title }}</a></span>
+            <span class="two-up-credit"><a target="_blank" :href="twoUpImageCredit(twoUpIndex).href">{{ twoUpImageCredit(twoUpIndex).title }}</a></span>
           </div>
         </div>
       </template>
@@ -52,13 +52,13 @@
           <p v-if="selected['Height (feet)']">
             Height: {{ selected['Height (feet)'] }} feet
           </p>
-          <h3>Available at these stores:</h3>
-          <h4>Local Nurseries</h4>
-          <p class="store-links"><a v-for="storeLink in localStoreLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
-          <h4>Online Orders</h4>
-          <p class="store-links"><a v-for="storeLink in onlineStoreLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
+          <h3 v-if="localStoreLinks.length || onlineStoreLinks.length">Available at these stores:</h3>
+          <h4 v-if="localStoreLinks.length">Local Nurseries</h4>
+          <p class="store-links"><a v-for="storeLink in localStoreLinks" :key="storeLink.url" target="_blank" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
+          <h4 v-if="onlineStoreLinks.length">Online Orders</h4>
+          <p class="store-links"><a v-for="storeLink in onlineStoreLinks" :key="storeLink.url" target="_blank" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
           <h3 v-if="selected.Articles.length">Mentioned in these articles:</h3>
-          <p class="store-links"><a v-for="articleLink in selected.Articles" :key="articleLink['Source']" :href="articleLink['Source URL']" class="store-link">{{ articleLink['Source'] }}</a></p>
+          <p class="store-links"><a v-for="articleLink in selected.Articles" :key="articleLink['Source']" target="_blank" :href="articleLink['Source URL']" class="store-link">{{ articleLink['Source'] }}</a></p>
           <div v-for="flagGroup in flagGroups(flags)" v-bind:key="flagGroup.title">
             <h4 v-if="flagGroup.title">{{ flagGroup.title }}</h4>
             <div class="chips flags">
@@ -128,7 +128,7 @@
           </form>
         </div>
         <div class="questions-decoration" :style="twoUpImage(questionsHeroIndex)">
-          <span class="two-up-credit"><a :href="twoUpImageCredit(twoUpIndex).href">{{ twoUpImageCredit(twoUpIndex).title }}</a></span>
+          <span class="two-up-credit"><a :href="twoUpImageCredit(twoUpIndex).href" target="_blank">{{ twoUpImageCredit(twoUpIndex).title }}</a></span>
         </div>
       </div>
       <template v-else>

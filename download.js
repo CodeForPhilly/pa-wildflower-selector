@@ -1,7 +1,6 @@
 const fetch = require('node-fetch');
 const parse = require('csv-parse/lib/sync');
 const qs = require('qs');
-const cheerio = require('cheerio');
 const fs = require('fs');
 const db = require('./lib/db');
 const { GoogleSpreadsheet } = require('google-spreadsheet');
@@ -361,14 +360,6 @@ function spawn(cmd, args) {
   return require('child_process').spawnSync(cmd, args);
 }
 
-function has(o, k) {
-  return Object.keys(o).includes(k);
-}
-
 function getTerms(s) {
   return terms[slugify(s)] || s;
-}
-
-function capitalize(word) {
-  return word.charAt(0).toUpperCase() + word.slice(1);
 }
