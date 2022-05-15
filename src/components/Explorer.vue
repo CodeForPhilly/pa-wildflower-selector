@@ -54,7 +54,7 @@
           </p>
           <h3 v-if="localStoreLinks.length || onlineStoreLinks.length">Available at these stores:</h3>
           <h4 v-if="localStoreLinks.length">Local Nurseries</h4>
-          <p class="store-links"><a v-for="storeLink in localStoreLinks" :key="storeLink.url" target="_blank" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
+          <p class="store-links"><a v-for="storeLink in localStoreLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
           <h4 v-if="onlineStoreLinks.length">Online Orders</h4>
           <p class="store-links"><a v-for="storeLink in onlineStoreLinks" :key="storeLink.url" target="_blank" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
           <h3 v-if="selected.Articles.length">Mentioned in these articles:</h3>
