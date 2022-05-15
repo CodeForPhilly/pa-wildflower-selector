@@ -277,7 +277,7 @@ menu .copyright {
     display: inline-block;
     transform: translate(-16px, 0);
   }
-  .logo-substitute {
+  a .logo-substitute, .logo-substitute {
     display: none;
     color: black;
   }
