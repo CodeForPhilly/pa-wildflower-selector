@@ -232,6 +232,9 @@ menu .copyright {
     border-bottom: none;
     background-color: #ededed;
   }
+  a .logo-substitute {
+    color: black;
+  }
 }
 
 @media all and (min-width: 1280px) {
@@ -277,7 +280,7 @@ menu .copyright {
     display: inline-block;
     transform: translate(-16px, 0);
   }
-  a .logo-substitute, .logo-substitute {
+  .logo-substitute {
     display: none;
     color: black;
   }
