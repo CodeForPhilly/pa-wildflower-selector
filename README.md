@@ -93,7 +93,7 @@ npm run restore-test-data
 
 You can also rebuild it from scratch, but this takes hours to run because of the need to obtain images from wikipedia and wikimedia.
 
-> First, you will need to obtain the files `settings.json` and `service-account.json` from Tom, Zach or Kio. These files are not in the repository because they grant API access to certain google sheets resources. You do not need these files unless you wish to run `npm run update-data` yourself. You can use `npm run restore-test-data` for most work.
+> First, you will need to obtain the file `secrets.yaml` from Tom, Zach or Charles. This file is not in the repository because it grants API access to certain resources that could be maliciously overwritten. You do not need this fileunless you wish to run `npm run update-data` yourself. You can use `npm run restore-test-data` for most work.
 
 ```
 npm run update-data
