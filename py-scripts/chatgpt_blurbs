@@ -1,0 +1,51 @@
+import pandas as pd
+import openai
+import time
+
+#.txt file contains the scienitific names of every plant in CNP PA 
+with open("ScientificNames.text") as f:
+  names = f.readlines()
+
+data_dict = None
+
+for i,name in enumerate(names):
+
+  name = name.strip()
+
+  openai.api_key_path = "./.env"
+
+  #Get blurb using ChatGPT API
+  response = openai.Completion.create(
+    model="text-davinci-003",
+    prompt=f"What is {name} in 30 words or less?",
+    temperature=0.4,
+    max_tokens=239,
+    top_p=1,
+    frequency_penalty=0,
+    presence_penalty=0
+  )
+
+  blurb = response["choices"][0]["text"].strip()
+  
+
+  #Create a dictionary of the form {"Scientific Name":[list of names],"Blurb":[list of blurbs]}
+  if data_dict:
+    data_dict["Scientific Name"].append(name)
+    data_dict["Blurb"].append(blurb)
+    
+  else:
+    data_dict = {"Scientific Name":[name],"Blurb":[blurb]}
+
+  #Track progress 
+  print(i)
+
+  time.sleep(2)
+
+pd.DataFrame(data_dict).to_csv("Blurb.csv")
+
+
+
+
+
+
+
