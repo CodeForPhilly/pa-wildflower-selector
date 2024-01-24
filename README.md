@@ -3,10 +3,9 @@
 ## Dev system requirements
 
 Your development system must have:
+* MacOS, Linux, or Windows
+* mongodb community edition, mongoshell, mongo dev tools
 
-* MacOS, Linux, or Windows Subsystem for Linux (not the Windows command prompt)
-* mongodb (4.x or better)
-* nodejs (16.x)
 * imagemagick command line utilities
 
 ## Production system requirements
@@ -16,14 +15,18 @@ Your development system must have:
 * nodejs (16.x)
 * imagemagick command line utilities
 
-## Developing on Windows in WSL 
 
-First, make sure the that you have WSL installed on your system and that you're using version 2. 
-You can check both of these requirements by running ```wsl -l -v``` in your Powershell Terminal or Commmand Prompt. 
-If this returns an error follow the instructions [here](https://docs.microsoft.com/en-us/windows/wsl/install). 
+### Node.js Installation Instructions
+Overview
+This section provides detailed steps for installing Node.js on both Mac and Windows operating systems. Please follow the instructions specific to your operating system.
 
-WSL comes with an outdated version of Node. Run the following commands in your WSL shell to remove node, install a node version manager and install 
-the latest stable version of node ([reference](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-wsl)). 
+#### For Mac Users
+
+* nodejs (v20.10.0). Run node -v to confirm.
+** Update node by running: 
+sudo npm cache clean -f (force) clear you npm cache
+sudo npm install -g n install n (this might take a while)
+sudo n stable upgrade to the current stable version
 
 ```
 sudo apt-get purge --auto-remove nodejs
@@ -36,7 +39,13 @@ nvm install --lts
 nvm ls
 ```
 
-There are many ways to download Mongo but Microsoft [suggests](https://docs.microsoft.com/en-us/windows/wsl/tutorials/wsl-database) doing so in the following steps: 
+##### For Windows Users
+Download Latest LTS Version: 20.10.0
+https://nodejs.org/en/download/
+
+
+#### Install Mongo
+##### For Mac Users
 
 ```
 cd ~
@@ -49,20 +58,43 @@ sudo apt-get install -y mongodb-org
 mongod --version
 ```
 
-A commonly missed step is not creating a directory for mongo to write to (this step my not be listed in other instructions because the directory is created during installation on Mac OS and Linux). 
+##### For Windows Users
+Download and install MongoDB Community Server, Mongo Shell, and Mongo Tools.
+https://www.mongodb.com/try/download/community
+https://www.mongodb.com/try/download/shell
+https://www.mongodb.com/try/download/database-tools
+
+Install Windows MongoDB Community Edition. “Install MongoD as a Service” and keep the default “Run service as Network Service user”.
+
+### Open SSL Installation Instructions
+
+##### Install OpenSSL for Windows Users
+Install Chocolatey
+https://chocolatey.org/install
+
+##### Install OpenSSL for windows via Chocolatey
+```
+Choco 	install openssl
+```
+
+
+
+#### Run a Mongo instance:
+##### For Mac Users
+Run a Mongo instance:
 
 ```
 mkdir -p ~/data/db
 sudo chown -R `id -un` ~/data/db
-```
-
-Run a Mongo instance: 
-
-```
 sudo mongod --dbpath ~/data/db
 ```
 
-Open a new terminal to continue with instructions from here. 
+##### For Windows Users
+Run a Mongo instance:
+
+```
+mongosh mongodb://localhost:27017/pa-wildflower-selector
+```
 
 ## Project setup
 
@@ -87,6 +119,8 @@ npm install
 
 Run:
 
+`` To run locally without updating data, run this line and jump to routine stuff
+`` Periodically restart mongo instance
 ```
 npm run restore-test-data
 ```
@@ -210,3 +244,5 @@ docker-compose down -v
 ## Open Questions
 
 - Does the deploy need two copies of the entire dist/ directory copied into both public/ and ssr/ ?
+
+
