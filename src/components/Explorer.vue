@@ -43,7 +43,7 @@
         <div class="two-up-text">
           <h1>{{ selected['Common Name'] }}<button @click="toggleFavorite(selected._id)" class="favorite-selected text"><span class="material-icons material-align">{{ renderFavorite(selected._id) }}</span></button>
 </h1>
-          <h2>{{ selected['Scientific Name'] }}</h2>
+          <h2><i>{{ selected['Scientific Name'] }}</i></h2>
           <p v-if="selected['Blurb']">{{ selected['Blurb'] }}</p>
           <p v-if="selected['Flowering Months']">
             Flowering Months:
