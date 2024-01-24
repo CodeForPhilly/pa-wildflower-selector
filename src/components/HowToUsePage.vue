@@ -195,6 +195,13 @@
             To contact us, <a href="mailto:contact@choosenativeplants.com">reach out via email to contact@choosenativeplants.com</a>.
           </li>
         </ul>
+        <h4>Github repo</h4>
+        <ul>
+          <li>
+            The source code for this website is available
+            <a href="https://github.com/CodeForPhilly/pa-wildflower-selector/">here</a>.
+          </li>
+        </ul>
       </article>
       <div class="carrier-wave">
         <img src="/assets/images/wave-bottom-light.png" class="wave" />
