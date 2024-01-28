@@ -1,7 +1,11 @@
+const webpack = require('webpack');
 const { WebpackManifestPlugin } = require("webpack-manifest-plugin");
 const nodeExternals = require("webpack-node-externals");
 
 module.exports = {
+  publicPath: process.env.NODE_ENV === 'production'
+    ? '/public/'
+    : '/',
   devServer: {
     proxy: 'http://localhost:3001'
   },
@@ -9,8 +13,7 @@ module.exports = {
   chainWebpack: webpackConfig => {
     if (!process.env.SSR) {
       return;
-    }
-
+    } 
     webpackConfig
       .entry("app")
       .clear()
@@ -33,6 +36,10 @@ module.exports = {
     webpackConfig.plugins.delete("prefetch");
     webpackConfig.plugins.delete("progress");
     // webpackConfig.plugins.delete("friendly-errors");
-    
+
+    // Add the configureWebpack section here
+    webpackConfig
+      .plugin("source-map")
+      .use(new webpack.SourceMapDevToolPlugin({ filename: '[name].js.map' }));
   }
 };

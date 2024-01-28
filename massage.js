@@ -198,7 +198,7 @@ async function go() {
       _id: plant._id
     }, {
       $set: {
-        'Sun Exposure Flags': sunExposureFlags
+        'SunExposureFlags': sunExposureFlags
       }
     });
     const soilMoistureFlags = plant['Soil Moisture'].split(/,\s*/).map(capitalize).filter(flag => flag.length > 0);

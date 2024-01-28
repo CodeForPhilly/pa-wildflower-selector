@@ -3,10 +3,9 @@
 ## Dev system requirements
 
 Your development system must have:
-
 * MacOS, Linux, or Windows
-* mongodb (4.x or better)
-* nodejs (16.x)
+* mongodb community edition, mongoshell, mongo dev tools
+* nodejs (v20.10.0). Run node -v to confirm.
 * imagemagick command line utilities
 
 ## Production system requirements
@@ -17,7 +16,11 @@ Your development system must have:
 * imagemagick command line utilities
 
 
-Install NodeJS
+### Node.js Installation Instructions
+Overview
+This section provides detailed steps for installing Node.js on both Mac and Windows operating systems. Please follow the instructions specific to your operating system.
+
+#### For Mac Users
 
 ```
 sudo apt-get purge --auto-remove nodejs
@@ -30,7 +33,13 @@ nvm install --lts
 nvm ls
 ```
 
-There are many ways to download Mongo but Microsoft [suggests](https://docs.microsoft.com/en-us/windows/wsl/tutorials/wsl-database) doing so in the following steps: 
+##### For Windows Users
+
+
+#### Install Mongo
+
+
+##### For Mac Users
 
 ```
 cd ~
@@ -43,20 +52,26 @@ sudo apt-get install -y mongodb-org
 mongod --version
 ```
 
-A commonly missed step is not creating a directory for mongo to write to (this step my not be listed in other instructions because the directory is created during installation on Mac OS and Linux). 
+A commonly missed step is not creating a directory for mongo to write to (this step my not be listed in other instructions because the directory is created during installation on Mac OS and Linux).
 
 ```
 mkdir -p ~/data/db
 sudo chown -R `id -un` ~/data/db
 ```
 
-Run a Mongo instance: 
+##### For Windows Users
+Install Windows MongoDB Community Edition. “Install MongoD as a Service” and keep the default “Run service as Network Service user”.
+
+###
+
+
+Run a Mongo instance:
 
 ```
 sudo mongod --dbpath ~/data/db
 ```
 
-Open a new terminal to continue with instructions from here. 
+Open a new terminal to continue with instructions from here.
 
 ## Project setup
 
@@ -204,3 +219,5 @@ docker-compose down -v
 ## Open Questions
 
 - Does the deploy need two copies of the entire dist/ directory copied into both public/ and ssr/ ?
+
+

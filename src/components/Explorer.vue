@@ -337,7 +337,7 @@ export default {
         alwaysOpen: true
       },
       {
-        name: 'Sun Exposure Flags',
+        name: 'SunExposureFlags',
         label: 'Sun Exposure',
         value: [],
         array: true,
@@ -1598,10 +1598,10 @@ td, th {
 }
 
 .questions-prologue {
-  background-image: url("/assets/images/questions-prologue-background.png");
   background-repeat: no-repeat;
   background-size: cover;
   padding: 72px 32px;
+  background-image: url('/public/assets/images/questions-prologue-background.png');
 }
 
 .questions-prologue p {
@@ -1817,9 +1817,10 @@ td, th {
   line-height: 24px;
 }
 
-.two-up p ::v-deep a {
+.two-up p :deep(a) {
   color: #B74D15;
 }
+
 
 .two-up > * {
   color: #B74D15;

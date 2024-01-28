@@ -1,5 +1,5 @@
 const fetch = require('node-fetch');
-const parse = require('csv-parse/lib/sync');
+const parse = require('csv-parse');
 const qs = require('qs');
 const fs = require('fs');
 const db = require('./lib/db');
