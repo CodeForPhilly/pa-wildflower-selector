@@ -1598,7 +1598,7 @@ td, th {
 }
 
 .questions-prologue {
-  background-image: url("/assets/images/questions-prologue-background.png");
+  background-image: url('/public/assets/images/questions-prologue-background.png');
   background-repeat: no-repeat;
   background-size: cover;
   padding: 72px 32px;
