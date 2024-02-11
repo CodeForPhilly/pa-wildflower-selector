@@ -11,7 +11,6 @@ node_modules
 /ssr
 /secrets.yaml
 /pa-wildflower-selector.archive
-/pa-wildflower-selector.tar
 /pa-wildflower-selector.archive.gz
 
 # local copy of .env.example
