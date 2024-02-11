@@ -58,9 +58,12 @@
       "eslint:recommended"
     ],
     "parserOptions": {
-      "parser": "babel-eslint"
+      "parser": "@babel/eslint-parser"
     },
-    "rules": {}
+    "rules": {
+      "vue/multi-word-component-names": "off",
+      "vue/no-reserved-component-names": "off"
+    }
   },
   "browserslist": [
     "> 1%",
