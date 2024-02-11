@@ -7,7 +7,7 @@ Your development system must have:
 * MacOS, Linux, or Windows
 * mongodb (4.x or better)
 * nodejs (16.x)
-* imagemagick command line utilities
+* imagemagick command line utilities (only needed if making new set of plant images)
 
 ## Production system requirements
 
@@ -16,18 +16,25 @@ Your development system must have:
 * nodejs (16.x)
 * imagemagick command line utilities
 
+### Node.js Installation Instructions
+Overview
+This section provides detailed steps for installing Node.js on both Mac and Windows operating systems. Please follow the instructions specific to your operating system.
 
 
+* nodejs (v20.10.0). Run node -v to confirm.
+
+** Update node by running: 
 ```
-sudo apt-get purge --auto-remove nodejs
-
-sudo apt-get install curl
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
-command -v nvm
-
-nvm install --lts
-nvm ls
+sudo npm cache clean -f # Clears (force) your npm cache
+sudo npm install -g n # Install n
+sudo n stable # Upgrade to the current stable version
 ```
+
+##### For Windows Users
+Download Latest LTS Version: 20.10.0
+https://nodejs.org/en/download/
+
+
 
 #### Install Mongo
 ##### For Mac Users
@@ -104,8 +111,6 @@ On Windows
 ```
 npm run restore-test-data-win
 ```
-
-
 
 You can also rebuild it from scratch, but this takes hours to run because of the need to obtain images from wikipedia and wikimedia.
 
