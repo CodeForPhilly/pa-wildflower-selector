@@ -4,7 +4,7 @@
 
 Your development system must have:
 
-* MacOS, Linux, or Windows Subsystem for Linux (not the Windows command prompt)
+* MacOS, Linux, or Windows
 * mongodb (4.x or better)
 * nodejs (16.x)
 * imagemagick command line utilities
@@ -16,14 +16,7 @@ Your development system must have:
 * nodejs (16.x)
 * imagemagick command line utilities
 
-## Developing on Windows in WSL 
 
-First, make sure the that you have WSL installed on your system and that you're using version 2. 
-You can check both of these requirements by running ```wsl -l -v``` in your Powershell Terminal or Commmand Prompt. 
-If this returns an error follow the instructions [here](https://docs.microsoft.com/en-us/windows/wsl/install). 
-
-WSL comes with an outdated version of Node. Run the following commands in your WSL shell to remove node, install a node version manager and install 
-the latest stable version of node ([reference](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-wsl)). 
 
 ```
 sudo apt-get purge --auto-remove nodejs
@@ -36,7 +29,8 @@ nvm install --lts
 nvm ls
 ```
 
-There are many ways to download Mongo but Microsoft [suggests](https://docs.microsoft.com/en-us/windows/wsl/tutorials/wsl-database) doing so in the following steps: 
+#### Install Mongo
+##### For Mac Users
 
 ```
 cd ~
@@ -49,18 +43,31 @@ sudo apt-get install -y mongodb-org
 mongod --version
 ```
 
-A commonly missed step is not creating a directory for mongo to write to (this step my not be listed in other instructions because the directory is created during installation on Mac OS and Linux). 
+##### For Windows Users
+Download and install MongoDB Community Server, Mongo Shell, and Mongo Tools.
+https://www.mongodb.com/try/download/community
+https://www.mongodb.com/try/download/shell
+https://www.mongodb.com/try/download/database-tools
+
+Install Windows MongoDB Community Edition. “Install MongoD as a Service” and keep the default “Run service as Network Service user”. There is no need to install MongoDB Compass.
+
+#### Run a Mongo instance:
+##### For Mac Users
+Run a Mongo instance:
 
 ```
 mkdir -p ~/data/db
 sudo chown -R `id -un` ~/data/db
-```
-
-Run a Mongo instance: 
-
-```
 sudo mongod --dbpath ~/data/db
 ```
+
+##### For Windows Users
+Run a Mongo instance:
+
+```
+mongosh mongodb://localhost:27017/pa-wildflower-selector
+```
+
 
 Open a new terminal to continue with instructions from here. 
 
@@ -97,6 +104,7 @@ On Windows
 ```
 npm run restore-test-data-win
 ```
+
 
 
 You can also rebuild it from scratch, but this takes hours to run because of the need to obtain images from wikipedia and wikimedia.

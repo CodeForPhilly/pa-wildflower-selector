@@ -78,7 +78,7 @@ function downloadAndExtractTar(url, extractPath) {
 commandExists('mongorestore')
   .then(mongorestoreExists => {
     if (!mongorestoreExists) {
-      console.error('Error: "mongorestore" command not found. Please ensure MongoDB Database Tools are installed and accessible in your PATH.');
+      console.error('Error: "mongorestore" command not found. Please ensure MongoDB Database Tools are installed and accessible in your PATH. https://www.mongodb.com/try/download/database-tools');
       process.exit(1); // Exit with an error code
     }
 
