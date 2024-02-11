@@ -15,6 +15,7 @@
     "sign-secrets": "./script/sign-secrets",
     "upload-test-data": "./scripts/upload-test-data",
     "restore-test-data": "./scripts/restore-test-data",
+    "restore-test-data-win": "./scripts/restore-test-data.js",
     "update-data": "node download && node massage",
     "fast-update-data": "node download --skip-images && node massage"
   },
