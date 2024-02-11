@@ -46,93 +46,93 @@ html {
 }
 @font-face {
   font-family: Arvo;
-  src: url("~@/assets/fonts/Arvo-Regular.ttf") format("truetype");
+  src: url("/public/assets/fonts/Arvo-Regular.ttf") format("truetype");
 }
 @font-face {
   font-family: Arvo;
   font-weight: 700;
   font-style: normal;
-  src: url("~@/assets/fonts/Arvo-Bold.ttf") format("truetype");
+  src: url("/public/assets/fonts/Arvo-Bold.ttf") format("truetype");
 }
 @font-face {
   font-family: Arvo;
   font-style: italic;
-  src: url("~@/assets/fonts/Arvo-Italic.ttf") format("truetype");
+  src: url("/public/assets/fonts/Arvo-Italic.ttf") format("truetype");
 }
 @font-face {
   font-family: Arvo;
   font-weight: 700;
   font-style: italic;
-  src: url("~@/assets/fonts/Arvo-BoldItalic.ttf") format("truetype");
+  src: url("/public/assets/fonts/Arvo-BoldItalic.ttf") format("truetype");
 }
 
 @font-face {
   font-family: Roboto;
-  src: url("~@/assets/fonts/Roboto-Regular.ttf") format("truetype");
+  src: url("/public/assets/fonts/Roboto-Regular.ttf") format("truetype");
 }
 
 @font-face {
   font-family: Roboto;
   font-weight: 500;
   font-style: normal;
-  src: url("~@/assets/fonts/Roboto-Medium.ttf") format("truetype");
+  src: url("/public/assets/fonts/Roboto-Medium.ttf") format("truetype");
 }
 
 @font-face {
   font-family: Roboto;
   font-weight: 700;
   font-style: normal;
-  src: url("~@/assets/fonts/Roboto-Bold.ttf") format("truetype");
+  src: url("/public/assets/fonts/Roboto-Bold.ttf") format("truetype");
 }
 @font-face {
   font-family: Roboto;
   font-style: italic;
-  src: url("~@/assets/fonts/Roboto-Italic.ttf") format("truetype");
+  src: url("/public/assets/fonts/Roboto-Italic.ttf") format("truetype");
 }
 @font-face {
   font-family: Roboto;
-  src: url("~@/assets/fonts/Roboto-Regular.ttf") format("truetype");
+  src: url("/public/assets/fonts/Roboto-Regular.ttf") format("truetype");
 }
 
 @font-face {
   font-family: Roboto;
   font-weight: 300;
   font-style: normal;
-  src: url("~@/assets/fonts/Roboto-Light.ttf") format("truetype");
+  src: url("/public/assets/fonts/Roboto-Light.ttf") format("truetype");
 }
 @font-face {
   font-family: Roboto;
   font-weight: 300;
   font-style: italic;
-  src: url("~@/assets/fonts/Roboto-LightItalic.ttf") format("truetype");
+  src: url("/public/assets/fonts/Roboto-LightItalic.ttf") format("truetype");
 }
 
 @font-face {
   font-family: Lato;
-  src: url("~@/assets/fonts/Lato-Regular.ttf") format("truetype");
+  src: url("/public/assets/fonts/Lato-Regular.ttf") format("truetype");
 }
 @font-face {
   font-family: Lato;
   font-weight: 700;
   font-style: normal;
-  src: url("~@/assets/fonts/Lato-Bold.ttf") format("truetype");
+  src: url("/public/assets/fonts/Lato-Bold.ttf") format("truetype");
 }
 @font-face {
   font-family: Lato;
   font-style: italic;
-  src: url("~@/assets/fonts/Lato-Italic.ttf") format("truetype");
+  src: url("/public/assets/fonts/Lato-Italic.ttf") format("truetype");
 }
 @font-face {
   font-family: Lato;
   font-weight: 700;
   font-style: italic;
-  src: url("~@/assets/fonts/Lato-BoldItalic.ttf") format("truetype");
+  src: url("/public/assets/fonts/Lato-BoldItalic.ttf") format("truetype");
 }
 @font-face {
   font-family: 'Material Icons';
   font-style: normal;
   font-weight: 400;
-  src: url("~@/assets/fonts/MaterialIcons-Regular.ttf") format("truetype");
+  src: url("/public/assets/fonts/MaterialIcons-Regular.ttf") format("truetype");
 }
 
 body {
