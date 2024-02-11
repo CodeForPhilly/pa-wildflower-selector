@@ -5,6 +5,7 @@
   "main": "app.js",
   "scripts": {
     "dev": "PORT=3001 node app & vue-cli-service serve",
+    "dev-win": "cross-env PORT=3001 concurrently \"node app\" \"vue-cli-service serve\"",
     "ssr-dev": "npm run build && node app",
     "lint": "vue-cli-service lint",
     "build-browser": "rm -rf dist node_modules/.cache && vue-cli-service build && cp -r dist/* public/ && rm -rf public/index.html dist/",
