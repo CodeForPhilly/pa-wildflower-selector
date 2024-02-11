@@ -87,9 +87,17 @@ npm install
 
 Run:
 
+On Mac/Linux:
+
 ```
 npm run restore-test-data
 ```
+
+On Windows
+```
+npm run restore-test-data-win
+```
+
 
 You can also rebuild it from scratch, but this takes hours to run because of the need to obtain images from wikipedia and wikimedia.
 
