@@ -77,7 +77,14 @@ async function go() {
         }
       });
     }
-
+    var states = plant['Distribution in USA'].split(', ')
+    await plants.updateOne({
+      _id: plant._id
+    }, {
+      $set: {
+        'States': states
+      }
+    });
     // Process height ranges into an array of flags (lazy querying, consider a better representation)
     const height = plant['Height (feet)'];
     if (height) {

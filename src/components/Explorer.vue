@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Header :h1="favorites ? 'Favorites' : questions ? 'Quick Search' : 'Choose Native Plants PA'" :large-h1="false">
+    <Header :h1="favorites ? 'Favorites' : questions ? 'Quick Search' : 'Choose Native Plants'" :large-h1="false">
       <template v-if="!(questions || favorites)" v-slot:after-bar>
         <p class="not-large-help">
           <router-link to="/quick-search">Not sure where to start?<br />Try quick search</router-link>
@@ -9,14 +9,17 @@
           <div class="two-up-text">
             <h2>
               Native plants promote a healthier ecosystem in your garden
+              <div v-if="this.zipCode"><button @click="setLocation()"><span class="material-icons">place</span> change location [{{ zipCode }}]</button></div>
+              <div v-else><button @click="setLocation()"><span class="material-icons">place</span> set location</button></div>
+         
             </h2>
             <p>
-              Find which native shrubs, plants and flowers from <strong>Pennsylvania</strong>
+              Find which native shrubs, plants and flowers from <strong>{{ displayLocation }}</strong>
               have the right conditions to flourish in your garden. Use the quick search option
               or side filters to get started. Detailed instructions are found <router-link to="/how-to-use#the-directions">here</router-link>
             </p>
             <button class="primary" @click="$router.push('/quick-search')">Quick Search</button>
-          </div>
+          </div>  
           <div class="two-up-image" :style="twoUpImage(twoUpIndex)">
             <span class="two-up-credit"><a target="_blank" :href="twoUpImageCredit(twoUpIndex).href">{{ twoUpImageCredit(twoUpIndex).title }}</a></span>
           </div>
@@ -33,7 +36,7 @@
     <h1 class="large favorites" v-if="favorites">
       Favorites List
     </h1>
-    <article v-if="selected" class="selected">
+    <article v-if="selected" class="selected" >
       <div class="modal-bar">
         <span class="title">More Info</span>
         <router-link to="/" class="material-icons router-button close-nav">close</router-link>
@@ -54,7 +57,7 @@
           </p>
           <h3 v-if="localStoreLinks.length || onlineStoreLinks.length">Available at these stores:</h3>
           <h4 v-if="localStoreLinks.length">Local Nurseries</h4>
-          <p class="store-links"><a v-for="storeLink in localStoreLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
+          <p class="store-links"><a v-for="storeLink in localStoreLinks" :key="storeLink.url" :href="storeLink.url" class="store-link">{{ storeLink.label }} [{{ storeLink.distance }} miles]</a></p>
           <h4 v-if="onlineStoreLinks.length">Online Orders</h4>
           <p class="store-links"><a v-for="storeLink in onlineStoreLinks" :key="storeLink.url" target="_blank" :href="storeLink.url" class="store-link">{{ storeLink.label }}</a></p>
           <h3 v-if="selected.Articles.length">Mentioned in these articles:</h3>
@@ -161,7 +164,7 @@
             <fieldset v-for="filter in filters" :key="filter.name" :class="filterClass(filter)">
               <button class="fieldset-toggle" @click.prevent="toggleFilter(filter)">
                 {{ filter.label || filter.name }}
-                <span v-if="!filter.alwaysOpen" class="material-icons">{{ filterIsOpen[filter.name] ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
+                <em style="font-size:smaller"><span v-if="filterValues" v-text="filterValues[filter.name]"></span></em> <span v-if="!filter.alwaysOpen" class="material-icons">{{ filterIsOpen[filter.name] ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
               </button>
               <template v-if="filterIsOpen[filter.name]">
                 <template v-if="filter.range">
@@ -173,8 +176,10 @@
                       <Checkbox :disabled="!filterCounts[filter.name][choice]" v-model="filterValues[filter.name]" :value="choice" />
                       <span class="text">{{ choice }} ({{ filterCounts[filter.name][choice] || 0 }})</span>
                     </span>
-                    <span v-if="filter.color" :style="flowerColorStyle(choice)" class="color-example" />
-                    <img v-else :src="`/assets/images/${choice}.svg`" class="choice-icon" />
+                    <div v-if="filter.showIcon" >
+                      <span v-if="filter.color" :style="flowerColorStyle(choice)" class="color-example" />
+                      <img v-else :src="`/assets/images/${choice}.svg`" class="choice-icon" />
+                    </div>
                   </label>
                 </template>
               </template>
@@ -326,6 +331,17 @@ export default {
   },
   data() {
     const filters = [
+    {
+        name: 'States',
+        label: 'States',
+        choices: [ ],
+        value: [],
+        array: true,
+        counts: {},
+        initiallyOpen: false,
+        alwaysOpen: false,
+        showIcon:false
+      },
       {
         name: 'Superplant',
         label: 'Super Plant',
@@ -621,8 +637,11 @@ export default {
       ])),
       filterCounts: Object.fromEntries(filters.map(filter => [ filter.name, {} ])),
       filtersOpen: false,
+      zipCode:'',
+      displayLocation:'',
       updatingCounts: false,
       selected: null,
+      localStoreLinks:[],
       sorts,
       sortIsOpen: false,
       monthIsOpen: false,
@@ -686,12 +705,6 @@ export default {
       //   'primary-bar': true
       // })
     },
-    localStoreLinks() {
-      return this.selected['Local Names'].split(/\s*,\s*/).map(name => ({
-        label: name,
-        url: `/map?name=${encodeURIComponent(name)}`
-      }));
-    },
     onlineStoreLinks() {
       return this.selected['Online Stores'];
     },
@@ -749,8 +762,43 @@ export default {
     await this.determineFilterCountsAndSubmit();
     await this.fetchPage();
   },
+  async postData(url = "", data = {}) {
+    // Default options are marked with *
+    const response = await fetch(url, {
+      method: "POST", // *GET, POST, PUT, DELETE, etc.
+       headers: {
+        "Content-Type": "application/json",
+        // 'Content-Type': 'application/x-www-form-urlencoded',
+       },
+       body: JSON.stringify(data), // body data type must match "Content-Type" header
+    });
+    return response.json(); // parses JSON response into native JavaScript objects
+  },
   // Browser only
   async mounted() {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        console.log("POSITION", position)
+        var data = {latitude:position.coords.latitude, longitude:position.coords.longitude};
+         //get zipcode by lng/lat
+        //get state by lng / lat
+        const response = await fetch("/get-zip", {
+          method: "POST", // *GET, POST, PUT, DELETE, etc.
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data), // body data type must match "Content-Type" header
+        });
+        var json = await response.json();
+         console.log('RESPONSE', json)
+        this.zipCode = json.code;
+        this.filterValues["States"] = [json.state]  
+        this.taisplayLocation = `${json.city}, ${json.state}`;
+      });
+    }else{
+      console.log("Location not supported")
+    }
+   
     await this.determineFilterCountsAndSubmit();
     await this.fetchSelectedIfNeeded();
   },
@@ -758,6 +806,35 @@ export default {
     document.body.removeEventListener('click', this.bodyClick);
   },
   methods: {
+    async setLocation(){
+      this.zipCode = prompt("Please enter your zipcode")
+      const response = await fetch("/get-city", {
+          method: "POST", // *GET, POST, PUT, DELETE, etc.
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({zipCode:this.zipCode}), // body data type must match "Content-Type" header
+        });
+        var json = await response.json();
+        console.log('RESPONSE', json)
+        this.filterValues["States"] = [json.state]  
+        this.displayLocation = `${json.city}, ${json.state}`;
+    },
+    async getVendors(){
+      if (!this.selected) return [];
+      const data = {plantName:this.selected._id, zipCode: this.zipCode, radius:1000, limit:5}
+      const response = await fetch("/get-vendors", {
+          method: "POST", // *GET, POST, PUT, DELETE, etc.
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data), // body data type must match "Content-Type" header
+        })
+        var vendors = await response.json();
+      this.localStoreLinks = vendors.map((v) => {
+        return {"label": v.storeName, "url": v.storeUrl, "distance": v.distance.toFixed(1)}
+      });
+    },
     getChips(active) {
       const chips = [];
       if (active && this.activeSearch.length) {
@@ -830,6 +907,7 @@ export default {
         // what definitely works for now
         const response = await fetch(`/api/v1/plants/${this.selectedName}`);
         this.selected = await response.json();
+        this.getVendors();
         this.$store.commit('setSelectedIsOpen', true);
       }
     },
