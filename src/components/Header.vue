@@ -133,7 +133,7 @@ a.logo-parent h1 {
 
 .logo {
   display: none;
-  margin-left:10px;
+  margin-left: 10px;
 }
 
 .main-nav menu {
