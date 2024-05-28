@@ -7,12 +7,12 @@
           <span v-else></span>
           <h1>
             <span class="text">
-              Choose<br />Native<br />Plants PA
+              Choose<br />Native<br />Plants
             </span>
             <img class="logo" src="/assets/images/logo.svg" />
           </h1>
         </router-link>
-        <h1 class="local-h1" v-if="h1">{{ h1 || 'Choose Native Plants PA' }}</h1>
+        <h1 class="local-h1" v-if="h1">{{ h1 || 'Choose Native Plants' }}</h1>
         <button @click="openNav" class="material-icons router-button open-nav">menu</button>
         <menu>
           <button @click="closeNav" class="material-icons router-button close-nav">close</button>
@@ -133,6 +133,7 @@ a.logo-parent h1 {
 
 .logo {
   display: none;
+  margin-left: 10px;
 }
 
 .main-nav menu {
