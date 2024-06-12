@@ -19,9 +19,9 @@
     "fast-update-data": "node download --skip-images && node massage"
   },
   "dependencies": {
-    "@vue/cli-plugin-babel": "^4.5.16",
-    "@vue/cli-plugin-eslint": "^4.5.16",
-    "@vue/cli-service": "^4.5.16",
+    "@vue/cli-plugin-babel": "^5.0.8",
+    "@vue/cli-plugin-eslint": "^5.0.8",
+    "@vue/cli-service": "^5.0.8",
     "@vue/compiler-sfc": "^3.2.31",
     "@vue/server-renderer": "^3.2.31",
     "babel-eslint": "^10.1.0",
@@ -32,7 +32,7 @@
     "eslint": "^6.7.2",
     "eslint-plugin-vue": "^7.20.0",
     "express": "^4.17.3",
-    "google-spreadsheet": "^3.1.15",
+    "google-spreadsheet": "^4.1.2",
     "leaflet": "^1.7.1",
     "limiter": "^2.1.0",
     "mongodb": "^3.6.7",
