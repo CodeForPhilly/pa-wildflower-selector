@@ -42,6 +42,9 @@ spec:
         - name: {{ $.Chart.Name }}-db
           image: "{{ .image.repository }}:{{ .image.tag | default $.Chart.AppVersion }}"
           imagePullPolicy: {{ .image.pullPolicy }}
+          envFrom:
+          - secretRef:
+              name: pac-api
           env:
             - name: MONGO_INITDB_ROOT_USERNAME
               valueFrom:
