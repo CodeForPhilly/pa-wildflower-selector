@@ -20,7 +20,7 @@
           <div class="two-up-text">
             <h2>
               Native plants promote a healthier ecosystem in your garden
-              <div v-if="this.zipCode">
+              <div v-if="zipCode">
                 <button @click="setLocation()">
                   <span class="material-icons">place</span> change location [{{
                     zipCode
