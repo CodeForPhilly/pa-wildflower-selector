@@ -16,6 +16,19 @@
             >Not sure where to start?<br />Try quick search</router-link
           >
         </p>
+        <div class="not-large-help" v-if="zipCode">
+          <button class="primary primary-bar" @click="setLocation()">
+              <span class="material-icons">place</span> Change Location [{{
+                zipCode
+              }}]
+            </button>
+          </div>
+        <div v-else>
+          <button class="primary primary-bar" @click="setLocation()">
+            <span class="material-icons">place</span> Set Location
+          </button>
+        </div>
+       
         <div class="two-up large-help">
           <div class="two-up-text">
             <h2>
@@ -97,7 +110,8 @@
           <h3 v-if="localStoreLinks.length || onlineStoreLinks.length">
             Available at these stores:
           </h3>
-          <h4 v-if="localStoreLinks.length">Local Nurseries</h4>
+          <h4 class="enter-location" v-if="!this.zipCode"><a @click="setLocation()">Enter your location in order to see nearby stores</a></h4>
+          <h4 v-if="this.zipCode && localStoreLinks.length">Local Nurseries</h4>
           <p class="store-links">
             <a
               v-for="storeLink in localStoreLinks"
@@ -107,7 +121,7 @@
               >{{ storeLink.label }} [{{ storeLink.distance }} miles]</a
             >
           </p>
-          <h4 v-if="onlineStoreLinks.length">Online Orders</h4>
+          <h4 v-if="onlineStoreLinks.length">Online Stores</h4>
           <p class="store-links">
             <a
               v-for="storeLink in onlineStoreLinks"
@@ -334,12 +348,6 @@
                 @click.prevent="toggleFilter(filter)"
               >
                 {{ filter.label || filter.name }}
-                <em style="font-size: smaller"
-                  ><span
-                    v-if="filterValues"
-                    v-text="filterValues[filter.name]"
-                  ></span
-                ></em>
                 <span v-if="!filter.alwaysOpen" class="material-icons">{{
                   filterIsOpen[filter.name]
                     ? "arrow_drop_up"
@@ -371,7 +379,7 @@
                         }})</span
                       >
                     </span>
-                    <div v-if="filter.showIcon">
+                    <div>
                       <span
                         v-if="filter.color"
                         :style="flowerColorStyle(choice)"
@@ -1572,7 +1580,11 @@ button.text {
   padding: 5px;
   border-radius: 0;
 }
-
+.enter-location {
+  font-style: italic;
+  text-align: center;
+  padding: 5px;
+}
 .chips button.clear {
   text-decoration: underline;
   font-size: 16px;
@@ -1669,7 +1681,7 @@ button.favorites .favorites-label {
     brightness(89%) contrast(84%);
   width: 24px;
   height: 24px;
-  padding: 2px;
+  padding: 4px;
   margin-right: 8px;
   border-radius: 50%;
   border: 1px solid #b74d15;
@@ -1962,6 +1974,9 @@ th {
 }
 .not-large-help a {
   color: inherit;
+}
+.not-large-help button {
+  width:100%;
 }
 
 .total-matches {
