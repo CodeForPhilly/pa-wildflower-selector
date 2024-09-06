@@ -116,6 +116,7 @@
             <a
               v-for="storeLink in localStoreLinks"
               :key="storeLink.url"
+              target="_blank"
               :href="storeLink.url"
               class="store-link"
               >{{ storeLink.label }} [{{ storeLink.distance }} miles]</a
