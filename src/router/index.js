@@ -42,7 +42,7 @@ const routes = [
   },
   {
     path: "/map",
-    name: "PA Nurseries",
+    name: "Nurseries",
     component: Map
   }
 ];

@@ -23,7 +23,7 @@
               }}]
             </button>
           </div>
-        <div v-else>
+        <div v-else class="hide-desk">
           <button class="primary primary-bar" @click="setLocation()">
             <span class="material-icons">place</span> Set Location
           </button>
@@ -47,8 +47,8 @@
               </div>
             </h2>
             <p>
-              Find which native shrubs, plants and flowers from
-              <strong>{{ displayLocation }}</strong> have the right conditions
+              Find which native shrubs, plants and flowers <span v-if="displayLocation">from
+              <strong>{{ displayLocation }}</strong></span> have the right conditions
               to flourish in your garden. Use the quick search option or side
               filters to get started. Detailed instructions are found
               <router-link to="/how-to-use#the-directions">here</router-link>
@@ -1052,7 +1052,10 @@ export default {
   },
   // Browser only
   async mounted() {
-    if ("geolocation" in navigator) {
+    this.displayLocation = localStorage.getItem("displayLocation")
+    this.zipCode= localStorage.getItem("zipCode")
+    this.filterValues["States"] = [localStorage.getItem("state")]
+    if ("geolocation" in navigator || this.zipCode == '') {
       navigator.geolocation.getCurrentPosition(async (position) => {
         let data = {
           latitude: position.coords.latitude,
@@ -1100,6 +1103,9 @@ export default {
       let json = await response.json();
       this.filterValues["States"] = [json.state];
       this.displayLocation = `${json.city}, ${json.state}`;
+      localStorage.setItem("displayLocation", this.displayLocation)
+      localStorage.setItem("zipCode", this.zipCode)
+      localStorage.setItem("state", json.state)
     },
     async getVendors() {
       if (!this.selected) return [];
@@ -2286,6 +2292,19 @@ th {
 
 .large {
   display: none;
+}
+.hide-desk {
+  display:none;
+}
+@media all and (max-width: 1280px) {
+  .hide-desk {
+    display:block !important;
+  }
+}
+@media all and (min-width: 1280px) {
+  .hide-desk {
+    display:none !important;
+  }
 }
 
 @media all and (min-width: 1280px) {
