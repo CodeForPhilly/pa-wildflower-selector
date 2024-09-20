@@ -172,8 +172,8 @@
         <h4>Find the plants</h4>
         <ul>
           <li>
-            Open the hamburger menu and tap on PA Nurseries. This will lead you to
-            a page that lists PA nurseries that are known to carry many species.
+            Open the hamburger menu and tap on Nurseries. This will lead you to
+            a page that lists nurseries that are known to carry many species.
           </li>
           <li>
             The nursery’s address, phone number and email are listed. Please

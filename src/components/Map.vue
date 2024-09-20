@@ -1,6 +1,6 @@
 <template>
   <div class="wrapper">
-    <Header h1="PA Nurseries" :large-h1="false" :seamless="true" />
+    <Header h1="Nurseries" :large-h1="false" :seamless="true" />
     <div class="map-and-list">
       <div class="list">
         <h1>Native Plant Nurseries</h1>
@@ -10,7 +10,7 @@
             <li :ref="nursery._id" v-for="nursery in nurseries" v-bind:key="nursery._id" :class="{ nursery: true, focused: nursery === focused }">
               <h4><a @click.prevent="setFocusedNursery(nursery)" target="_blank" :href="nursery.URL">{{ nursery.SOURCE }}</a></h4>
               <div class="details">
-                <p><a :href="addressLink(nursery)">{{ nursery.ADDRESS }}<br />{{ nursery.CITY }}, {{ nursery.STATE }} {{ nursery.ZIP }}</a></p>
+                <p><a :href="addressLink(nursery)">{{ nursery.ADDRESS }}</a></p>
                 <p><a :href="phoneLink(nursery)">{{ nursery.PHONE }}</a></p>
                 <p>{{ nursery.EMAIL }}</p>
               </div>
@@ -59,7 +59,7 @@ export default {
     });
 
     await this.fetchNurseries();
-    this.map = L.map(this.$refs.map).setView([ 40.79873, -77.5 ], 6);
+    this.map = L.map(this.$refs.map).setView([ 39.8097343, -98.5556199 ], 4);
     L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
         attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
         maxZoom: 18,
@@ -72,7 +72,7 @@ export default {
       if (nursery.lat !== undefined) {
         const marker = L.marker([ nursery.lat, nursery.lon ]).addTo(this.map);
         const name = esc(nursery.SOURCE);
-        const address = `${esc(nursery.ADDRESS)}<br />${esc(nursery.CITY)}, ${esc(nursery.STATE)} ${esc(nursery.ZIP)}`;
+        const address = `${esc(nursery.ADDRESS)}`;
         const phone = esc(nursery.PHONE);
         const email = esc(nursery.EMAIL);
         const url = esc(nursery.URL);
@@ -106,7 +106,8 @@ export default {
   },
   methods: {
     async fetchNurseries() {
-      const data = await this.get('/api/v1/nurseries');
+      var state = localStorage.getItem("state") || "ALL";
+      const data = await this.get(`/api/v1/nurseries?state=${state}`);
       this.nurseries = data.results;
       // Trim to match on data with space issues
       if (this.$route.query.name) {
@@ -134,7 +135,7 @@ export default {
       nursery.marker.openPopup();
     },
     addressLink(nursery) {
-      const text = `${nursery.ADDRESS} ${nursery.CITY}, ${nursery.STATE} ${nursery.ZIP}`;
+      const text = `${nursery.ADDRESS}`;
       return `https://www.google.com/maps/place/${encodeURIComponent(text)}`;
     },
     phoneLink(nursery) {
