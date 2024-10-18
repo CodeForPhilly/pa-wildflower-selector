@@ -300,7 +300,7 @@ async function discoverViaWikimediaCommonsSearch(clean, name) {
   const params = { q: name.toLowerCase(), page_size: 1, page: 1 };
   let info;
   try {
-    info = JSON.parse(await get(`https://api.creativecommons.engineering/v1/images?${qs.stringify(params)}`));
+    info = JSON.parse(await get(`https://api.openverse.engineering/v1/images?${qs.stringify(params)}`));
   } catch (e) {
     console.error(e);
     return null;
