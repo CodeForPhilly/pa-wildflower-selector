@@ -90,8 +90,25 @@ async function downloadMain() {
   }, {
     multi: true
   });
+  
+  // Get list of existing images
+  const existingImages = new Set();
+  fs.readdirSync(`${__dirname}/images`).forEach(file => {
+    if (!file.endsWith('.preview.jpg')) {
+      existingImages.add(file.replace('.jpg', ''));
+    }
+  });
+
+  // Filter records to only those missing images
+  const missingRecords = records.filter(record => {
+    const name = record['Scientific Name'].trim();
+    return !existingImages.has(name);
+  });
+
+  console.log(`Found ${missingRecords.length} plants missing images out of ${records.length} total plants`);
+  
   let i = 0;
-  for (const record of records) {
+  for (const record of missingRecords) {
     i++;
     const clean = Object.fromEntries(
       Object.entries(record).map(([ key, value ]) => {
@@ -99,7 +116,7 @@ async function downloadMain() {
       })
     );
     let name = clean['Scientific Name'];
-    console.log(`${name} (${i} of ${records.length})`);
+    console.log(`${name} (${i} of ${missingRecords.length})`);
     clean._id = name;
     let sp = (clean['Super Plant'].trim() == 'Yes');
     let hasImage = false;
@@ -113,47 +130,53 @@ async function downloadMain() {
     clean.imageUrl = existing?.imageUrl;
     knownImages[name] = rowsByName?.[name]?.['Manual File URL'] || existing?.imageUrl;
 
-    if (fs.existsSync(`${__dirname}/images/${name}.jpg`)) {
-      hasImage = true;
-      clean.hasImage = true;
+    // First check if images exist in the filesystem
+    const fullImagePath = `${__dirname}/images/${name}.jpg`;
+    const previewImagePath = `${__dirname}/images/${name}.preview.jpg`;
+
+    hasImage = fs.existsSync(fullImagePath);
+    hasPreview = fs.existsSync(previewImagePath);
+
+    clean.hasImage = hasImage;
+    clean.hasPreview = hasPreview;
+
+    let discovered;  // Moved this declaration up here
+
+    // Only proceed with image handling if we don't have the image already
+    if (!argv['skip-images'] && !hasImage) {
+      const known = knownImages[name];
+
+      if (known) {
+        // We have a URL in the Google Sheet but no image file
+        await fetchImage(clean, name, known);
+      } else if (!argv['skip-missing-images']) {
+        // No image file and no URL in Sheet - try to discover one
+        discovered = await discoverImage(clean, name);
+        if (discovered) {
+          await fetchImage(clean, name, discovered);
+        }
+      }
+
+      // Recheck if we now have an image after fetching
+      hasImage = fs.existsSync(fullImagePath);
+      clean.hasImage = hasImage;
     }
 
-    if (fs.existsSync(`${__dirname}/images/${name}.preview.jpg`)) {
-      hasPreview = true;
+    // Create preview if needed
+    if (clean.hasImage && !hasPreview) {
+      console.log(`Scaling preview of ${name}`);
+      spawn('convert', [
+        fullImagePath,
+        '-resize', '248x248^',
+        '-gravity', 'center',
+        '-extent', '248x248',
+        '-strip',
+        '-quality', '85',
+        previewImagePath
+      ]);
       clean.hasPreview = true;
     }
 
-    // If knownImages[name] && !hasImage -> fetch image, set imageUrl property
-    // If knownImages[name] && !imageUrl -> fetch image, set imageUrl property
-    // If knownImages[name] && imageUrl !== knownImages[name] -> fetch image, set imageUrl property
-    // If !knownImages[name] -> try to discover, fetch image, set imageUrl property,
-    //   set crawled image URL
-
-    const known = knownImages[name];
-    const imageUrl = clean.imageUrl;
-    let discovered;
-
-    if (!argv['skip-images']) {
-      if (known && (!hasImage || !imageUrl || (imageUrl !== known))) {
-        await fetchImage(clean, name, known);
-      } else if (!known) {
-        // Discover if: (1) we have an image and yet no URL for it,
-        // (2) we're not skipping missing images so we want to try again
-        // with wikimedia, or (3) we don't know what we don't know
-        if ((hasImage && !knownImages[name]) || (!hasImage && !argv['skip-missing-images'])) {
-          discovered = await discoverImage(clean, name);
-          if (discovered) {
-            await fetchImage(clean, name, discovered);
-          }
-        }
-      }
-      if (clean.hasImage && !hasPreview) {
-        console.log(`Scaling preview of ${name}`);
-        spawn('convert', [ `${__dirname}/images/${name}.jpg`, '-resize', '248x248^', '-gravity', 'center', '-extent', '248x248', '-strip', '-quality', '85', `${__dirname}/images/${name}.preview.jpg` ]);
-        hasPreview = true;
-        clean.hasPreview = true;
-      }
-    }
     const row = rowsByName[name];
     if (row && row['Manual File URL']) {
       const start = row['Manual Attribution URL'] ? `<a href="${row['Manual Attribution URL']}">` : '';
@@ -161,6 +184,7 @@ async function downloadMain() {
       clean.source = 'manual';
       clean.attribution = `${start}${row['Manual Attribution']}${end}`;
     }
+    
     clean.Articles = [];
     for (const record of articleRecords) {
       if (record['Scientific Name'] === clean['Scientific Name']) {
@@ -174,6 +198,7 @@ async function downloadMain() {
         }
       }
     }
+    
     await update(plants, clean);
     if (!rowsByName[name]) {
       await limiter.removeTokens(1);
@@ -195,7 +220,6 @@ async function downloadMain() {
 
   await updateNurseries();
   await updateOnlineStores();
-
 }
 
 async function updateNurseries() {
@@ -256,10 +280,7 @@ async function discoverViaWikipediaPage(clean, name) {
     format: 'json',
     formatversion: '2',
     piprop: 'name',
-    titles: name.toLowerCase(),
-    // Or do this, but the results are too fuzzy
-    // list: 'search',
-    // srsearch: name
+    titles: name.toLowerCase()
   };
   const url = `https://en.wikipedia.org/w/api.php?${qs.stringify(params)}`;
   const info = JSON.parse(await get(url));
