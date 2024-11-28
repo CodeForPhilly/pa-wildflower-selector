@@ -1,9 +1,30 @@
+const VERSION = '1.0.4';
+const fs = require('fs');
+const path = require('path');
+
+// Create a logging function
+function log(message) {
+    const timestamp = new Date().toISOString();
+    const logMessage = `${timestamp}: ${message}\n`;
+    
+    // Log to console
+    console.log(message);
+    
+    // Log to file
+    const logPath = path.join(__dirname, 'download.log');
+    fs.appendFileSync(logPath, logMessage);
+}
+
+// Clear log file at start
+fs.writeFileSync(path.join(__dirname, 'download.log'), `Starting download.js version ${VERSION}\n`);
+
+// Replace console.log calls with log()
+log(`Running download.js version ${VERSION}`);
+
 const fetch = require('node-fetch');
 const parse = require('csv-parse/lib/sync');
 const qs = require('qs');
-const fs = require('fs');
 const db = require('./lib/db');
-const { GoogleSpreadsheet } = require('google-spreadsheet');
 const { RateLimiter } = require('limiter');
 const yaml = require('yaml');
 
@@ -59,24 +80,27 @@ async function go() {
 
 async function downloadMain() {
   const limiter = new RateLimiter({ tokensPerInterval: 1, interval: "second" });
+  log('Fetching spreadsheet data...');
   const body = await get(process.env.MASTER_CSV_URL);
   const articlesBody = await get(process.env.ARTICLES_CSV_URL);
-  const doc = new GoogleSpreadsheet(process.env.IMAGE_URLS_SHEET_ID);
-  await doc.useServiceAccountAuth({
-    client_email: serviceAccount.client_email,
-    private_key: serviceAccount.private_key
+  
+  // Replace Google Sheets API with direct CSV fetch
+  log('Fetching image URLs from CSV...');
+  const imageUrlsCsv = await get('https://docs.google.com/spreadsheets/d/e/2PACX-1vQSTtGIrzaXpE7vAabYb6MhkT1W-IczPg2gIYYHHlSMaUSwkdxEZvFRC9iomENZ7G4Lc8k1ulE79_Em/pub?gid=0&single=true&output=csv');
+  
+  // Parse the CSV directly instead of using Google Sheets API
+  const imageUrlsRecords = parse(imageUrlsCsv, {
+    columns: true,
+    skip_empty_lines: true
   });
-  await limiter.removeTokens(1);
-  await doc.loadInfo();
-  const sheet = doc.sheetsByIndex[0];
-  await limiter.removeTokens(1);
-  const rows = await sheet.getRows();
+  
   const rowsByName = {};
-  const knownImages = {};
-  for (const row of rows) {
+  for (const row of imageUrlsRecords) {
     const name = row['Scientific Name'];
     rowsByName[name] = row;
+    log(`Found in spreadsheet: ${name}, Manual URL: ${row['Manual File URL']}`);
   }
+
   const records = parse(body, {
     columns: true,
     skip_empty_lines: true
@@ -90,25 +114,11 @@ async function downloadMain() {
   }, {
     multi: true
   });
-  
-  // Get list of existing images
-  const existingImages = new Set();
-  fs.readdirSync(`${__dirname}/images`).forEach(file => {
-    if (!file.endsWith('.preview.jpg')) {
-      existingImages.add(file.replace('.jpg', ''));
-    }
-  });
 
-  // Filter records to only those missing images
-  const missingRecords = records.filter(record => {
-    const name = record['Scientific Name'].trim();
-    return !existingImages.has(name);
-  });
-
-  console.log(`Found ${missingRecords.length} plants missing images out of ${records.length} total plants`);
+  log(`Processing ${records.length} plants from master CSV`);
   
   let i = 0;
-  for (const record of missingRecords) {
+  for (const record of records) {
     i++;
     const clean = Object.fromEntries(
       Object.entries(record).map(([ key, value ]) => {
@@ -116,11 +126,9 @@ async function downloadMain() {
       })
     );
     let name = clean['Scientific Name'];
-    console.log(`${name} (${i} of ${missingRecords.length})`);
+    log(`${name} (${i} of ${records.length})`);
     clean._id = name;
     let sp = (clean['Super Plant'].trim() == 'Yes');
-    let hasImage = false;
-    let hasPreview = false;
     const existing = await plants.findOne({
       _id: name
     });
@@ -128,93 +136,93 @@ async function downloadMain() {
     clean.Showy = clean.Showy === 'Yes';
     clean.metadata = existing?.metadata;
     clean.imageUrl = existing?.imageUrl;
-    knownImages[name] = rowsByName?.[name]?.['Manual File URL'] || existing?.imageUrl;
+    clean.hasImage = existing?.hasImage || false;
+    clean.hasPreview = existing?.hasPreview || false;
 
-    // First check if images exist in the filesystem
-    const fullImagePath = `${__dirname}/images/${name}.jpg`;
-    const previewImagePath = `${__dirname}/images/${name}.preview.jpg`;
+    // Only handle images if not skipping
+    if (!argv['skip-images']) {
+      const manualFileUrl = rowsByName?.[name]?.['Manual File URL'];
+      const fullImagePath = `${__dirname}/images/${name}.jpg`;
+      const previewImagePath = `${__dirname}/images/${name}.preview.jpg`;
 
-    hasImage = fs.existsSync(fullImagePath);
-    hasPreview = fs.existsSync(previewImagePath);
+      log(`\nProcessing ${name}:`);
+      log(`- Manual File URL: ${manualFileUrl}`);
+      log(`- Full image path: ${fullImagePath}`);
+      log(`- Has existing image: ${fs.existsSync(fullImagePath)}`);
 
-    clean.hasImage = hasImage;
-    clean.hasPreview = hasPreview;
+      clean.hasImage = fs.existsSync(fullImagePath);
+      clean.hasPreview = fs.existsSync(previewImagePath);
 
-    let discovered;  // Moved this declaration up here
-
-    // Only proceed with image handling if we don't have the image already
-    if (!argv['skip-images'] && !hasImage) {
-      const known = knownImages[name];
-
-      if (known) {
-        // We have a URL in the Google Sheet but no image file
-        await fetchImage(clean, name, known);
-      } else if (!argv['skip-missing-images']) {
-        // No image file and no URL in Sheet - try to discover one
-        discovered = await discoverImage(clean, name);
-        if (discovered) {
-          await fetchImage(clean, name, discovered);
+      let discovered;
+      if (!clean.hasImage) {
+        if (manualFileUrl) {
+          log(`Attempting to fetch manual URL: ${manualFileUrl}`);
+          try {
+            await fetchImage(clean, name, manualFileUrl);
+            clean.imageUrl = manualFileUrl;
+            log('Successfully fetched manual URL');
+          } catch (error) {
+            log(`Error fetching manual URL: ${error.message}`);
+            log(error.stack);  // Log the full error stack trace
+            if (!argv['skip-missing-images']) {
+              log('Falling back to image discovery...');
+              discovered = await discoverImage(clean, name);
+              if (discovered) {
+                await fetchImage(clean, name, discovered);
+              }
+            }
+          }
+        } else {
+          log('No manual URL found, trying discovery...');
+          if (!argv['skip-missing-images']) {
+            discovered = await discoverImage(clean, name);
+            if (discovered) {
+              await fetchImage(clean, name, discovered);
+            }
+          }
         }
+        clean.hasImage = fs.existsSync(fullImagePath);
+        log(`Final hasImage status: ${clean.hasImage}`);
       }
 
-      // Recheck if we now have an image after fetching
-      hasImage = fs.existsSync(fullImagePath);
-      clean.hasImage = hasImage;
-    }
-
-    // Create preview if needed
-    if (clean.hasImage && !hasPreview) {
-      console.log(`Scaling preview of ${name}`);
-      spawn('convert', [
-        fullImagePath,
-        '-resize', '248x248^',
-        '-gravity', 'center',
-        '-extent', '248x248',
-        '-strip',
-        '-quality', '85',
-        previewImagePath
-      ]);
-      clean.hasPreview = true;
-    }
-
-    const row = rowsByName[name];
-    if (row && row['Manual File URL']) {
-      const start = row['Manual Attribution URL'] ? `<a href="${row['Manual Attribution URL']}">` : '';
-      const end = row['Manual Attribution URL'] ? '</a>' : '';
-      clean.source = 'manual';
-      clean.attribution = `${start}${row['Manual Attribution']}${end}`;
-    }
-    
-    clean.Articles = [];
-    for (const record of articleRecords) {
-      if (record['Scientific Name'] === clean['Scientific Name']) {
-        const sources = record['Source'].split(/\s*,\s*/);
-        const sourceUrls = record['Source URL'].split(/\s*,\s*/);
-        for (let i = 0; (i < sources.length); i++) {
-          clean.Articles.push({
-            'Source': sources[i],
-            'Source URL': sourceUrls[i]
-          });
-        }
+      if (clean.hasImage && !clean.hasPreview) {
+        log(`Scaling preview of ${name}`);
+        spawn('convert', [
+          fullImagePath,
+          '-resize', '248x248^',
+          '-gravity', 'center',
+          '-extent', '248x248',
+          '-strip',
+          '-quality', '85',
+          previewImagePath
+        ]);
+        clean.hasPreview = true;
       }
-    }
-    
-    await update(plants, clean);
-    if (!rowsByName[name]) {
-      await limiter.removeTokens(1);
-      await sheet.addRow({
-        'Scientific Name': name,
-        'Crawler URL': discovered || ''
-      });
-    } else {
+
+      // Skip Google Sheets operations since we're using CSV now
       const row = rowsByName[name];
-      if ((row['Crawler URL'] || '') !== (clean.imageUrl || '')) {
-        if (discovered) {
-          row['Crawler URL'] = clean.imageUrl;
-          await limiter.removeTokens(1);
-          await row.save();
+      if (row && row['Manual File URL']) {
+        const start = row['Manual Attribution URL'] ? `<a href="${row['Manual Attribution URL']}">` : '';
+        const end = row['Manual Attribution URL'] ? '</a>' : '';
+        clean.source = 'manual';
+        clean.attribution = `${start}${row['Manual Attribution']}${end}`;
+      }
+    
+      clean.Articles = [];
+      for (const record of articleRecords) {
+        if (record['Scientific Name'] === clean['Scientific Name']) {
+          const sources = record['Source'].split(/\s*,\s*/);
+          const sourceUrls = record['Source URL'].split(/\s*,\s*/);
+          for (let i = 0; (i < sources.length); i++) {
+            clean.Articles.push({
+              'Source': sources[i],
+              'Source URL': sourceUrls[i]
+            });
+          }
         }
       }
+    
+      await update(plants, clean);
     }
   }
 
@@ -273,7 +281,7 @@ async function discoverImage(clean, name) {
 }
 
 async function discoverViaWikipediaPage(clean, name) {
-  console.log('> wikipedia');
+  log('> wikipedia');
   const params = {
     action: 'query',
     prop: 'pageimages',
@@ -317,7 +325,7 @@ async function discoverViaWikipediaPage(clean, name) {
 }
 
 async function discoverViaWikimediaCommonsSearch(clean, name) {
-  console.log('> wikimedia');
+  log('> wikimedia');
   const params = { q: name.toLowerCase(), page_size: 1, page: 1 };
   let info;
   try {
@@ -336,14 +344,34 @@ async function discoverViaWikimediaCommonsSearch(clean, name) {
 }
 
 async function fetchImage(clean, name, imageUrl) {
-  console.log('> fetch image');
-  const buffer = await get(imageUrl, 'buffer', 5);
-  fs.writeFileSync('/tmp/original.jpg', buffer);
-  console.log('> convert');
-  spawn('convert', [ '/tmp/original.jpg', '-geometry', '1140x', `${__dirname}/images/${name}.jpg` ]);
-  clean.hasImage = true;
-  clean.imageUrl = imageUrl;
-  console.log('> completed fetch image');
+  const imagePath = `${__dirname}/images/${name}.jpg`;
+  if (fs.existsSync(imagePath)) {
+    clean.hasImage = true;
+    clean.imageUrl = imageUrl;
+    return;
+  }
+  log(`Fetching from URL: ${imageUrl}`);
+  try {
+    const buffer = await get(imageUrl, 'buffer', 5);
+    log(`Got buffer of size: ${buffer.length}`);
+    
+    fs.writeFileSync('/tmp/original.jpg', buffer);
+    
+    const result = spawn('convert', [ '/tmp/original.jpg', '-geometry', '1140x', `${__dirname}/images/${name}.jpg` ]);
+    if (result.error) {
+      log(`Convert error: ${result.error}`);
+    }
+    if (result.stderr.length > 0) {
+      log(`Convert stderr: ${result.stderr}`);
+    }
+    
+    clean.hasImage = true;
+    clean.imageUrl = imageUrl;
+  } catch (error) {
+    log(`Error in fetchImage: ${error.message}`);
+    log(error.stack);
+    throw error;
+  }
 }
 
 async function update(plants, clean) {
@@ -356,11 +384,18 @@ async function update(plants, clean) {
 
 async function get(url, type = 'text', tries = 1) {
   let lastError;
-  for (let tries = 0; (tries < 5); tries++) {
+  for (let attempt = 0; attempt < 5; attempt++) {
     try {
+      log(`Attempting to fetch ${url} (attempt ${attempt + 1})`);
       const response = await fetch(url, { redirect: 'follow' });
-      return await response[type]();
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const result = await response[type]();
+      log(`Successfully fetched ${url}`);
+      return result;
     } catch (e) {
+      log(`Fetch error (attempt ${attempt + 1}): ${e.message}`);
       if (e.code !== 'EHOSTUNREACH') {
         throw e;
       }
