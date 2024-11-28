@@ -1,20 +1,39 @@
-# pa-wildflower-selector
+# Choose Native Plants (fomerly "PA Wildflower Selector"
 
-## Project Tech Stack
+A web application that helps US residents find native plants suitable for their gardens. Users can search and filter plants based on various criteria like sun exposure, soil moisture, pollinators attracted, and more. The app also shows where to buy these plants locally.
 
-This is a vue web app with a node.js backend connecting to a mongodb.
+## Features
 
-The source data is from ERA that is populated on a google sheet.
+- Interactive plant search and filtering
+- Detailed plant information including growing conditions
+- Local nursery finder showing where to buy plants
+- Quick search wizard for beginner gardeners
+- Mobile-friendly responsive design
 
-There is one outside call to get vendors who carry a particular plant. This is via plantagents.
+## Architecture
 
-Plantagents API spec here:
-https://app.plantagents.org/swagger/index.html
+- **Frontend**: Vue.js web application
+- **Backend**: Node.js server
+- **Database**: MongoDB
+- **Data Source**: ERA via Google Sheets
+- **Vendor Integration**: PlantagentsAPI for local nursery data
+  - [API Documentation](https://app.plantagents.org/swagger/index.html)
+
+## Prerequisites
+
+1. Docker Desktop installed and running
+2. Git
+3. Access to Code for Philly Slack channel (for env keys and secrets)
 
 ## Project setup (Docker Based)
 
 Join the Code for Philly slack channel and ask for the env key, secrets.yaml, and images.
 
+### 1. Initial Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/CodeForPhilly/pa-wildflower-selector
 
 ```
 git clone https://github.com/CodeForPhilly/pa-wildflower-selector
