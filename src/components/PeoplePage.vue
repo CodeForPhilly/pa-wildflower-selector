@@ -5,7 +5,7 @@
     h1="About us and the project"
   >
     <p>
-      Many of us came together in April 2021, to join Zachary Leahan in this
+      Many of us came together in April 2021, to join Zach Leahan in this
       Code for Philly Project. Some of us joined on a little later on, but
       whether here for a short time or a long time or somewhere in between, we
       were all on fire to get this built in order to help gardeners from
@@ -43,7 +43,7 @@
           <Person image="zach-leahan" alt="Photo of Zach Leahan">
             <h4>Project Sponsor &amp; Data Guru</h4>
             <p>
-              Zach Leahan is a Senior Manager within Product Development at PwC
+              Zach Leahan is a Director within Product Development at PwC
               Digital. Zach looks for opportunities to leverage his tech skills
               outside of work for the common good. Zach is an avid native plant
               gardener to support wildlife, especially birds and bees.

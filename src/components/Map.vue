@@ -3,7 +3,7 @@
     <Header h1="Nurseries" :large-h1="false" :seamless="true" />
     <div class="map-and-list">
       <div class="list">
-        <h1>Native Plant Nurseries</h1>
+        <h1>Nurseries for Native Plants</h1>
         <p class="instructions">Please call the Nursery first to be sure the items you want are currently stocked</p>
         <div v-if="nurseries">
           <ul>
