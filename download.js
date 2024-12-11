@@ -264,7 +264,7 @@ async function updateOnlineStores() {
     }, {
       $push: {
         'Online Stores': {
-          url: `https://${record.Root.trim()}`,
+          url: `${record.Web.trim()}`,
           label: record.Root.trim()
         }
       }
