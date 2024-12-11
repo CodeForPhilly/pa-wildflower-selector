@@ -108,7 +108,7 @@
             Height: {{ selected["Height (feet)"] }} feet
           </p>
           <h3 v-if="localStoreLinks.length || onlineStoreLinks.length">
-            Available at these stores:
+            Nurseries that carry this native plant:
           </h3>
           <h4 class="enter-location" v-if="!this.zipCode"><a @click="setLocation()">Enter your location in order to see nearby stores</a></h4>
           <h4 v-if="this.zipCode && localStoreLinks.length">Local Nurseries</h4>
