@@ -1,4 +1,4 @@
-# Choose Native Plants (fomerly "PA Wildflower Selector"
+# Choose Native Plants (fomerly "PA Wildflower Selector”
 
 A web application that helps US residents find native plants suitable for their gardens. Users can search and filter plants based on various criteria like sun exposure, soil moisture, pollinators attracted, and more. The app also shows where to buy these plants locally.
 
@@ -60,6 +60,34 @@ If you ran docker compose for the first time, you should see http://localhost:68
 
 ### Copy images to images folder.
 
+Place the provided plant images in the `images/` directory.
+
+### Sync images to Linode Object Storage (Development)
+
+When you have new or updated images in your local `images/` directory during development, you can sync them to Linode Object Storage. The sync functionality is provided as a separate utility container (not part of the main development stack) to keep things clean and only run when needed.
+
+1. First, make sure you have the required environment variables in your `.env` file:
+   ```
+   AWS_ACCESS_KEY_ID=your_key_id
+   AWS_SECRET_ACCESS_KEY=your_secret_key
+   LINODE_BUCKET_NAME=your_bucket_name
+   ```
+
+2. Run the sync operation using the tools profile:
+   ```bash
+   # The --profile tools flag is required as sync is a utility service
+   # The --rm flag automatically removes the container after syncing
+   docker compose --profile tools run --rm sync
+   ```
+
+The sync container will:
+- Use the official AWS CLI image with MongoDB tools
+- Mount your local images directory as read-only
+- Sync your images to Linode Object Storage
+- Make the images publicly accessible
+- Clean up automatically after completion (no leftover containers)
+
+Images will be available at: https://choose-native-plants.us-east-1.linodeobjects.com/images/
 
 ### Populate mongodb based on google sheets plant listing.
 
@@ -94,6 +122,7 @@ In the main folder of the project.
 ### Querying MongoDB
 You can run these commands in the MongoDB container to check the database state:
 
+
 ```bash
 # Count total plants
 db.plants.count()
@@ -111,6 +140,7 @@ docker exec pa-wildflower-selector-app-1 sh -c "ls -1 images/*.jpg | wc -l"
 ### Data Updates
 To update the plant data and images:
 
+
 ```bash
 # Full update (including image downloads)
 npm run update-data
@@ -122,6 +152,7 @@ npm run fast-update-data
 ### Database Sync
 Two scripts are available for database synchronization:
 
+
 - `scripts/sync-down.sh`: Downloads MongoDB data and images from remote server
 - `scripts/sync-up.sh`: Uploads local MongoDB data and images to remote server
 
@@ -131,6 +162,7 @@ Two scripts are available for database synchronization:
 The application runs in Docker containers. Key ports:
 - MongoDB: 7017 (host) -> 27017 (container)
 - Application: 6868 (host) -> 8080 (container)
+
 
 ```bash
 # Start the development environment

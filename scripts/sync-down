@@ -2,23 +2,36 @@
 
 dbName=pa-wildflower-selector
 projectName=pa-wildflower-selector
-USER=boutell
-SERVER=boutell.dev
-SSH_PORT=22
 
-#Enter the SSH username/url for the remote server.
-remoteSSH="-p $SSH_PORT $USER@$SERVER"
-rsyncTransport="ssh -p $SSH_PORT"
-rsyncDestination="$USER@$SERVER"
+# Load environment variables if .env exists
+if [ -f ../.env ]; then
+    export $(cat ../.env | grep -v '^#' | xargs)
+fi
+
+# Check required environment variables
+if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$LINODE_BUCKET_NAME" ]; then
+    echo "Error: Missing required environment variables. Please check your .env file"
+    echo "Required: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, LINODE_BUCKET_NAME"
+    exit 1
+fi
 
 echo "Syncing MongoDB"
-ssh $remoteSSH mongodump -d $dbName -o /tmp/mongodump.$dbName &&
-rsync -av -e "$rsyncTransport" $rsyncDestination:/tmp/mongodump.$dbName/ /tmp/mongodump.$dbName &&
-ssh $remoteSSH rm -rf /tmp/mongodump.$dbName &&
-# noIndexRestore increases compatibility between 3.x and 2.x
-mongorestore --noIndexRestore --drop -d $dbName /tmp/mongodump.$dbName/$dbName &&
-rm -rf /tmp/mongodump.$dbName &&
-echo "Syncing Files" &&
-rsync -av --delete -e "$rsyncTransport" $rsyncDestination:/opt/stagecoach/apps/$projectName/images/ ./images &&
-echo "Synced dowm from $TARGET"
-echo "YOU MUST RESTART THE APP LOCALLY TO REBUILD THE MONGODB INDEXES."
+if [ ! -z "$MONGODB_HOST" ]; then
+    mongodump --host "$MONGODB_HOST" -d $dbName -o /tmp/mongodump.$dbName
+else
+    mongodump -d $dbName -o /tmp/mongodump.$dbName
+fi
+
+echo "Syncing images from Linode Object Storage"
+# Ensure images directory exists
+mkdir -p ./images
+
+# Sync images from Linode bucket using the container's aws cli
+docker exec $projectName aws s3 sync s3://$LINODE_BUCKET_NAME/images/ ./images/ \
+    --endpoint-url ${LINODE_ENDPOINT_URL:-https://us-east-1.linodeobjects.com}
+
+# Clean up MongoDB dump
+rm -rf /tmp/mongodump.$dbName
+
+echo "Sync completed"
+echo "Images have been downloaded to ./images/"

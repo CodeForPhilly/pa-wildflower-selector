@@ -2,23 +2,40 @@
 
 dbName=pa-wildflower-selector
 projectName=pa-wildflower-selector
-USER=boutell
-SERVER=boutell.dev
-SSH_PORT=22
 
-#Enter the SSH username/url for the remote server.
-remoteSSH="-p $SSH_PORT $USER@$SERVER"
-rsyncTransport="ssh -p $SSH_PORT"
-rsyncDestination="$USER@$SERVER"
+# Load environment variables if .env exists
+if [ -f ../.env ]; then
+    export $(cat ../.env | grep -v '^#' | xargs)
+fi
 
-echo "Syncing MongoDB"
-mongodump -d $dbName -o /tmp/mongodump.$dbName &&
-echo rsync -av -e "$rsyncTransport" /tmp/mongodump.$dbName/ $rsyncDestination:/tmp/mongodump.$dbName &&
-rsync -av -e "$rsyncTransport" /tmp/mongodump.$dbName/ $rsyncDestination:/tmp/mongodump.$dbName &&
-rm -rf /tmp/mongodump.$dbName &&
-# noIndexRestore increases compatibility between 3.x and 2.x
-ssh $remoteSSH mongorestore --noIndexRestore --drop -d $dbName /tmp/mongodump.$dbName/$dbName &&
-echo "Syncing Files" &&
-rsync -av --delete -e "$rsyncTransport" ./images/ $rsyncDestination:/opt/stagecoach/apps/$projectName/images &&
-echo "Synced up to $TARGET"
-echo "YOU MUST RESTART THE SITE ON $TARGET TO REBUILD THE MONGODB INDEXES."
+# Check required environment variables
+if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$LINODE_BUCKET_NAME" ]; then
+    echo "Error: Missing required environment variables. Please check your .env file"
+    echo "Required: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, LINODE_BUCKET_NAME"
+    exit 1
+fi
+
+# Skip MongoDB dump in container since we're just syncing images
+if [ ! -f /.dockerenv ]; then
+    # If not in Docker, build and run the Docker container
+    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    
+    echo "Building Docker image..."
+    docker build -t sync-up-tool -f "$SCRIPT_DIR/sync-up.Dockerfile" "$SCRIPT_DIR"
+    
+    echo "Running sync in Docker container..."
+    docker run --rm \
+        -v "$(dirname "$SCRIPT_DIR")/images:/data/images:ro" \
+        -e MONGODB_HOST="$MONGODB_HOST" \
+        sync-up-tool
+    exit $?
+fi
+
+echo "Syncing images to Linode Object Storage"
+# Use AWS CLI directly since we're in the container
+aws s3 sync /data/images/ s3://$LINODE_BUCKET_NAME/images/ \
+    --endpoint-url ${LINODE_ENDPOINT_URL:-https://us-east-1.linodeobjects.com} \
+    --acl public-read
+
+echo "Sync completed"
+echo "Images are now available at: https://$LINODE_BUCKET_NAME.${AWS_DEFAULT_REGION:-us-east-1}.linodeobjects.com/images/"
