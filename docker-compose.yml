@@ -48,6 +48,18 @@ services:
     volumes:
       - ./images:/data/images:ro
       - ./data:/data/db_dumps
+  sync-down:
+    build:
+      context: ./scripts
+      dockerfile: sync-down.Dockerfile
+    depends_on:
+      - mongodb
+    env_file: ./.env
+    profiles:
+      - tools
+    volumes:
+      - images:/data/images
+      - ./data:/data/db_dumps
 
 volumes:
   db:
