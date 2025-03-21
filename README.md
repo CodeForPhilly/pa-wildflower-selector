@@ -156,11 +156,27 @@ npm run fast-update-data
 ```
 
 ### Database Sync
-Two scripts are available for database synchronization:
 
+The project includes a sync service in the docker-compose.yml file for uploading both your MongoDB database and images to Linode Object Storage:
 
-- `scripts/sync-down.sh`: Downloads MongoDB data and images from remote server
-- `scripts/sync-up.sh`: Uploads local MongoDB data and images to remote server
+```bash
+# Make sure required environment variables are in your .env file:
+# AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, LINODE_BUCKET_NAME
+
+# Run the sync operation
+docker compose --profile tools run --rm sync
+```
+
+This will:
+- Build and run the sync container
+- Display detailed MongoDB statistics (collection names, document counts, field counts)
+- Create a backup of your MongoDB database
+- Upload the database backup to S3 (private access)
+- Mount your local images directory
+- Upload all images to Linode Object Storage (public access)
+- Clean up automatically after completion
+
+The MongoDB statistics display provides a comprehensive overview of your database contents before backup, showing you exactly what's being synced.
 
 ## Development Environment
 
