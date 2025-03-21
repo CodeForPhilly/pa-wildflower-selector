@@ -24,11 +24,18 @@ services:
       - DB_PASSWORD=$MONGODB_PASSWORD
       - DB_NAME=$MONGODB_DATABASE
       - DB_PORT=$MONGODB_DOCKER_PORT
+      - MASTER_CSV_URL=$MASTER_CSV_URL
+      - ARTICLES_CSV_URL=$ARTICLES_CSV_URL
+      - SUPERPLANTS_CSV_URL=$SUPERPLANTS_CSV_URL
+      - LOCAL_MAP_CSV_URL=$LOCAL_MAP_CSV_URL
+      - ONLINE_STORES_CSV_URL=$ONLINE_STORES_CSV_URL
+      - IMAGE_URLS_SHEET_ID=$IMAGE_URLS_SHEET_ID
+      - CONTACT_SHEET_ID=$CONTACT_SHEET_ID
+      - CONTACT_FILES_FOLDER_ID=$CONTACT_FILES_FOLDER_ID
     stdin_open: true
     tty: true
     volumes:
       - images:/app/images
-      - ./native-plants-417200-2bbe7b659c83.json:/app/native-plants-417200-2bbe7b659c83.json
   sync:
     build:
       context: ./scripts
