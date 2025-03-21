@@ -119,6 +119,12 @@ In the main folder of the project.
 
 ## Database Operations
 
+### MongoDB Connection
+You can connect to the MongoDB database using MongoDB Compass with the following connection string:
+```
+mongodb://root:123456@localhost:7017/pa-wildflower-selector?authSource=admin
+```
+
 ### Querying MongoDB
 You can run these commands in the MongoDB container to check the database state:
 
