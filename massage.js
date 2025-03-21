@@ -6,6 +6,7 @@ const { match } = require('assert');
 // Work around lack of top level await while still reporting errors properly
 go().then(() => {
   // All done
+  console.log('Massage complete');
 }).catch(e => {
   console.error(e);
   process.exit(1);
@@ -31,6 +32,21 @@ async function go() {
   for (let i = 0; (i < values.length); i++) {
     let plant = values[i];
 
+    // Check if image files exist and set hasImage and hasPreview flags
+    const fullImagePath = `${__dirname}/images/${plant._id}.jpg`;
+    const previewImagePath = `${__dirname}/images/${plant._id}.preview.jpg`;
+    const hasImage = fs.existsSync(fullImagePath);
+    const hasPreview = fs.existsSync(previewImagePath);
+    
+    await plants.updateOne({
+      _id: plant._id
+    }, {
+      $set: {
+        hasImage: hasImage,
+        hasPreview: hasPreview
+      }
+    });
+
     // Fix plants whose scientific names did not follow the canonical case pattern
     const name = plant._id;
     const renamed = name.substring(0, 1) + name.substring(1).toLowerCase();
@@ -47,8 +63,18 @@ async function go() {
       });
       const oldName = `${__dirname}/images/${name}.jpg`;
       const newName = `${__dirname}/images/${renamed}.jpg`;
-      if (fs.existsSync(oldName))
-      fs.renameSync(oldName, newName);
+      if (fs.existsSync(oldName)) {
+        fs.renameSync(oldName, newName);
+        
+        // Update hasImage flag for renamed plant
+        await plants.updateOne({
+          _id: renamed
+        }, {
+          $set: {
+            hasImage: true
+          }
+        });
+      }
     }
 
     // Process Flowering Months into an array of flags
@@ -267,7 +293,6 @@ async function go() {
   }
 
   await close();
-
 }
 
 function capitalize(s) {
