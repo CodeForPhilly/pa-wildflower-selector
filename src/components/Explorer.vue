@@ -510,6 +510,10 @@ const twoUpImageCredits = [
     title: "Photo by Juhanson",
     href: "https://commons.wikimedia.org/wiki/File:Raspberries_(Rubus_Idaeus).jpg",
   },
+  {
+    title: "Photo by Jasper Shide",
+    href: "https://commons.wikimedia.org/wiki/File:Kalmia_latifolia_-_Mountain_Laurel_02.jpg",
+  },
 ];
 
 export default {
