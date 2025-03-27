@@ -22,7 +22,7 @@
             <router-link to="/how-to-use">How to Use</router-link>
             <router-link to="/map">Nurseries</router-link>
           </span>
-          <div class="copyright">© 2021, 2022 Choose Native Plants - PA</div>
+          <div class="copyright">© 2025 Choose Native Plants - PA</div>
         </menu>
       </div>
       <slot name="before-bar"></slot>

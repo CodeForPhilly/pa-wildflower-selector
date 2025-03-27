@@ -24,10 +24,43 @@ services:
       - DB_PASSWORD=$MONGODB_PASSWORD
       - DB_NAME=$MONGODB_DATABASE
       - DB_PORT=$MONGODB_DOCKER_PORT
+      - MASTER_CSV_URL=$MASTER_CSV_URL
+      - ARTICLES_CSV_URL=$ARTICLES_CSV_URL
+      - SUPERPLANTS_CSV_URL=$SUPERPLANTS_CSV_URL
+      - LOCAL_MAP_CSV_URL=$LOCAL_MAP_CSV_URL
+      - ONLINE_STORES_CSV_URL=$ONLINE_STORES_CSV_URL
+      - IMAGE_URLS_SHEET_ID=$IMAGE_URLS_SHEET_ID
+      - CONTACT_SHEET_ID=$CONTACT_SHEET_ID
+      - CONTACT_FILES_FOLDER_ID=$CONTACT_FILES_FOLDER_ID
     stdin_open: true
     tty: true
     volumes:
       - images:/app/images
+  sync:
+    build:
+      context: ./scripts
+      dockerfile: sync-up.Dockerfile
+    depends_on:
+      - mongodb
+    env_file: ./.env
+    profiles:
+      - tools
+    volumes:
+      - ./images:/data/images:ro
+      - ./data:/data/db_dumps
+  sync-down:
+    build:
+      context: ./scripts
+      dockerfile: sync-down.Dockerfile
+    depends_on:
+      - mongodb
+    env_file: ./.env
+    profiles:
+      - tools
+    volumes:
+      - images:/data/images
+      - ./data:/data/db_dumps
+
 volumes:
   db:
   images:

@@ -1,16 +1,39 @@
-# Choose Native Plants (fomerly "PA Wildflower Selector"
+# Choose Native Plants 🌱
 
-A web application that helps US residents find native plants suitable for their gardens. Users can search and filter plants based on various criteria like sun exposure, soil moisture, pollinators attracted, and more. The app also shows where to buy these plants locally.
+<div align="center">
 
-## Features
+![GitHub license](https://img.shields.io/github/license/CodeForPhilly/pa-wildflower-selector)
+![GitHub stars](https://img.shields.io/github/stars/CodeForPhilly/pa-wildflower-selector)
+![GitHub issues](https://img.shields.io/github/issues/CodeForPhilly/pa-wildflower-selector)
 
-- Interactive plant search and filtering
-- Detailed plant information including growing conditions
-- Local nursery finder showing where to buy plants
-- Quick search wizard for beginner gardeners
-- Mobile-friendly responsive design
+**Help US residents find and source native plants for their gardens**
 
-## Architecture
+[Getting Started](#getting-started) •
+[Features](#features) •
+[Architecture](#architecture) •
+[Development](#development) •
+[Database](#database-operations) •
+[Contributing](#contributing)
+
+</div>
+
+## 🌟 Overview
+
+[Choose Native Plants](https://choose-native-plants.com) (formerly "PA Wildflower Selector") is a web application that helps US residents find native plants suitable for their gardens. Users can search and filter plants based on various criteria like sun exposure, soil moisture, pollinators attracted, and more. The app also shows where to buy these plants locally.
+
+<div align="center">
+<img src="app-screenshot.png" alt="Application Screenshot" width="600">
+</div>
+
+## ✨ Features
+
+- 🔍 Interactive plant search with multiple filter options
+- 🌿 Detailed plant information including growing conditions
+- 🏪 Local nursery finder showing where to buy plants
+- 🧙 Quick search wizard for beginner gardeners
+- 📱 Mobile-friendly responsive design
+
+## 🏗️ Architecture
 
 - **Frontend**: Vue.js web application
 - **Backend**: Node.js server
@@ -19,139 +42,65 @@ A web application that helps US residents find native plants suitable for their 
 - **Vendor Integration**: PlantagentsAPI for local nursery data
   - [API Documentation](https://app.plantagents.org/swagger/index.html)
 
-## Prerequisites
+## 🚀 Getting Started
 
-1. Docker Desktop installed and running
-2. Git
-3. Access to Code for Philly Slack channel (for env keys and secrets)
+### Prerequisites
 
-## Project setup (Docker Based)
+- Docker Desktop installed and running
+- Git
+- User account with [Code for Philly](https://codeforphilly.org/) 
 
-Join the Code for Philly slack channel and ask for the env key, secrets.yaml, and images.
-
-### 1. Initial Setup
+### Initial Setup
 
 ```bash
 # Clone the repository
 git clone https://github.com/CodeForPhilly/pa-wildflower-selector
 
-```
-git clone https://github.com/CodeForPhilly/pa-wildflower-selector
-```
-
-Then you can install the npm dependencies at the server app and ui app levels:
-
-
-```
+# Navigate to project directory
 cd pa-wildflower-selector
-```
 
-For local development, `docker-compose` is used to create a consistent and disposable environment without any modification to or dependency on software installed to the developer's workstation. This approach also provides close parity between local development and container-based deployment in production to Kubernetes.
-
-Make sure Docker Desktop is running and run this Docker compose command:
-
-
-```
+# Start the Docker environment
 docker compose up -d --build
 ```
 
-## First time and occasional stuff
-If you ran docker compose for the first time, you should see http://localhost:6868/ running with no images or data.
+### Sync down the database and images locally
+   ```bash
+docker compose --profile tools run --rm sync-down
+   ```
 
-### Copy images to images folder.
+### View the application locally
+After setup, visit http://localhost:6868/ to view the application.
 
+## 💾 Database Operations
 
-### Populate mongodb based on google sheets plant listing.
+### MongoDB Connection
 
-Run:
-
-
+Connect to MongoDB using MongoDB Compass with:
 ```
-docker-compose exec app node ./download.js --skip-images
-```
-
-### Massage the mongodb data so the UI can work with it.
-
-Run:
-
-
-```
-docker-compose exec app node massage.js
+mongodb://[username]:[password]@localhost:7017/pa-wildflower-selector?authSource=admin
 ```
 
+## 🛠️ Development
 
-### Where is the UI code?
+### Project Structure
 
-In `src/`.
+- **UI Code**: Located in `src/` directory
+- **Server Code**: Located in the main project directory
 
-### Where is the server-side app code that answers queries?
+## 👥 Contributing
 
-In the main folder of the project.
+We welcome contributions from the community! To contribute:
 
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## Database Operations
+## 📧 Contact
 
-### Querying MongoDB
-You can run these commands in the MongoDB container to check the database state:
+For any questions or inquiries, please email us at [contact@choosenativeplants.com](mailto:contact@choosenativeplants.com).
 
-```bash
-# Count total plants
-db.plants.count()
+## 📄 License
 
-# Count plants in Alabama
-db.plants.find({"States": "AL"}).count()
-
-# Find a specific plant
-db.plants.findOne({_id: "Asclepias tuberosa"})
-
-# Count images in Docker container
-docker exec pa-wildflower-selector-app-1 sh -c "ls -1 images/*.jpg | wc -l"
-```
-
-### Data Updates
-To update the plant data and images:
-
-```bash
-# Full update (including image downloads)
-npm run update-data
-
-# Quick update (skip image downloads)
-npm run fast-update-data
-```
-
-### Database Sync
-Two scripts are available for database synchronization:
-
-- `scripts/sync-down.sh`: Downloads MongoDB data and images from remote server
-- `scripts/sync-up.sh`: Uploads local MongoDB data and images to remote server
-
-## Development Environment
-
-### Docker Setup
-The application runs in Docker containers. Key ports:
-- MongoDB: 7017 (host) -> 27017 (container)
-- Application: 6868 (host) -> 8080 (container)
-
-```bash
-# Start the development environment
-docker-compose up -d --build
-
-# View logs
-docker-compose logs -f
-
-# Stop the environment
-docker-compose down
-```
-
-### Environment Variables
-Copy `.env.example` to `.env` and configure:
-- MongoDB credentials
-- API endpoints
-- Port mappings
-
-### SOURCE DATA
-The source data is from ERA that is populated on a google sheet ("ERA" and "ONLINE" sheets).
-https://docs.google.com/spreadsheets/d/1R_zhN3GUxhDEMlGFMhcPB_gAoaE9IoyWi10I_nM9f3o
-
-Citation for the source data:
-United States Department of Agriculture and US Federal Highway Administration. 2017. National database for pollinator-friendly revegetation and restoration. Compiled by Mark W. Skinner, Gretchen LeBuhn, David Inouye, Terry Griswold, and Jennifer Hopwood. Online at . Contact Mark W. Skinner for updates or more information.
+This project is licensed under the MIT License - see the LICENSE file for details.

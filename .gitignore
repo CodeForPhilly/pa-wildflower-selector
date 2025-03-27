@@ -13,3 +13,6 @@ node_modules
 
 # local copy of .env.example
 .env
+
+#You need to get the images from the the linode store via the sync down script not from git.
+/images
