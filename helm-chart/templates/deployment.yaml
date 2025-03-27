@@ -162,7 +162,8 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: pac_api
-                  key
+                  key: PAC_API_BASE_URL
+                  optional: false
           envFrom:
             - configMapRef:
                 name: app-config
