@@ -36,30 +36,15 @@ services:
     tty: true
     volumes:
       - images:/app/images
-  sync:
+  sync-images:
     build:
       context: ./scripts
-      dockerfile: sync-up.Dockerfile
-    depends_on:
-      - mongodb
+      dockerfile: sync-images.Dockerfile
     env_file: ./.env
     profiles:
       - tools
     volumes:
-      - ./images:/data/images:ro
-      - ./data:/data/db_dumps
-  sync-down:
-    build:
-      context: ./scripts
-      dockerfile: sync-down.Dockerfile
-    depends_on:
-      - mongodb
-    env_file: ./.env
-    profiles:
-      - tools
-    volumes:
-      - images:/data/images
-      - ./data:/data/db_dumps
+      - ./images:/data/images
 
 volumes:
   db:

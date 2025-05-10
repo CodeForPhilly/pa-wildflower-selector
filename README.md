@@ -70,9 +70,9 @@ docker compose exec app npm run fast-update-data
    ```
 This is faster than a full sync-down as it skips image downloads but still ensures your local database reflects the latest plant data from the Google Sheets.
 
-### Sync down the database and images locally
+### Sync down only the images (without database)
    ```bash
-docker compose --profile tools run --rm sync-down
+docker compose --profile tools run --rm sync-images
    ```
 
 ### View the application locally
