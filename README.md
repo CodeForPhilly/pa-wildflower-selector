@@ -63,6 +63,13 @@ cd pa-wildflower-selector
 docker compose up -d --build
 ```
 
+### Update database with latest Google Sheet changes
+To update your local MongoDB with the latest changes from the Google Sheets without re-downloading all images:
+   ```bash
+docker compose exec app npm run fast-update-data
+   ```
+This is faster than a full sync-down as it skips image downloads but still ensures your local database reflects the latest plant data from the Google Sheets.
+
 ### Sync down the database and images locally
    ```bash
 docker compose --profile tools run --rm sync-down

@@ -175,7 +175,7 @@
         </div>
       </div>
     </article>
-    <main :class="mainClasses">
+    <main :class="mainClasses" ref="mainContent">
       <div v-if="questions" class="questions-box">
         <div :class="questionsClasses">
           <div v-if="!question" class="questions-prologue">
@@ -853,6 +853,7 @@ export default {
       activeSearch: "",
       sort: "Sort by Recommendation Score",
       filters,
+      componentKey: 0, // Add a key for forcing re-renders
       filterValues: { ...this.defaultFilterValues },
       filterIsOpen: Object.fromEntries(
         filters.map((filter) => [filter.name, filter.initiallyOpen || false])
@@ -975,11 +976,32 @@ export default {
       this.submit();
     },
     filterValues: {
-      handler() {
+      async handler() {
         if (this.isDesktop()) {
           this.submit();
         } else {
-          this.updateCounts();
+          // First update the counts
+          await this.updateCounts();
+          
+          // Reset the results array to force a re-render
+          const oldResults = [...this.results];
+          this.results = [];
+          
+          // Force an immediate submit to update the display
+          this.submit();
+          
+          // Use Vue's nextTick to ensure DOM updates after data changes
+          this.$nextTick(() => {
+            // If submit hasn't populated results yet, restore the old ones temporarily
+            if (this.results.length === 0 && oldResults.length > 0) {
+              this.results = [...oldResults];
+              
+              // Then force another update after a short delay
+              setTimeout(() => {
+                this.forceUpdate();
+              }, 50);
+            }
+          });
         }
       },
       deep: true,
@@ -1038,10 +1060,29 @@ export default {
     document.body.removeEventListener("click", this.bodyClick);
   },
   methods: {
+    forceUpdate() {
+      // Force Vue to re-render by directly calling submit and manipulating the DOM
+      this.submit();
+      
+      // Use Vue's built-in forceUpdate if available (Vue 2)
+      if (typeof this.$forceUpdate === 'function') {
+        this.$forceUpdate();
+      }
+      
+      // Also force a browser reflow/repaint for good measure
+      if (this.$refs.mainContent) {
+        const el = this.$refs.mainContent;
+        const display = el.style.display;
+        el.style.display = 'none';
+        // Force a reflow
+        void el.offsetHeight;
+        el.style.display = display;
+      }
+    },
     async setLocation() {
       this.zipCode = prompt("Please enter your zipcode");
       if (!this.zipCode) return;
-      if (/^\\d{5}$/.test(this.zipCode)) {
+      if (/^\d{5}$/.test(this.zipCode)) {
         alert("Zipcode must be 5 digits");
         return;
       }
@@ -1213,43 +1254,74 @@ export default {
         clearTimeout(this.submitTimeout);
         this.submitTimeout = null;
       }
-      this.submitTimeout = setTimeout(submit.bind(this), 250);
+      this.submitTimeout = setTimeout(submit.bind(this), 50); // Reduced timeout for faster response
+      
       function submit() {
+        // Force a complete reset of the results to trigger reactivity
         this.page = 0;
         this.loadedAll = false;
+        this.total = 0; // Reset total as well
         this.results = [];
-        this.total = 0;
-        this.restartLoadMoreIfNeeded();
+        
+        // Immediately force a fetch of new data
+        this.fetchPage();
+        
+        // Close filters drawer
         this.filtersOpen = false;
         this.submitTimeout = null;
+        
+        // Force DOM update by directly manipulating the DOM after a short delay
+        setTimeout(() => {
+          if (typeof document !== 'undefined') {
+            // This is a browser-only technique to force a repaint
+            const plants = document.querySelectorAll('.plant');
+            if (plants.length === 0) {
+              // If no plants are visible yet, force a fetchPage again
+              this.fetchPage();
+            }
+          }
+        }, 100);
       }
     },
     async updateCounts() {
-      // Debounce so we don't refresh like mad when dragging a range end
-      if (this.updatingCounts) {
-        if (this.updatingCountsTimeout) {
-          clearTimeout(this.updatingCountsTimeout);
-        }
-        this.updatingCountsTimeout = setTimeout(() => this.updateCounts(), 250);
-        return;
-      }
-      this.updatingCounts = true;
-      try {
-        const params = {
-          ...this.filterValues,
-          q: this.q,
-          sort: this.sort,
-        };
-        if (this.initializing) {
+      // Return a promise that resolves when counts are updated
+      return new Promise((resolve) => {
+        // Debounce so we don't refresh like mad when dragging a range end
+        if (this.updatingCounts) {
+          if (this.updatingCountsTimeout) {
+            clearTimeout(this.updatingCountsTimeout);
+          }
+          this.updatingCountsTimeout = setTimeout(async () => {
+            await this.updateCounts();
+            resolve();
+          }, 250);
           return;
         }
-        const response = await fetch("/api/v1/plants?" + qs.stringify(params));
-        const data = await response.json();
-        this.filterCounts = data.counts;
-        this.activeSearch = this.q;
-      } finally {
-        this.updatingCounts = false;
-      }
+        
+        this.updatingCounts = true;
+        const doUpdate = async () => {
+          try {
+            const params = {
+              ...this.filterValues,
+              q: this.q,
+              sort: this.sort,
+            };
+            if (this.initializing) {
+              resolve();
+              return;
+            }
+            const response = await fetch("/api/v1/plants?" + qs.stringify(params));
+            const data = await response.json();
+            this.filterCounts = data.counts;
+            this.activeSearch = this.q;
+          } finally {
+            this.updatingCounts = false;
+            resolve();
+          }
+        };
+        
+        doUpdate();
+      });
     },
     async fetchPage() {
       this.loading = true;
