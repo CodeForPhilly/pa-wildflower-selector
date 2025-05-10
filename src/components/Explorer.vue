@@ -2264,7 +2264,7 @@ th {
   line-height: 24px;
 }
 
-.two-up p ::v-deep a {
+.two-up p :deep(a) {
   color: #b74d15;
 }
 
