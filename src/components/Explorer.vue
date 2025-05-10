@@ -1082,7 +1082,7 @@ export default {
     async setLocation() {
       this.zipCode = prompt("Please enter your zipcode");
       if (!this.zipCode) return;
-      if (/^\d{5}$/.test(this.zipCode)) {
+      if (!/^\d{5}$/.test(this.zipCode)) {
         alert("Zipcode must be 5 digits");
         return;
       }
