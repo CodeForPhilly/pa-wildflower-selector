@@ -1266,6 +1266,9 @@ export default {
         // Immediately force a fetch of new data
         this.fetchPage();
         
+        // Restart infinite scroll monitoring
+        this.restartLoadMoreIfNeeded();
+        
         // Close filters drawer
         this.filtersOpen = false;
         this.submitTimeout = null;
@@ -1361,7 +1364,13 @@ export default {
       if (!data.results.length || this.favorites || this.questions) {
         this.loadedAll = true;
       }
-      data.results.forEach((datum) => this.results.push(datum));
+      // Prevent duplicate plants by checking if they already exist in the results array
+      data.results.forEach((datum) => {
+        // Only add the plant if it's not already in the results array
+        if (!this.results.some(existing => existing._id === datum._id)) {
+          this.results.push(datum);
+        }
+      });
       this.total = data.total;
       this.loading = false;
     },
