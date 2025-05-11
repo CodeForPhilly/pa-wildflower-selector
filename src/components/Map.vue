@@ -4,7 +4,7 @@
     <div class="map-and-list">
       <div class="list">
         <h1>Nurseries for Native Plants</h1>
-        <p class="instructions">Please call the Nursery first to be sure the items you want are currently stocked</p>
+        <p class="instructions">Call nursery to confirm availability. Nursery catalog data provided by <a href="https://www.plantagents.org/" target="_blank">Plant Agent's Native Plant Retail Catalog</a>. Only nurseries with a plant catalog on their site are listed. Contact Plant Agents to report missing ones.</p>
         <div v-if="nurseries">
           <ul>
             <li :ref="nursery._id" v-for="nursery in nurseries" v-bind:key="nursery._id" :class="{ nursery: true, focused: nursery === focused }">

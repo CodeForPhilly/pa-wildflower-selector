@@ -1,0 +1,32 @@
+#!/bin/bash
+
+set -e  # Exit on error
+
+# Configuration
+projectName=pa-wildflower-selector
+
+# Load environment variables if .env exists
+if [ -f ./.env ]; then
+    export $(cat ./.env | grep -v '^#' | xargs)
+fi
+
+# Check required environment variables
+if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$LINODE_BUCKET_NAME" ]; then
+    echo "Error: Missing required environment variables. Please check your .env file"
+    echo "Required: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, LINODE_BUCKET_NAME"
+    exit 1
+fi
+
+echo "===== Starting Images-Only Sync Process ====="
+
+# Sync images from Linode Object Storage
+echo "Syncing images from Linode Object Storage"
+# Ensure images directory exists
+mkdir -p /app/images
+
+# Sync images from Linode bucket
+aws s3 sync s3://$LINODE_BUCKET_NAME/images/ /app/images/ \
+    --endpoint-url ${LINODE_ENDPOINT_URL:-https://us-east-1.linodeobjects.com}
+
+echo "Images have been downloaded to /app/images/"
+echo "===== Images Sync Process Completed ====="
