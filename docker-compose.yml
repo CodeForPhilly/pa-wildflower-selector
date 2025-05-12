@@ -35,8 +35,9 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - ./images:/app/images
+      - /images:/app/images
 
 
 volumes:
   db:
+  images:
