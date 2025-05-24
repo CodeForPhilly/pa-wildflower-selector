@@ -188,6 +188,8 @@ spec:
                   name: linode-storage
                   key: LINODE_ENDPOINT_URL
                   optional: false
+            - name: NODE_OPTIONS
+              value: "--openssl-legacy-provider --max-old-space-size=768"
           envFrom:
             - configMapRef:
                 name: app-config
