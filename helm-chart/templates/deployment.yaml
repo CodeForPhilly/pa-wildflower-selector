@@ -31,10 +31,10 @@ spec:
       volumes:
       - name: {{ .Release.Name }}-app-images
         persistentVolumeClaim:
-          claimName: {{ .Release.Name }}-app-images
+          claimName: {{ .Values.existingPVCs.appImages | default (printf "%s-app-images" .Release.Name) }}
       - name: {{ .Release.Name }}-mongo-data
         persistentVolumeClaim:
-          claimName: {{ .Release.Name }}-mongo-data
+          claimName: {{ .Values.existingPVCs.mongoData | default (printf "%s-mongo-data" .Release.Name) }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -161,7 +161,7 @@ spec:
             - name: PAC_API_BASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: pac_api
+                  name: pac-api
                   key: PAC_API_BASE_URL
                   optional: false
           envFrom:
