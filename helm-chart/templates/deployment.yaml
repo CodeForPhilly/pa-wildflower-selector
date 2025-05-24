@@ -188,6 +188,9 @@ spec:
                   name: linode-storage
                   key: LINODE_ENDPOINT_URL
                   optional: false
+            {{- with $.Values.app.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           envFrom:
             - configMapRef:
                 name: app-config
