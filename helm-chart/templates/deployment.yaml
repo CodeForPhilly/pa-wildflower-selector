@@ -207,7 +207,10 @@ spec:
             httpGet:
               path: /
               port: http
-            initialDelaySeconds: 5
+            initialDelaySeconds: 60
+            timeoutSeconds: 10
+            periodSeconds: 30
+            failureThreshold: 3
           resources:
             {{- toYaml $.Values.resources | nindent 12 }}
         {{- end }}
