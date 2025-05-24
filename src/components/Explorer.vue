@@ -845,7 +845,7 @@ export default {
 
     this.initQuestionValues(questionDetails);
 
-    const twoUpIndex = Math.floor(Math.random() * twoUpImageCredits.length);
+    const twoUpIndex = 0;
     return {
       results: [],
       total: 0,
@@ -1026,6 +1026,8 @@ export default {
   },
   // Browser only
   async mounted() {
+    // Pick a random hero image after hydration to avoid SSR hydration mismatch
+    this.twoUpIndex = Math.floor(Math.random() * twoUpImageCredits.length);
     this.displayLocation = localStorage.getItem("displayLocation")
     this.zipCode= localStorage.getItem("zipCode")
     this.filterValues["States"] = [localStorage.getItem("state")]
