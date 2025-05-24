@@ -31,10 +31,10 @@ spec:
       volumes:
       - name: {{ .Release.Name }}-app-images
         persistentVolumeClaim:
-          claimName: {{ .Release.Name }}-app-images
+          claimName: {{ .Values.existingPVCs.appImages | default (printf "%s-app-images" .Release.Name) }}
       - name: {{ .Release.Name }}-mongo-data
         persistentVolumeClaim:
-          claimName: {{ .Release.Name }}-mongo-data
+          claimName: {{ .Values.existingPVCs.mongoData | default (printf "%s-mongo-data" .Release.Name) }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -158,11 +158,35 @@ spec:
                   name: app
                   key: SERVICE_ACCOUNT
                   optional: false
-            - name: PAC_API_BASE_URL
+            - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
-                  name: pac_api
-                  key: PAC_API_BASE_URL
+                  name: linode-storage
+                  key: AWS_ACCESS_KEY_ID
+                  optional: false
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: linode-storage
+                  key: AWS_SECRET_ACCESS_KEY
+                  optional: false
+            - name: AWS_DEFAULT_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: linode-storage
+                  key: AWS_DEFAULT_REGION
+                  optional: false
+            - name: LINODE_BUCKET_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: linode-storage
+                  key: LINODE_BUCKET_NAME
+                  optional: false
+            - name: LINODE_ENDPOINT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: linode-storage
+                  key: LINODE_ENDPOINT_URL
                   optional: false
           envFrom:
             - configMapRef:
@@ -181,6 +205,8 @@ spec:
               path: /
               port: http
             initialDelaySeconds: 5
+          resources:
+            {{- toYaml $.Values.resources | nindent 12 }}
         {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
