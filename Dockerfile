@@ -3,8 +3,8 @@ FROM node@sha256:426f843809ae05f324883afceebaa2b9cab9cb697097dbb1a2a7a41c5701de7
 # Install ImageMagick and AWS CLI
 RUN apk add --no-cache imagemagick aws-cli
 
-# Set NODE_OPTIONS for OpenSSL compatibility
-ENV NODE_OPTIONS=--openssl-legacy-provider
+# Set NODE_OPTIONS for OpenSSL compatibility and limit memory usage
+ENV NODE_OPTIONS="--openssl-legacy-provider --max-old-space-size=768"
 
 WORKDIR /app
 COPY package.json package-lock.json ./
