@@ -62,9 +62,9 @@ ingress:
 
 resources:
   limits:
-    memory: 2Gi
-  requests:
     memory: 1Gi
+  requests:
+    memory: 512Mi
   # Additional resource settings can be added as needed
   # limits:
   #   cpu: 100m
