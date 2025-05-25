@@ -1,4 +1,3 @@
-{{- if not .Values.existingPVCs.appImages }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -11,4 +10,3 @@ spec:
   resources:
     requests:
       storage: {{ .Values.storage.app }}
-{{- end }}

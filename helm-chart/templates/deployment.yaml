@@ -31,10 +31,10 @@ spec:
       volumes:
       - name: {{ .Release.Name }}-app-images
         persistentVolumeClaim:
-          claimName: {{ .Values.existingPVCs.appImages | default (printf "%s-app-images" .Release.Name) }}
+          claimName: {{ printf "%s-app-images" .Release.Name }}
       - name: {{ .Release.Name }}-mongo-data
         persistentVolumeClaim:
-          claimName: {{ .Values.existingPVCs.mongoData | default (printf "%s-mongo-data" .Release.Name) }}
+          claimName: {{ printf "%s-mongo-data" .Release.Name }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
