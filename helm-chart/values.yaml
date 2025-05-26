@@ -9,7 +9,7 @@ app:
     repository: ghcr.io/codeforphilly/pa-wildflower-selector/app
     pullPolicy: Always
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "2.0.4"
+    tag: "2.0.5"
   env:
     - name: NODE_OPTIONS
       value: "--openssl-legacy-provider --max-old-space-size=768"
