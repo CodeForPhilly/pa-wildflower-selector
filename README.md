@@ -19,7 +19,7 @@
 
 ## 🌟 Overview
 
-[Choose Native Plants](https://choose-native-plants.com) (formerly "PA Wildflower Selector") is a web application that helps US residents find native plants suitable for their gardens. Users can search and filter plants based on various criteria like sun exposure, soil moisture, pollinators attracted, and more. The app also shows where to buy these plants locally.
+[Choose Native Plants](https://choosenativeplants.com) (formerly "PA Wildflower Selector") is a web application that helps US residents find native plants suitable for their gardens. Users can search and filter plants based on various criteria like sun exposure, soil moisture, pollinators attracted, and more. The app also shows where to buy these plants locally.
 
 <div align="center">
 <img src="app-screenshot.png" alt="Application Screenshot" width="600">
