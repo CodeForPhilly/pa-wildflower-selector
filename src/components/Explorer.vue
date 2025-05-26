@@ -313,9 +313,15 @@
             </div>
           </div>
         </div>
-        <div v-if="favorites" class="copy-clipboard">
-          <button class="primary primary-bar" @click="copyFavorites">
-            Copy to Clipboard
+        <div v-if="favorites" class="copy-clipboard" aria-live="polite">
+          <button 
+            class="primary primary-bar copy-button" 
+            :class="{ 'copied': isCopied }" 
+            @click="copyFavorites"
+            :disabled="isCopied"
+          >
+            <span v-if="isCopied">✓ Copied!</span>
+            <span v-else>Copy to Clipboard</span>
           </button>
         </div>
         <form
@@ -878,6 +884,7 @@ export default {
       question: 0,
       questionDetails,
       twoUpIndex,
+      isCopied: false,
     };
   },
   computed: {
@@ -1480,13 +1487,20 @@ export default {
       }
     },
     copyFavorites() {
-      const lines = this.results.map(
-        (p) => `• ${p["Common Name"]} (${p["Scientific Name"]})`
+      // Plain text version for clipboard (without HTML formatting)
+      const plainTextLines = this.results.map(
+        (p) => `• ${p["Common Name"]} (${p["Scientific Name"]})` 
       );
-      const text = lines.join("\n");
+      const text = plainTextLines.join("\n");
+      
+      // Set copied state for button feedback
+      this.isCopied = true;
+      
+      // Copy to clipboard
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).catch(() => {
-          alert("Failed to copy favorites");
+          console.error("Failed to copy favorites");
+          this.isCopied = false;
         });
       } else {
         const textarea = document.createElement("textarea");
@@ -1495,10 +1509,18 @@ export default {
         textarea.select();
         try {
           document.execCommand("copy");
+        } catch (err) {
+          console.error("Failed to copy favorites", err);
+          this.isCopied = false;
         } finally {
           document.body.removeChild(textarea);
         }
       }
+      
+      // Reset button after 2 seconds
+      setTimeout(() => {
+        this.isCopied = false;
+      }, 2000);
     },
     renderFavorite(_id) {
       return this.$store.state.favorites.has(_id)
@@ -1691,12 +1713,51 @@ button.favorites {
   margin-right: 24px;
 }
 
-button.favorites[disabled] {
+button.favorites[disabled], button.copy-button[disabled] {
   opacity: 0.5;
+  cursor: not-allowed;
 }
 
-button.favorites .favorites-label {
-  display: none;
+.copy-button {
+  transition: all 0.3s ease;
+  position: relative;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.copy-button:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.copy-button.copied {
+  background-color: #38a169 !important;
+  transition: all 0.3s ease;
+  animation: pulse 0.5s ease-in-out;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.copy-button span {
+  transition: opacity 0.2s ease;
+}
+
+@media (hover: hover) {
+  .copy-button:hover:not([disabled]) {
+    background-color: #c85d25;
+    transform: translateY(1px);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  }
+}
+
+.copy-clipboard {
+  position: relative;
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
 }
 
 .list-button {
