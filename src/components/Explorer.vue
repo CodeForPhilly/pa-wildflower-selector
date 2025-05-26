@@ -1487,33 +1487,85 @@ export default {
       }
     },
     copyFavorites() {
-      // Plain text version for clipboard (without HTML formatting)
+      // Create HTML version with italicized scientific names
+      const htmlLines = this.results.map(
+        (p) => `<li>${p["Common Name"]} (<i>${p["Scientific Name"]}</i>)</li>` 
+      );
+      const htmlContent = `<ul>
+${htmlLines.join("\n")}
+</ul>`;
+      
+      // Plain text version as fallback (without HTML formatting)
       const plainTextLines = this.results.map(
         (p) => `• ${p["Common Name"]} (${p["Scientific Name"]})` 
       );
-      const text = plainTextLines.join("\n");
+      const plainText = plainTextLines.join("\n");
       
       // Set copied state for button feedback
       this.isCopied = true;
       
-      // Copy to clipboard
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).catch(() => {
-          console.error("Failed to copy favorites");
+      // First try to copy with HTML formatting using document.execCommand
+      let copySuccessful = false;
+      
+      // Only try HTML approach if execCommand is available
+      if (document.execCommand) {
+        try {
+          // Create a temporary div to hold our HTML content
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = htmlContent;
+          tempDiv.style.position = 'absolute';
+          tempDiv.style.left = '-9999px';
+          document.body.appendChild(tempDiv);
+          
+          // Select the content
+          const range = document.createRange();
+          range.selectNode(tempDiv);
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+          
+          // Execute copy command
+          copySuccessful = document.execCommand('copy');
+          
+          // Clean up
+          selection.removeAllRanges();
+          document.body.removeChild(tempDiv);
+        } catch (err) {
+          console.error("Failed to copy with HTML formatting", err);
+          copySuccessful = false;
+        }
+      }
+      
+      // If HTML copy failed, try clipboard API with plain text
+      if (!copySuccessful && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(plainText).catch((err) => {
+          console.error("Failed to copy with clipboard API", err);
           this.isCopied = false;
         });
-      } else {
-        const textarea = document.createElement("textarea");
-        textarea.value = text;
-        document.body.appendChild(textarea);
-        textarea.select();
+      } 
+      // Last resort: try plain text with execCommand if everything else failed
+      else if (!copySuccessful) {
         try {
-          document.execCommand("copy");
+          const textarea = document.createElement("textarea");
+          textarea.value = plainText;
+          textarea.style.position = 'absolute';
+          textarea.style.left = '-9999px';
+          document.body.appendChild(textarea);
+          textarea.select();
+          
+          copySuccessful = document.execCommand("copy");
+          if (!copySuccessful) {
+            console.error("Failed to copy with execCommand");
+            this.isCopied = false;
+          }
         } catch (err) {
           console.error("Failed to copy favorites", err);
           this.isCopied = false;
         } finally {
-          document.body.removeChild(textarea);
+          const textareaElement = document.querySelector('textarea[style*="position: absolute"]');
+          if (textareaElement && document.body.contains(textareaElement)) {
+            document.body.removeChild(textareaElement);
+          }
         }
       }
       
