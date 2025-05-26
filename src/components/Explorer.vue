@@ -310,14 +310,19 @@
                   v-model="sort"
                   @close="toggleSort"
                 />
-              </div>
             </div>
           </div>
-          <form
-            v-if="!favorites"
-            class="filters"
-            id="form"
-            @submit.prevent="submit"
+        </div>
+        <div v-if="favorites" class="copy-clipboard">
+          <button class="primary primary-bar" @click="copyFavorites">
+            Copy to Clipboard
+          </button>
+        </div>
+        <form
+          v-if="!favorites"
+          class="filters"
+          id="form"
+          @submit.prevent="submit"
           >
             <div class="inner-controls">
               <div class="search-mobile-box">
@@ -1474,6 +1479,27 @@ export default {
         this.results = this.results.filter((result) => result._id !== _id);
       }
     },
+    copyFavorites() {
+      const lines = this.results.map(
+        (p) => `• ${p["Common Name"]} (${p["Scientific Name"]})`
+      );
+      const text = lines.join("\n");
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => {
+          alert("Failed to copy favorites");
+        });
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+          document.execCommand("copy");
+        } finally {
+          document.body.removeChild(textarea);
+        }
+      }
+    },
     renderFavorite(_id) {
       return this.$store.state.favorites.has(_id)
         ? "favorite"
@@ -1648,6 +1674,13 @@ button.text {
   justify-content: space-between;
   margin-bottom: 16px;
 }
+
+.copy-clipboard {
+  max-width: 350px;
+  margin: auto;
+  margin-bottom: 16px;
+}
+
 
 button.favorites {
   width: 100%;
