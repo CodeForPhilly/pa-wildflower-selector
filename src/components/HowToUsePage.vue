@@ -247,7 +247,7 @@
         or cookies are used. By using these features you consent to the collection
         of this information.
       </p>
-      <p>© 2025 Choose Native Plants - PA</p>
+      <p>© 2025 Choose Native Plants - USA</p>
     </article>
     <Up />
     <div class="tone">
