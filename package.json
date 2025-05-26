@@ -11,12 +11,10 @@
     "build-ssr": "rm -rf dist node_modules/.cache && SSR=true vue-cli-service build && rm -rf ssr && mv dist ssr",
     "build": "npm run build-ssr && npm run build-browser",
     "deploy-to-staging": "npm run build && sc-deploy staging",
-    "sync-up": "./scripts/sync-up",
     "sign-secrets": "./script/sign-secrets",
-    "upload-test-data": "./scripts/upload-test-data",
-    "restore-test-data": "./scripts/restore-test-data",
     "update-data": "node download && node massage",
-    "fast-update-data": "node download --skip-images && node massage"
+    "fast-update-data": "node download --skip-images && node massage",
+    "sync-images": "sh /app/scripts/sync-images"
   },
   "dependencies": {
     "@vue/cli-plugin-babel": "^4.5.16",
@@ -68,5 +66,8 @@
   ],
   "alias": {
     "vue": "./node_modules/vue/dist/vue.esm.js"
+  },
+  "bin": {
+    "vue-cli-service": "./node_modules/.bin/vue-cli-service"
   }
 }
