@@ -864,6 +864,7 @@ export default {
       filtersOpen: false,
       zipCode: "",
       displayLocation: "",
+      manualZip: false,
       updatingCounts: false,
       selected: null,
       localStoreLinks: [],
@@ -1028,31 +1029,46 @@ export default {
   async mounted() {
     // Pick a random hero image after hydration to avoid SSR hydration mismatch
     this.twoUpIndex = Math.floor(Math.random() * twoUpImageCredits.length);
-    this.displayLocation = localStorage.getItem("displayLocation")
-    this.zipCode= localStorage.getItem("zipCode")
-    this.filterValues["States"] = [localStorage.getItem("state")]
-    if ("geolocation" in navigator || this.zipCode == '') {
-      navigator.geolocation.getCurrentPosition(async (position) => {
-        let data = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        };
-        //get zipcode by lng/lat
-        //get state by lng / lat
-        const response = await fetch("/get-zip", {
-          method: "POST", // *GET, POST, PUT, DELETE, etc.
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data), // body data type must match "Content-Type" header
-        });
-        let json = await response.json();
-        this.zipCode = json.code;
-        this.filterValues["States"] = [json.state];
-        this.taisplayLocation = `${json.city}, ${json.state}`;
-      });
-    } else {
-      console.log("Location not supported");
+
+    this.displayLocation = localStorage.getItem("displayLocation") || "";
+    this.zipCode = localStorage.getItem("zipCode") || "";
+    this.manualZip = localStorage.getItem("manualZip") === "true";
+    this.filterValues["States"] = [localStorage.getItem("state")];
+
+    if (!this.manualZip && "geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const data = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+
+          const response = await fetch("/get-zip", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
+          });
+          let json = await response.json();
+          this.zipCode = json.code;
+          this.filterValues["States"] = [json.state];
+          this.displayLocation = `${json.city}, ${json.state}`;
+
+          localStorage.setItem("zipCode", this.zipCode);
+          localStorage.setItem("state", json.state);
+          localStorage.setItem("displayLocation", this.displayLocation);
+          localStorage.removeItem("manualZip");
+        },
+        () => {
+          if (!this.zipCode) {
+            this.zipCode = "19355";
+          }
+        }
+      );
+    } else if (!this.zipCode) {
+      // Geolocation not available or user chose manual zip
+      this.zipCode = "19355";
     }
 
     await this.determineFilterCountsAndSubmit();
@@ -1101,6 +1117,8 @@ export default {
       localStorage.setItem("displayLocation", this.displayLocation)
       localStorage.setItem("zipCode", this.zipCode)
       localStorage.setItem("state", json.state)
+      this.manualZip = true;
+      localStorage.setItem("manualZip", "true")
     },
     async getVendors() {
       if (!this.selected) return [];
