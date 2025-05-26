@@ -982,26 +982,8 @@ export default {
         } else {
           // First update the counts
           await this.updateCounts();
-          
-          // Reset the results array to force a re-render
-          const oldResults = [...this.results];
-          this.results = [];
-          
-          // Force an immediate submit to update the display
+          // Submit without clearing current results to avoid flicker on mobile
           this.submit();
-          
-          // Use Vue's nextTick to ensure DOM updates after data changes
-          this.$nextTick(() => {
-            // If submit hasn't populated results yet, restore the old ones temporarily
-            if (this.results.length === 0 && oldResults.length > 0) {
-              this.results = [...oldResults];
-              
-              // Then force another update after a short delay
-              setTimeout(() => {
-                this.forceUpdate();
-              }, 50);
-            }
-          });
         }
       },
       deep: true,
@@ -1257,16 +1239,15 @@ export default {
         this.submitTimeout = null;
       }
       this.submitTimeout = setTimeout(submit.bind(this), 50); // Reduced timeout for faster response
-      
+
       function submit() {
-        // Force a complete reset of the results to trigger reactivity
+        // Reset pagination values
         this.page = 0;
         this.loadedAll = false;
         this.total = 0; // Reset total as well
-        this.results = [];
-        
-        // Immediately force a fetch of new data
-        this.fetchPage();
+
+        // Fetch new data and replace results when it arrives
+        this.fetchPage(true);
         
         // Restart infinite scroll monitoring
         this.restartLoadMoreIfNeeded();
@@ -1275,17 +1256,8 @@ export default {
         this.filtersOpen = false;
         this.submitTimeout = null;
         
-        // Force DOM update by directly manipulating the DOM after a short delay
-        setTimeout(() => {
-          if (typeof document !== 'undefined') {
-            // This is a browser-only technique to force a repaint
-            const plants = document.querySelectorAll('.plant');
-            if (plants.length === 0) {
-              // If no plants are visible yet, force a fetchPage again
-              this.fetchPage();
-            }
-          }
-        }, 100);
+        // Allow any queued DOM updates to complete
+        this.$nextTick(() => {});
       }
     },
     async updateCounts() {
@@ -1328,12 +1300,14 @@ export default {
         doUpdate();
       });
     },
-    async fetchPage() {
+    async fetchPage(replace = false) {
       this.loading = true;
       if (this.favorites && ![...this.$store.state.favorites].length) {
         // Avoid a query that would result in seeing all of the plants
         // in the database as "favorites"
-        this.results = [];
+        if (replace) {
+          this.results = [];
+        }
         this.loadedAll = true;
         this.total = 0;
         this.loading = false;
@@ -1366,13 +1340,16 @@ export default {
       if (!data.results.length || this.favorites || this.questions) {
         this.loadedAll = true;
       }
-      // Prevent duplicate plants by checking if they already exist in the results array
-      data.results.forEach((datum) => {
-        // Only add the plant if it's not already in the results array
-        if (!this.results.some(existing => existing._id === datum._id)) {
-          this.results.push(datum);
-        }
-      });
+      if (replace) {
+        this.results = data.results;
+      } else {
+        // Prevent duplicate plants by checking if they already exist in the results array
+        data.results.forEach((datum) => {
+          if (!this.results.some((existing) => existing._id === datum._id)) {
+            this.results.push(datum);
+          }
+        });
+      }
       this.total = data.total;
       this.loading = false;
     },
