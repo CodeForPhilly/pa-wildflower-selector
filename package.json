@@ -31,6 +31,7 @@
     "eslint-plugin-vue": "^7.20.0",
     "express": "^4.17.3",
     "google-spreadsheet": "^3.1.15",
+    "ini": "^5.0.0",
     "leaflet": "^1.7.1",
     "limiter": "^2.1.0",
     "mongodb": "^3.6.7",
