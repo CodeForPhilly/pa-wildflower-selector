@@ -310,14 +310,25 @@
                   v-model="sort"
                   @close="toggleSort"
                 />
-              </div>
             </div>
           </div>
-          <form
-            v-if="!favorites"
-            class="filters"
-            id="form"
-            @submit.prevent="submit"
+        </div>
+        <div v-if="favorites" class="copy-clipboard" aria-live="polite">
+          <button 
+            class="primary primary-bar copy-button" 
+            :class="{ 'copied': isCopied }" 
+            @click="copyFavorites"
+            :disabled="isCopied"
+          >
+            <span v-if="isCopied">✓ Copied!</span>
+            <span v-else>Copy to Clipboard</span>
+          </button>
+        </div>
+        <form
+          v-if="!favorites"
+          class="filters"
+          id="form"
+          @submit.prevent="submit"
           >
             <div class="inner-controls">
               <div class="search-mobile-box">
@@ -874,6 +885,7 @@ export default {
       question: 0,
       questionDetails,
       twoUpIndex,
+      isCopied: false,
     };
   },
   computed: {
@@ -983,26 +995,8 @@ export default {
         } else {
           // First update the counts
           await this.updateCounts();
-          
-          // Reset the results array to force a re-render
-          const oldResults = [...this.results];
-          this.results = [];
-          
-          // Force an immediate submit to update the display
+          // Submit without clearing current results to avoid flicker on mobile
           this.submit();
-          
-          // Use Vue's nextTick to ensure DOM updates after data changes
-          this.$nextTick(() => {
-            // If submit hasn't populated results yet, restore the old ones temporarily
-            if (this.results.length === 0 && oldResults.length > 0) {
-              this.results = [...oldResults];
-              
-              // Then force another update after a short delay
-              setTimeout(() => {
-                this.forceUpdate();
-              }, 50);
-            }
-          });
         }
       },
       deep: true,
@@ -1275,16 +1269,15 @@ export default {
         this.submitTimeout = null;
       }
       this.submitTimeout = setTimeout(submit.bind(this), 50); // Reduced timeout for faster response
-      
+
       function submit() {
-        // Force a complete reset of the results to trigger reactivity
+        // Reset pagination values
         this.page = 0;
         this.loadedAll = false;
         this.total = 0; // Reset total as well
-        this.results = [];
-        
-        // Immediately force a fetch of new data
-        this.fetchPage();
+
+        // Fetch new data and replace results when it arrives
+        this.fetchPage(true);
         
         // Restart infinite scroll monitoring
         this.restartLoadMoreIfNeeded();
@@ -1293,17 +1286,8 @@ export default {
         this.filtersOpen = false;
         this.submitTimeout = null;
         
-        // Force DOM update by directly manipulating the DOM after a short delay
-        setTimeout(() => {
-          if (typeof document !== 'undefined') {
-            // This is a browser-only technique to force a repaint
-            const plants = document.querySelectorAll('.plant');
-            if (plants.length === 0) {
-              // If no plants are visible yet, force a fetchPage again
-              this.fetchPage();
-            }
-          }
-        }, 100);
+        // Allow any queued DOM updates to complete
+        this.$nextTick(() => {});
       }
     },
     async updateCounts() {
@@ -1346,12 +1330,14 @@ export default {
         doUpdate();
       });
     },
-    async fetchPage() {
+    async fetchPage(replace = false) {
       this.loading = true;
       if (this.favorites && ![...this.$store.state.favorites].length) {
         // Avoid a query that would result in seeing all of the plants
         // in the database as "favorites"
-        this.results = [];
+        if (replace) {
+          this.results = [];
+        }
         this.loadedAll = true;
         this.total = 0;
         this.loading = false;
@@ -1384,13 +1370,16 @@ export default {
       if (!data.results.length || this.favorites || this.questions) {
         this.loadedAll = true;
       }
-      // Prevent duplicate plants by checking if they already exist in the results array
-      data.results.forEach((datum) => {
-        // Only add the plant if it's not already in the results array
-        if (!this.results.some(existing => existing._id === datum._id)) {
-          this.results.push(datum);
-        }
-      });
+      if (replace) {
+        this.results = data.results;
+      } else {
+        // Prevent duplicate plants by checking if they already exist in the results array
+        data.results.forEach((datum) => {
+          if (!this.results.some((existing) => existing._id === datum._id)) {
+            this.results.push(datum);
+          }
+        });
+      }
       this.total = data.total;
       this.loading = false;
     },
@@ -1491,6 +1480,94 @@ export default {
       if (this.favorites) {
         this.results = this.results.filter((result) => result._id !== _id);
       }
+    },
+    copyFavorites() {
+      // Create HTML version with italicized scientific names
+      const htmlLines = this.results.map(
+        (p) => `<li>${p["Common Name"]} (<i>${p["Scientific Name"]}</i>)</li>` 
+      );
+      const htmlContent = `<ul>
+${htmlLines.join("\n")}
+</ul>`;
+      
+      // Plain text version as fallback (without HTML formatting)
+      const plainTextLines = this.results.map(
+        (p) => `• ${p["Common Name"]} (${p["Scientific Name"]})` 
+      );
+      const plainText = plainTextLines.join("\n");
+      
+      // Set copied state for button feedback
+      this.isCopied = true;
+      
+      // First try to copy with HTML formatting using document.execCommand
+      let copySuccessful = false;
+      
+      // Only try HTML approach if execCommand is available
+      if (document.execCommand) {
+        try {
+          // Create a temporary div to hold our HTML content
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = htmlContent;
+          tempDiv.style.position = 'absolute';
+          tempDiv.style.left = '-9999px';
+          document.body.appendChild(tempDiv);
+          
+          // Select the content
+          const range = document.createRange();
+          range.selectNode(tempDiv);
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+          
+          // Execute copy command
+          copySuccessful = document.execCommand('copy');
+          
+          // Clean up
+          selection.removeAllRanges();
+          document.body.removeChild(tempDiv);
+        } catch (err) {
+          console.error("Failed to copy with HTML formatting", err);
+          copySuccessful = false;
+        }
+      }
+      
+      // If HTML copy failed, try clipboard API with plain text
+      if (!copySuccessful && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(plainText).catch((err) => {
+          console.error("Failed to copy with clipboard API", err);
+          this.isCopied = false;
+        });
+      } 
+      // Last resort: try plain text with execCommand if everything else failed
+      else if (!copySuccessful) {
+        try {
+          const textarea = document.createElement("textarea");
+          textarea.value = plainText;
+          textarea.style.position = 'absolute';
+          textarea.style.left = '-9999px';
+          document.body.appendChild(textarea);
+          textarea.select();
+          
+          copySuccessful = document.execCommand("copy");
+          if (!copySuccessful) {
+            console.error("Failed to copy with execCommand");
+            this.isCopied = false;
+          }
+        } catch (err) {
+          console.error("Failed to copy favorites", err);
+          this.isCopied = false;
+        } finally {
+          const textareaElement = document.querySelector('textarea[style*="position: absolute"]');
+          if (textareaElement && document.body.contains(textareaElement)) {
+            document.body.removeChild(textareaElement);
+          }
+        }
+      }
+      
+      // Reset button after 2 seconds
+      setTimeout(() => {
+        this.isCopied = false;
+      }, 2000);
     },
     renderFavorite(_id) {
       return this.$store.state.favorites.has(_id)
@@ -1667,6 +1744,13 @@ button.text {
   margin-bottom: 16px;
 }
 
+.copy-clipboard {
+  max-width: 350px;
+  margin: auto;
+  margin-bottom: 16px;
+}
+
+
 button.favorites {
   width: 100%;
   display: block;
@@ -1676,12 +1760,51 @@ button.favorites {
   margin-right: 24px;
 }
 
-button.favorites[disabled] {
+button.favorites[disabled], button.copy-button[disabled] {
   opacity: 0.5;
+  cursor: not-allowed;
 }
 
-button.favorites .favorites-label {
-  display: none;
+.copy-button {
+  transition: all 0.3s ease;
+  position: relative;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.copy-button:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.copy-button.copied {
+  background-color: #38a169 !important;
+  transition: all 0.3s ease;
+  animation: pulse 0.5s ease-in-out;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.copy-button span {
+  transition: opacity 0.2s ease;
+}
+
+@media (hover: hover) {
+  .copy-button:hover:not([disabled]) {
+    background-color: #c85d25;
+    transform: translateY(1px);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  }
+}
+
+.copy-clipboard {
+  position: relative;
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
 }
 
 .list-button {

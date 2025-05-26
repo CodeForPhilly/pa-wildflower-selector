@@ -1,5 +1,0 @@
-#!/bin/bash
-
-mongodump mongodb://localhost:27017/pa-wildflower-selector --archive | gzip -c | ssh boutell@boutell.dev "cat > /var/www/sites/boutell-dev/html/pa-wildflower-selector/pa-wildflower-selector.archive.gz" &&
-tar -cvf - images/ | ssh boutell@boutell.dev "cat > /var/www/sites/boutell-dev/html/pa-wildflower-selector/pa-wildflower-selector.tar" &&
-echo "Uploaded."
