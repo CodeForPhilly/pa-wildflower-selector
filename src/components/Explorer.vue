@@ -76,7 +76,12 @@
         </button>
       </form>
     </div>
-    <h1 class="large favorites" v-if="favorites">Favorites List</h1>
+    <div v-if="favorites" class="favorites-header">
+      <h1 class="large favorites">Favorites List</h1>
+      <button class="primary copy-button" @click="copyFavorites">
+        Copy to Clipboard
+      </button>
+    </div>
     <article v-if="selected" class="selected">
       <div class="modal-bar">
         <span class="title">More Info</span>
@@ -1474,6 +1479,27 @@ export default {
         this.results = this.results.filter((result) => result._id !== _id);
       }
     },
+    copyFavorites() {
+      const lines = this.results.map(
+        (p) => `• ${p["Common Name"]} (${p["Scientific Name"]})`
+      );
+      const text = lines.join("\n");
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => {
+          alert("Failed to copy favorites");
+        });
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+          document.execCommand("copy");
+        } finally {
+          document.body.removeChild(textarea);
+        }
+      }
+    },
     renderFavorite(_id) {
       return this.$store.state.favorites.has(_id)
         ? "favorite"
@@ -1647,6 +1673,16 @@ button.text {
   display: flex;
   justify-content: space-between;
   margin-bottom: 16px;
+}
+
+.favorites-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1em;
+}
+.copy-button {
+  margin-left: 16px;
 }
 
 button.favorites {
