@@ -862,6 +862,11 @@ export default {
       total: 0,
       q: "",
       activeSearch: "",
+      queryRules: {},
+      appliedRules: [],
+      ruleChips: [],
+      ruleFilterValues: {},
+      applyingRules: false,
       sort: "Sort by Recommendation Score",
       filters,
       componentKey: 0, // Add a key for forcing re-renders
@@ -913,7 +918,18 @@ export default {
       return extras;
     },
     chips() {
-      return this.getChips(true);
+      const chips = this.getChips(true);
+      if (this.ruleChips.length) {
+        for (const rc of this.ruleChips) {
+          chips.push({
+            name: rc.name,
+            label: rc.chip,
+            key: `rule:${rc.name}`,
+            svg: 'Search',
+          });
+        }
+      }
+      return chips;
     },
     flags() {
       return this.getChips(false);
@@ -990,6 +1006,9 @@ export default {
     },
     filterValues: {
       async handler() {
+        if (this.applyingRules) {
+          return;
+        }
         if (this.isDesktop()) {
           this.submit();
         } else {
@@ -1023,6 +1042,15 @@ export default {
   async mounted() {
     // Pick a random hero image after hydration to avoid SSR hydration mismatch
     this.twoUpIndex = Math.floor(Math.random() * twoUpImageCredits.length);
+
+    // Fetch query rules used for keyword searches
+    try {
+      const resp = await fetch('/api/v1/queryrules');
+      this.queryRules = await resp.json();
+    } catch (e) {
+      console.error('Failed to fetch query rules', e);
+      this.queryRules = {};
+    }
 
     this.displayLocation = localStorage.getItem("displayLocation") || "";
     this.zipCode = localStorage.getItem("zipCode") || "";
@@ -1175,6 +1203,59 @@ export default {
       localStorage.setItem("state", json.state)
       this.manualZip = true;
       localStorage.setItem("manualZip", "true")
+    },
+
+    detectRules() {
+      const matches = [];
+      if (!this.q || !this.queryRules) return matches;
+      const qLower = this.q.toLowerCase();
+      for (const [name, rule] of Object.entries(this.queryRules)) {
+        for (const kw of rule.keywords) {
+          if (qLower.includes(kw.toLowerCase())) {
+            matches.push(name);
+            break;
+          }
+        }
+      }
+      return matches;
+    },
+    applyRuleFilters(names) {
+      this.applyingRules = true;
+      // Remove previous rule-applied filter values
+      for (const [filterName, values] of Object.entries(this.ruleFilterValues)) {
+        const def = this.filters.find((f) => f.name === filterName);
+        if (!def) continue;
+        if (def.array) {
+          this.filterValues[filterName] = this.filterValues[filterName].filter(
+            (v) => !values.includes(v)
+          );
+        } else {
+          this.filterValues[filterName] = def.default;
+        }
+      }
+      this.ruleFilterValues = {};
+      // Apply filters from current rules
+      for (const name of names) {
+        const rule = this.queryRules[name];
+        if (!rule || !rule.filters) continue;
+        for (const [filterName, val] of Object.entries(rule.filters)) {
+          const def = this.filters.find((f) => f.name === filterName);
+          if (!def) continue;
+          const values = Array.isArray(val) ? val : [val];
+          if (def.array) {
+            for (const v of values) {
+              if (!this.filterValues[filterName].includes(v)) {
+                this.filterValues[filterName].push(v);
+              }
+            }
+          } else {
+            this.filterValues[filterName] = values[0];
+          }
+          if (!this.ruleFilterValues[filterName]) this.ruleFilterValues[filterName] = [];
+          this.ruleFilterValues[filterName].push(...values);
+        }
+      }
+      this.applyingRules = false;
     },
     async getVendors() {
       if (!this.selected) return [];
@@ -1330,6 +1411,13 @@ export default {
         clearTimeout(this.submitTimeout);
         this.submitTimeout = null;
       }
+      const detected = this.detectRules();
+      if (detected.length) {
+        this.appliedRules = detected;
+      } else {
+        this.appliedRules = [];
+      }
+      this.applyRuleFilters(this.appliedRules);
       this.submitTimeout = setTimeout(submit.bind(this), 50); // Reduced timeout for faster response
 
       function submit() {
@@ -1370,19 +1458,23 @@ export default {
         this.updatingCounts = true;
         const doUpdate = async () => {
           try {
-            const params = {
-              ...this.filterValues,
-              q: this.q,
-              sort: this.sort,
-            };
+        const params = {
+          ...this.filterValues,
+          ...(this.appliedRules.length ? {} : { q: this.q }),
+          sort: this.sort,
+        };
             if (this.initializing) {
               resolve();
               return;
             }
+            if (this.appliedRules.length) {
+              params.rules = this.appliedRules;
+            }
             const response = await fetch("/api/v1/plants?" + qs.stringify(params));
             const data = await response.json();
             this.filterCounts = data.counts;
-            this.activeSearch = this.q;
+            this.activeSearch = this.appliedRules.length ? "" : this.q;
+            this.ruleChips = data.ruleChips || [];
           } finally {
             this.updatingCounts = false;
             resolve();
@@ -1412,17 +1504,21 @@ export default {
           }
         : {
             ...this.filterValues,
-            q: this.q,
+            ...(this.appliedRules.length ? {} : { q: this.q }),
             sort: this.sort,
             page: this.page,
           };
-      this.activeSearch = this.q;
+      if (this.appliedRules.length) {
+        params.rules = this.appliedRules;
+      }
+      this.activeSearch = this.appliedRules.length ? "" : this.q;
       if (this.initializing) {
         // Don't send a bogus query for min 0 max 0
         delete params["Height (feet)"];
       }
       const response = await fetch("/api/v1/plants?" + qs.stringify(params));
       const data = await response.json();
+      this.ruleChips = data.ruleChips || [];
       if (!this.favorites) {
         this.filterCounts = data.counts;
         for (const filter of this.filters) {
@@ -1476,12 +1572,15 @@ export default {
       if (chip.name === "Search") {
         this.q = "";
       } else {
+        if (chip.key && chip.key.startsWith('rule:')) {
+          this.appliedRules = this.appliedRules.filter((n) => n !== chip.name);
+        }
         const filter = this.filters.find((filter) => filter.name === chip.name);
-        if (filter.array) {
+        if (filter && filter.array) {
           this.filterValues[chip.name] = this.filterValues[chip.name].filter(
             (value) => value !== chip.label
           );
-        } else {
+        } else if (filter) {
           this.filterValues[chip.name] = filter.default;
         }
       }
@@ -1492,6 +1591,7 @@ export default {
         this.filterValues[filter.name] = filter.default;
       }
       this.q = "";
+      this.appliedRules = [];
       this.submit();
     },
     toggleSort() {
