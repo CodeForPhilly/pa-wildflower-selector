@@ -862,6 +862,11 @@ export default {
       total: 0,
       q: "",
       activeSearch: "",
+      queryRules: {},
+      appliedRules: [],
+      ruleChips: [],
+      ruleFiltersActive: {},
+      applyingRuleFilters: false,
       sort: "Sort by Recommendation Score",
       filters,
       componentKey: 0, // Add a key for forcing re-renders
@@ -913,7 +918,21 @@ export default {
       return extras;
     },
     chips() {
-      return this.getChips(true);
+      const chips = this.getChips(true).filter((chip) => {
+        const active = this.ruleFiltersActive[chip.name];
+        return !(active && active[chip.label]);
+      });
+      if (this.ruleChips.length) {
+        for (const rc of this.ruleChips) {
+          chips.push({
+            name: rc.name,
+            label: rc.chip,
+            key: `rule:${rc.name}`,
+            svg: 'Search',
+          });
+        }
+      }
+      return chips;
     },
     flags() {
       return this.getChips(false);
@@ -990,6 +1009,9 @@ export default {
     },
     filterValues: {
       async handler() {
+        if (this.applyingRuleFilters) {
+          return;
+        }
         if (this.isDesktop()) {
           this.submit();
         } else {
@@ -1023,6 +1045,15 @@ export default {
   async mounted() {
     // Pick a random hero image after hydration to avoid SSR hydration mismatch
     this.twoUpIndex = Math.floor(Math.random() * twoUpImageCredits.length);
+
+    // Fetch query rules used for keyword searches
+    try {
+      const resp = await fetch('/api/v1/queryrules');
+      this.queryRules = await resp.json();
+    } catch (e) {
+      console.error('Failed to fetch query rules', e);
+      this.queryRules = {};
+    }
 
     this.displayLocation = localStorage.getItem("displayLocation") || "";
     this.zipCode = localStorage.getItem("zipCode") || "";
@@ -1175,6 +1206,87 @@ export default {
       localStorage.setItem("state", json.state)
       this.manualZip = true;
       localStorage.setItem("manualZip", "true")
+    },
+
+    detectRules() {
+      const matches = [];
+      if (!this.q || !this.queryRules) return matches;
+      const qLower = this.q.toLowerCase();
+      for (const [name, rule] of Object.entries(this.queryRules)) {
+        for (const kw of rule.keywords) {
+          if (qLower.includes(kw.toLowerCase())) {
+            matches.push(name);
+            break;
+          }
+        }
+      }
+      return matches;
+    },
+
+    addRuleFilters(name) {
+      const rule = this.queryRules[name];
+      if (!rule || !rule.filters) return;
+      this.applyingRuleFilters = true;
+      for (const [filterName, value] of Object.entries(rule.filters)) {
+        const filter = this.filters.find((f) => f.name === filterName);
+        if (!filter) continue;
+        const values = Array.isArray(value) ? value : [value];
+        if (!this.filterValues[filterName]) {
+          this.$set(this.filterValues, filterName, filter.array ? [] : "");
+        }
+        if (filter.array) {
+          for (const v of values) {
+            if (!this.filterValues[filterName].includes(v)) {
+              this.filterValues[filterName].push(v);
+            }
+            if (!this.ruleFiltersActive[filterName]) this.$set(this.ruleFiltersActive, filterName, {});
+            if (!this.ruleFiltersActive[filterName][v]) this.$set(this.ruleFiltersActive[filterName], v, new Set());
+            this.ruleFiltersActive[filterName][v].add(name);
+          }
+        }
+      }
+      this.applyingRuleFilters = false;
+    },
+
+    removeRuleFilters(name) {
+      const rule = this.queryRules[name];
+      if (!rule || !rule.filters) return;
+      this.applyingRuleFilters = true;
+      for (const [filterName, value] of Object.entries(rule.filters)) {
+        const values = Array.isArray(value) ? value : [value];
+        const arr = this.filterValues[filterName];
+        if (!arr) continue;
+        for (const v of values) {
+          const stillNeeded = this.appliedRules.some((other) => {
+            if (other === name) return false;
+            const otherRule = this.queryRules[other];
+            if (!otherRule || !otherRule.filters) return false;
+            const otherValues = otherRule.filters[filterName];
+            if (!otherValues) return false;
+            const otherArr = Array.isArray(otherValues) ? otherValues : [otherValues];
+            return otherArr.includes(v);
+          });
+          if (!stillNeeded) {
+            const idx = arr.indexOf(v);
+            if (idx !== -1) arr.splice(idx, 1);
+          }
+          if (this.ruleFiltersActive[filterName] && this.ruleFiltersActive[filterName][v]) {
+            this.ruleFiltersActive[filterName][v].delete(name);
+            if (!this.ruleFiltersActive[filterName][v].size) {
+              this.$delete(this.ruleFiltersActive[filterName], v);
+            }
+          }
+        }
+      }
+      this.applyingRuleFilters = false;
+    },
+
+    updateRuleFilters(detected) {
+      const removed = this.appliedRules.filter((n) => !detected.includes(n));
+      const added = detected.filter((n) => !this.appliedRules.includes(n));
+      removed.forEach((name) => this.removeRuleFilters(name));
+      added.forEach((name) => this.addRuleFilters(name));
+      this.appliedRules = detected;
     },
     async getVendors() {
       if (!this.selected) return [];
@@ -1330,6 +1442,8 @@ export default {
         clearTimeout(this.submitTimeout);
         this.submitTimeout = null;
       }
+      const detected = this.detectRules();
+      this.updateRuleFilters(detected);
       this.submitTimeout = setTimeout(submit.bind(this), 50); // Reduced timeout for faster response
 
       function submit() {
@@ -1370,19 +1484,23 @@ export default {
         this.updatingCounts = true;
         const doUpdate = async () => {
           try {
-            const params = {
-              ...this.filterValues,
-              q: this.q,
-              sort: this.sort,
-            };
+        const params = {
+          ...this.filterValues,
+          ...(this.appliedRules.length ? {} : { q: this.q }),
+          sort: this.sort,
+        };
             if (this.initializing) {
               resolve();
               return;
             }
+            if (this.appliedRules.length) {
+              params.rules = this.appliedRules;
+            }
             const response = await fetch("/api/v1/plants?" + qs.stringify(params));
             const data = await response.json();
             this.filterCounts = data.counts;
-            this.activeSearch = this.q;
+            this.activeSearch = this.appliedRules.length ? "" : this.q;
+            this.ruleChips = data.ruleChips || [];
           } finally {
             this.updatingCounts = false;
             resolve();
@@ -1412,17 +1530,21 @@ export default {
           }
         : {
             ...this.filterValues,
-            q: this.q,
+            ...(this.appliedRules.length ? {} : { q: this.q }),
             sort: this.sort,
             page: this.page,
           };
-      this.activeSearch = this.q;
+      if (this.appliedRules.length) {
+        params.rules = this.appliedRules;
+      }
+      this.activeSearch = this.appliedRules.length ? "" : this.q;
       if (this.initializing) {
         // Don't send a bogus query for min 0 max 0
         delete params["Height (feet)"];
       }
       const response = await fetch("/api/v1/plants?" + qs.stringify(params));
       const data = await response.json();
+      this.ruleChips = data.ruleChips || [];
       if (!this.favorites) {
         this.filterCounts = data.counts;
         for (const filter of this.filters) {
@@ -1476,12 +1598,16 @@ export default {
       if (chip.name === "Search") {
         this.q = "";
       } else {
+        if (chip.key && chip.key.startsWith('rule:')) {
+          this.removeRuleFilters(chip.name);
+          this.appliedRules = this.appliedRules.filter((n) => n !== chip.name);
+        }
         const filter = this.filters.find((filter) => filter.name === chip.name);
-        if (filter.array) {
+        if (filter && filter.array) {
           this.filterValues[chip.name] = this.filterValues[chip.name].filter(
             (value) => value !== chip.label
           );
-        } else {
+        } else if (filter) {
           this.filterValues[chip.name] = filter.default;
         }
       }
@@ -1492,6 +1618,10 @@ export default {
         this.filterValues[filter.name] = filter.default;
       }
       this.q = "";
+      for (const name of this.appliedRules) {
+        this.removeRuleFilters(name);
+      }
+      this.appliedRules = [];
       this.submit();
     },
     toggleSort() {
