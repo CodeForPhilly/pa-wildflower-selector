@@ -1648,9 +1648,7 @@ export default {
       this.submit();
     },
     clearAll() {
-      for (const filter of this.filters) {
-        this.filterValues[filter.name] = filter.default;
-      }
+      this.filterValues = JSON.parse(JSON.stringify(this.defaultFilterValues));
       this.q = "";
       for (const name of this.appliedRules) {
         this.removeRuleFilters(name);
@@ -1880,8 +1878,9 @@ ${htmlLines.join("\n")}
 function getDefaultFilterValues(filters) {
   return Object.fromEntries(
     filters.map((filter) => {
-      const value = [filter.name, filter.value];
-      filter.default = filter.value;
+      const cloned = JSON.parse(JSON.stringify(filter.value));
+      const value = [filter.name, cloned];
+      filter.default = JSON.parse(JSON.stringify(filter.value));
       delete filter.value;
       return value;
     })
