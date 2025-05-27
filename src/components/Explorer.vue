@@ -922,7 +922,8 @@ export default {
         const active = this.ruleFiltersActive[chip.name];
         return !(active && active[chip.label]);
       });
-      if (this.ruleChips.length) {
+      // Only show rule chips when they have been explicitly submitted
+      if (this.ruleChips.length && this.appliedRules.length) {
         for (const rc of this.ruleChips) {
           chips.push({
             name: rc.name,
@@ -1211,7 +1212,12 @@ export default {
     detectRules() {
       const matches = [];
       if (!this.q || !this.queryRules) return matches;
+      
+      // Split the query into individual words for better matching
       const qLower = this.q.toLowerCase();
+      const queryWords = qLower.split(/\s+/);
+      
+      // First try to match exact phrases in the complete query
       for (const [name, rule] of Object.entries(this.queryRules)) {
         for (const kw of rule.keywords) {
           if (qLower.includes(kw.toLowerCase())) {
@@ -1220,6 +1226,27 @@ export default {
           }
         }
       }
+      
+      // Then try to match individual words if they are exact matches to keywords
+      for (const word of queryWords) {
+        if (word.length < 3) continue; // Skip very short words
+        
+        for (const [name, rule] of Object.entries(this.queryRules)) {
+          // Skip if this rule is already matched
+          if (matches.includes(name)) continue;
+          
+          for (const kw of rule.keywords) {
+            // Only match if the word is exactly the same as the keyword (case insensitive)
+            // or if the keyword is a single word and matches exactly
+            const kwLower = kw.toLowerCase();
+            if (word === kwLower || (kwLower.indexOf(' ') === -1 && word === kwLower)) {
+              matches.push(name);
+              break;
+            }
+          }
+        }
+      }
+      
       return matches;
     },
 
@@ -1442,8 +1469,12 @@ export default {
         clearTimeout(this.submitTimeout);
         this.submitTimeout = null;
       }
+      // Only apply rules when user explicitly submits
       const detected = this.detectRules();
       this.updateRuleFilters(detected);
+      // Force a console log to debug the detected rules
+      console.log('Detected rules:', detected);
+      console.log('Applied rules:', this.appliedRules);
       this.submitTimeout = setTimeout(submit.bind(this), 50); // Reduced timeout for faster response
 
       function submit() {
@@ -1530,12 +1561,15 @@ export default {
           }
         : {
             ...this.filterValues,
-            ...(this.appliedRules.length ? {} : { q: this.q }),
+            // Always include the search query for better debugging
+            q: this.q,
             sort: this.sort,
             page: this.page,
           };
       if (this.appliedRules.length) {
         params.rules = this.appliedRules;
+        // Log the rules being sent to the server
+        console.log('Sending rules to server:', this.appliedRules);
       }
       this.activeSearch = this.appliedRules.length ? "" : this.q;
       if (this.initializing) {
