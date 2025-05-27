@@ -195,6 +195,9 @@ spec:
             - configMapRef:
                 name: app-config
                 optional: true
+            {{- with $.Values.app.envFrom }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           ports:
             - name: http
               containerPort: 3000
