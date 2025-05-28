@@ -484,6 +484,11 @@
     </main>
     <!-- Useful if we go back to using an observer for infinite scroll -->
     <div ref="next"></div>
+    <FilterModal
+      :open="filterModalOpen"
+      @close="filterModalOpen = false"
+      @update:query="applyModalQuery"
+    />
   </div>
 </template>
 
@@ -493,6 +498,7 @@ import Range from "./Range.vue";
 import Checkbox from "./Checkbox.vue";
 import Header from "./Header.vue";
 import Menu from "./Menu.vue";
+import FilterModal from "./FilterModal.vue";
 
 const twoUpImageCredits = [
   // Order is synced with the public/assets/images/two-up folder filenames,
@@ -534,6 +540,7 @@ export default {
     Checkbox,
     Header,
     Menu,
+    FilterModal,
   },
   props: {
     favorites: {
@@ -886,6 +893,7 @@ export default {
       questionDetails,
       twoUpIndex,
       isCopied: false,
+      filterModalOpen: false,
     };
   },
   computed: {
@@ -1318,7 +1326,11 @@ export default {
       }
     },
     openFilters() {
-      this.filtersOpen = true;
+      this.filterModalOpen = true;
+    },
+    applyModalQuery(q) {
+      Object.assign(this.filterValues, q);
+      this.submit();
     },
     submit() {
       if (this.loading) {
