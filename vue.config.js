@@ -3,7 +3,11 @@ const nodeExternals = require("webpack-node-externals");
 
 module.exports = {
   devServer: {
-    proxy: 'http://localhost:3001'
+    // Vue dev server port (defaults to 8080)
+    port: process.env.VUE_DEV_PORT || 8080,
+    // Proxy API requests to Node.js server
+    // Uses PORT from .env or defaults to 3000
+    proxy: `http://localhost:${process.env.PORT || 3000}`
   },
   filenameHashing: false,
   chainWebpack: webpackConfig => {

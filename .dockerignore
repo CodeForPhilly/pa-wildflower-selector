@@ -10,3 +10,8 @@ script/
 README.md
 .env
 .env.example
+db_backups/
+
+.cursorignore
+
+TODO.MD
