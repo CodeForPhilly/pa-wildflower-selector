@@ -16,3 +16,13 @@ node_modules
 
 #You need to get the images from the the linode store via the sync down script not from git.
 /images
+
+#You need to get the db from the the linode store via the sync down script not from git.
+db_backups/
+
+
+
+.cursorignore
+
+
+TODO.MD

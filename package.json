@@ -14,7 +14,15 @@
     "sign-secrets": "./script/sign-secrets",
     "update-data": "node download && node massage",
     "fast-update-data": "node download --skip-images && node massage",
-    "sync-images": "sh /app/scripts/sync-images"
+    "sync-images": "node scripts/sync-images.js",
+    "sync:down": "node scripts/sync-down.js",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "predev:local": "node scripts/dev-setup.js",
+    "dev:local": "npm run predev:local && concurrently --names \"SERVER,CLIENT\" --prefix-colors \"blue,green\" \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "vue-cli-service serve",
+    "dev:server": "cross-env NODE_ENV=development node app.js",
+    "dev:full": "concurrently --names \"SERVER,CLIENT\" --prefix-colors \"blue,green\" \"npm run dev:server\" \"npm run dev:client\""
   },
   "dependencies": {
     "@vue/cli-plugin-babel": "^4.5.16",
@@ -27,6 +35,7 @@
     "cheerio": "^1.0.0-rc.9",
     "core-js": "^3.21.1",
     "csv-parse": "^4.15.4",
+    "dotenv": "^16.0.0",
     "eslint": "^6.7.2",
     "eslint-plugin-vue": "^7.20.0",
     "express": "^4.17.3",
@@ -44,6 +53,10 @@
     "webpack-manifest-plugin": "^4.0.2",
     "webpack-node-externals": "^3.0.0",
     "yaml": "^2.0.1"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3"
   },
   "eslintConfig": {
     "root": true,
