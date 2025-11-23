@@ -20,9 +20,13 @@ node_modules
 #You need to get the db from the the linode store via the sync down script not from git.
 db_backups/
 
-
+REF REPO/
 
 .cursorignore
 
-
+SEMANTIC_SEARCH.md
 TODO.MD
+
+settings.local.json
+
+git@.gitignore
