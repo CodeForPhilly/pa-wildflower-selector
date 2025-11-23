@@ -22,7 +22,7 @@ const {
   LINODE_BUCKET_NAME,
   LINODE_ENDPOINT_URL = 'https://us-east-1.linodeobjects.com',
   // MongoDB connection settings
-  DB_HOST = 'localhost',
+  DB_HOST,
   DB_PORT = 27017,
   MONGODB_USER,
   MONGODB_PASSWORD,
@@ -40,7 +40,8 @@ if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY || !LINODE_BUCKET_NAME) {
 }
 
 // MongoDB connection settings
-const host = DB_HOST;
+// Default to 'mongodb' (Docker mode) unless DB_HOST is explicitly 'localhost'
+const host = DB_HOST === 'localhost' ? 'localhost' : (DB_HOST || 'mongodb');
 const port = MONGODB_DOCKER_PORT || DB_PORT;
 const user = MONGODB_USER || DB_USER;
 const password = MONGODB_PASSWORD || DB_PASSWORD;
