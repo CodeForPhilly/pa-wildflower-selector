@@ -20,7 +20,7 @@ const requiredEnvVars = [
 
 // MongoDB connection variables
 const {
-  DB_HOST = 'localhost',
+  DB_HOST,
   MONGODB_USER,
   MONGODB_PASSWORD,
   MONGODB_DATABASE,
@@ -31,8 +31,8 @@ const {
   DB_PASSWORD
 } = process.env;
 
-// Detect mode
-const host = DB_HOST || 'mongodb';
+// Detect mode - default to Docker unless explicitly localhost
+const host = DB_HOST === 'localhost' ? 'localhost' : (DB_HOST || 'mongodb');
 const isDockerMode = host === 'mongodb';
 const mode = isDockerMode ? 'Docker' : 'Local';
 
