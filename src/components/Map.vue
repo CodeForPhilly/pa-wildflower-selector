@@ -106,7 +106,10 @@ export default {
   },
   methods: {
     async fetchNurseries() {
-      var state = localStorage.getItem("state") || "ALL";
+      // Check if we're in browser environment before accessing localStorage
+      var state = (typeof window !== 'undefined' && window.localStorage) 
+        ? localStorage.getItem("state") || "ALL" 
+        : "ALL";
       const data = await this.get(`/api/v1/nurseries?state=${state}`);
       this.nurseries = data.results;
       // Trim to match on data with space issues
