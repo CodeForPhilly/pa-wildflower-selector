@@ -72,16 +72,30 @@ async function generateEmbeddings() {
   }
   
   await close();
-  process.exit(0);
+  return { processed, updated, skipped };
 }
 
-// Handle errors
-process.on('unhandledRejection', (error) => {
-  console.error('Unhandled error:', error);
-  process.exit(1);
-});
+// Export for use in other modules
+module.exports = { generateEmbeddings };
 
-generateEmbeddings();
+// If run directly as a script, execute it
+if (require.main === module) {
+  // Handle errors for standalone execution
+  process.on('unhandledRejection', (error) => {
+    console.error('Unhandled error:', error);
+    process.exit(1);
+  });
+
+  generateEmbeddings()
+    .then(() => {
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('Unhandled error:', error);
+      process.exit(1);
+    });
+}
+
 
 
 

@@ -1,7 +1,10 @@
-FROM node@sha256:426f843809ae05f324883afceebaa2b9cab9cb697097dbb1a2a7a41c5701de72
+FROM node:20-slim
 
 # Install ImageMagick and AWS CLI
-RUN apk add --no-cache imagemagick aws-cli
+RUN apt-get update && apt-get install -y \
+    imagemagick \
+    awscli \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set NODE_OPTIONS for OpenSSL compatibility and limit memory usage
 ENV NODE_OPTIONS="--openssl-legacy-provider --max-old-space-size=768"
