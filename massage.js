@@ -1,3 +1,4 @@
+require('dotenv').config();
 const db = require('./lib/db');
 const fs = require('fs');
 const path = require('path');
@@ -37,7 +38,7 @@ async function go() {
     const previewImagePath = `${__dirname}/images/${plant._id}.preview.jpg`;
     const hasImage = fs.existsSync(fullImagePath);
     const hasPreview = fs.existsSync(previewImagePath);
-    
+
     await plants.updateOne({
       _id: plant._id
     }, {
@@ -59,13 +60,13 @@ async function go() {
       };
       await plants.insertOne(plant);
       await plants.removeOne({
-       _id: name
+        _id: name
       });
       const oldName = `${__dirname}/images/${name}.jpg`;
       const newName = `${__dirname}/images/${renamed}.jpg`;
       if (fs.existsSync(oldName)) {
         fs.renameSync(oldName, newName);
-        
+
         // Update hasImage flag for renamed plant
         await plants.updateOne({
           _id: renamed
@@ -78,8 +79,8 @@ async function go() {
     }
 
     // Process Flowering Months into an array of flags
-    const months = [ 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec' ];
-    let [ from, to ] = plant['Flowering Months'].split('–');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    let [from, to] = plant['Flowering Months'].split('–');
     from = months.indexOf(from);
     to = months.indexOf(to);
     if ((from > -1) && (to > -1)) {
@@ -116,7 +117,7 @@ async function go() {
     if (height) {
       let matching = [];
       if (height.includes('–')) {
-        let [ from, to ] = height.split('–').map(parseFloat);
+        let [from, to] = height.split('–').map(parseFloat);
         if (!isNaN(from) && !isNaN(to)) {
           from = Math.floor(from);
           to = Math.floor(to);
@@ -145,6 +146,8 @@ async function go() {
         }
       });
     }
+
+
 
     // Fix Reccomendation Score to be an int not a string
     const score = plant['Recommendation Score'];
@@ -211,10 +214,10 @@ async function go() {
     } else {
       plantTypeFlags = matches[1].split(/, /);
       if (matches[2]) {
-        plantTypeFlags = [ ...plantTypeFlags, ...matches[2].split(/ or /) ]; 
+        plantTypeFlags = [...plantTypeFlags, ...matches[2].split(/ or /)];
       }
       plantTypeFlags = plantTypeFlags.map(flag => flag.trim().replace('(', '').replace(')', '')).map(capitalize);
-      const lifeCycles = [ 'Annual', 'Biennial', 'Perennial' ];
+      const lifeCycles = ['Annual', 'Biennial', 'Perennial'];
       const lifeCycleFlags = plantTypeFlags.filter(plantType => lifeCycles.includes(plantType));
       plantTypeFlags = plantTypeFlags.filter(plantType => !lifeCycles.includes(plantType));
       await plants.updateOne({
