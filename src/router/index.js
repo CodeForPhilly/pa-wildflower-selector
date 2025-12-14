@@ -2,6 +2,7 @@ import Explorer from "../components/Explorer.vue";
 import PeoplePage from "../components/PeoplePage.vue";
 import HowToUsePage from "../components/HowToUsePage.vue";
 import Map from "../components/Map.vue";
+import GardenPlanner from "../components/GardenPlanner.vue";
 import { createRouter } from "vue-router";
 
 const routes = [
@@ -44,6 +45,14 @@ const routes = [
     path: "/map",
     name: "Nurseries",
     component: Map
+  },
+  {
+    path: "/planner",
+    name: "Garden Planner",
+    component: GardenPlanner,
+    props: {
+      favorites: true
+    }
   }
 ];
 
