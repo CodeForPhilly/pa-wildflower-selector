@@ -1,3 +1,4 @@
+require('dotenv').config();
 const VERSION = '1.2.0';
 const fs = require('fs');
 const path = require('path');
@@ -10,10 +11,10 @@ const { RateLimiter } = require('limiter');
 function log(message) {
     const timestamp = new Date().toISOString();
     const logMessage = `${timestamp}: ${message}\n`;
-    
+
     // Log to console
     console.log(message);
-    
+
     // Log to file
     const logPath = path.join(__dirname, 'download.log');
     fs.appendFileSync(logPath, logMessage);
@@ -61,7 +62,7 @@ async function go() {
         log(`Initial database count: ${initialCount} plants`);
 
         await downloadMain();
-        
+
         // Get final count
         const finalCount = await plants.countDocuments({});
         log(`Final database count: ${finalCount} plants`);
@@ -75,11 +76,11 @@ async function go() {
 
 async function downloadMain() {
     const limiter = new RateLimiter({ tokensPerInterval: 1, interval: "second" });
-    
+
     log('Fetching spreadsheet data...');
     const body = await get(process.env.MASTER_CSV_URL);
     const articlesBody = await get(process.env.ARTICLES_CSV_URL);
-    
+
     // Initialize empty rowsByName object
     let rowsByName = {};
 
@@ -88,48 +89,48 @@ async function downloadMain() {
         columns: true,
         skip_empty_lines: true
     });
-    
+
     // Parse articles CSV
     const articleRecords = parse(articlesBody, {
         columns: true,
         skip_empty_lines: true
     });
-    
+
     // Remove plants that are not in the latest CSV
     await plants.deleteMany({
         _id: { $nin: records.map(record => record['Scientific Name']) }
     });
 
     log(`Processing ${records.length} plants from master CSV`);
-    
+
     let i = 0;
     for (const record of records) {
         i++;
         // Clean up data by trimming whitespace
         const clean = Object.fromEntries(
-            Object.entries(record).map(([ key, value ]) => {
-                return [ key.trim(), value.trim() ];
+            Object.entries(record).map(([key, value]) => {
+                return [key.trim(), value.trim()];
             })
         );
-        
+
         let name = clean['Scientific Name'];
         log(`${name} (${i} of ${records.length})`);
-        
+
         // Set _id to the scientific name
         clean._id = name;
-        
+
         // Handle superplant status
         let sp = (clean['Super Plant'] && clean['Super Plant'].trim() === 'Yes');
-        
+
         // Get existing plant record if available
         const existing = await plants.findOne({
             _id: name
         });
-        
+
         // Set Superplant and Showy flags
         clean.Superplant = sp;
         clean.Showy = clean.Showy === 'Yes';
-        
+
         // Process articles for this plant
         clean.Articles = [];
         for (const record of articleRecords) {
@@ -144,7 +145,7 @@ async function downloadMain() {
                 }
             }
         }
-        
+
         // Update the plant in the database
         await update(plants, clean);
     }
@@ -157,14 +158,14 @@ async function downloadMain() {
 async function updateNurseries() {
     // Remove all existing nurseries
     await nurseries.deleteMany({});
-    
+
     // Fetch and parse nursery data
     const body = await get(process.env.LOCAL_MAP_CSV_URL);
     const records = parse(body, {
         columns: true,
         skip_empty_lines: true
     });
-    
+
     // Insert nurseries into database
     for (const record of records) {
         const address = `${record.ADDRESS} ${record.CITY}, ${record.STATE} ${record.ZIP}`;
@@ -172,7 +173,7 @@ async function updateNurseries() {
         record.lat = parseFloat(record.Lat);
         await nurseries.insertOne(record);
     }
-    
+
     log(`Added ${records.length} nurseries to database`);
 }
 
@@ -183,7 +184,7 @@ async function updateOnlineStores() {
         columns: true,
         skip_empty_lines: true
     });
-    
+
     // Remove existing online stores data
     await plants.updateMany({},
         {
@@ -192,7 +193,7 @@ async function updateOnlineStores() {
             }
         }
     );
-    
+
     // Add online stores to plants
     let updateCount = 0;
     for (const record of records) {
@@ -206,12 +207,12 @@ async function updateOnlineStores() {
                 }
             }
         });
-        
+
         if (result.modifiedCount > 0) {
             updateCount++;
         }
     }
-    
+
     log(`Updated ${updateCount} plants with online store information`);
 }
 
