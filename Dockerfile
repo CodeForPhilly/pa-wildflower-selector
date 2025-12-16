@@ -6,8 +6,8 @@ RUN apt-get update && apt-get install -y \
     awscli \
     && rm -rf /var/lib/apt/lists/*
 
-# Set NODE_OPTIONS for OpenSSL compatibility and limit memory usage
-ENV NODE_OPTIONS="--openssl-legacy-provider --max-old-space-size=768"
+# Set NODE_OPTIONS for OpenSSL compatibility and increase heap size for embedding model operations
+ENV NODE_OPTIONS="--openssl-legacy-provider --max-old-space-size=3072"
 
 WORKDIR /app
 COPY package.json package-lock.json ./

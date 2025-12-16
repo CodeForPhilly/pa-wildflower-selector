@@ -396,6 +396,13 @@
             <span v-if="isCopied">✓ Copied!</span>
             <span v-else>Copy to Clipboard</span>
           </button>
+          <button
+            class="primary primary-bar planner-button"
+            :disabled="!favoritesAvailable"
+            @click="favoritesAvailable && $router.push('/planner')"
+          >
+            Garden Planner
+          </button>
         </div>
         <form
           v-if="!favorites"
@@ -3364,6 +3371,11 @@ button.favorites[disabled], button.copy-button[disabled] {
   margin-top: 10px;
   display: flex;
   justify-content: center;
+  gap: 10px;
+}
+
+.planner-button {
+  white-space: nowrap;
 }
 
 .list-button {
