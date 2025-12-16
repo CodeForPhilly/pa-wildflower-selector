@@ -112,7 +112,8 @@ const {
 const handlePaletteDragStart = (event: PointerEvent, plantId: string) => {
   // Forward the drag start to the canvas component
   if (canvasRef.value && 'startPaletteDrag' in canvasRef.value) {
-    (canvasRef.value as { startPaletteDrag: (event: PointerEvent, plantId: string) => void }).startPaletteDrag(event, plantId);
+    const canvas = canvasRef.value as { startPaletteDrag: (event: PointerEvent, plantId: string) => void };
+    canvas.startPaletteDrag(event, plantId);
   }
 };
 </script>
