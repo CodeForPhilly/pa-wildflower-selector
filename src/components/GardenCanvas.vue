@@ -36,7 +36,10 @@
           :style="dragPreviewStyle"
         >
           <div class="drag-preview-label">
-            {{ dragPreviewPlant['Common Name'] || dragState.plantId }}
+            <div class="label-line common">{{ dragPreviewPlant['Common Name'] || dragState.plantId }}</div>
+            <div v-if="dragPreviewPlant['Scientific Name']" class="label-line scientific">
+              <i>{{ dragPreviewPlant['Scientific Name'] }}</i>
+            </div>
           </div>
         </div>
 
@@ -351,7 +354,8 @@ button.primary-bar.small.danger {
   pointer-events: none;
   z-index: 16;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   opacity: 0.7;
@@ -360,11 +364,41 @@ button.primary-bar.small.danger {
 .drag-preview-label {
   width: 100%;
   font-family: Roboto;
-  font-size: 12px;
+  font-size: 13px;
   color: #fff;
-  padding: 8px 10px;
-  line-height: 1.2;
+  padding: 12px 8px;
+  line-height: 1.4;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 10px rgba(0, 0, 0, 0.6);
   background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.35) 70%, rgba(0, 0, 0, 0.35) 100%);
+  margin-top: 25%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  box-sizing: border-box;
+}
+
+.drag-preview-label .label-line {
+  display: block;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.drag-preview-label .label-line.common {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.drag-preview-label .label-line.scientific {
+  font-size: 0.85em;
+  margin-top: 3px;
+  opacity: 0.95;
+  max-width: 100%;
+  white-space: normal;
+}
+
+.drag-preview-label .label-line.scientific i {
+  font-style: italic;
 }
 </style>
 
