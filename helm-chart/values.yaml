@@ -25,7 +25,7 @@ db:
 
 storage:
   app: 5Gi
-  db: 5Gi
+  db: 10Gi
 
 
 nameOverride: "choose-native-plants"
