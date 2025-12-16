@@ -113,7 +113,11 @@ const handlePaletteDragStart = (event: PointerEvent, plantId: string) => {
   // Forward the drag start to the canvas component
   if (canvasRef.value && 'startPaletteDrag' in canvasRef.value) {
     // Use bracket notation to avoid TypeScript type assertion that ESLint can't parse
-    (canvasRef.value as any).startPaletteDrag(event, plantId);
+    const canvas = canvasRef.value;
+    const method = canvas['startPaletteDrag'];
+    if (typeof method === 'function') {
+      method.call(canvas, event, plantId);
+    }
   }
 };
 </script>
