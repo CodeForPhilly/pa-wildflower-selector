@@ -29,6 +29,17 @@
           :style="gridHighlightStyle"
         />
 
+        <!-- Transparent drag preview following cursor -->
+        <div
+          v-if="dragState.isDragging && dragPreviewPlant"
+          class="drag-preview"
+          :style="dragPreviewStyle"
+        >
+          <div class="drag-preview-label">
+            {{ dragPreviewPlant['Common Name'] || dragState.plantId }}
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -160,23 +171,50 @@ const handlePlantDragStart = (event: PointerEvent, placedId: string) => {
   }
 };
 
-// Grid highlight style - shows target cells that will be occupied
-const gridHighlightSize = computed(() => {
-  if (!dragState.value.isDragging || !dragState.value.plantId) return 1;
+// Drag preview - transparent plant image following cursor
+const dragPreviewPlant = computed(() => {
+  if (!dragState.value.isDragging || !dragState.value.plantId) return null;
   
-  let plant: Plant | undefined;
   if (dragState.value.dragType === 'place') {
-    plant = props.plantById[dragState.value.plantId];
+    return props.plantById[dragState.value.plantId];
   } else if (dragState.value.dragType === 'move') {
     const placed = props.placedPlants.find(p => p.id === dragState.value.plantId);
-    plant = placed ? props.plantById[placed.plantId] : undefined;
+    return placed ? props.plantById[placed.plantId] : null;
   }
-  
-  if (!plant) return 1;
-  const raw = plant['Spread (feet)'];
+  return null;
+});
+
+const dragPreviewSize = computed(() => {
+  if (!dragPreviewPlant.value) return 1;
+  const raw = dragPreviewPlant.value['Spread (feet)'];
   const num = parseFloat(String(raw));
   if (!Number.isFinite(num) || num <= 0) return 1;
   return Math.max(1, Math.round(num));
+});
+
+const dragPreviewStyle = computed(() => {
+  if (!dragState.value.isDragging || !dragPreviewPlant.value || !dragState.value.currentCoords) return {};
+  
+  const coords = dragState.value.currentCoords;
+  const size = dragPreviewSize.value;
+  
+  // Use same positioning as grid highlight - centered on target cells
+  const adjustedX = Math.max(0, Math.min(coords.x, 10 - size));
+  const adjustedY = Math.max(0, Math.min(coords.y, 10 - size));
+  const sizePx = size * dynamicCellSize.value;
+  
+  return {
+    width: `${sizePx}px`,
+    height: `${sizePx}px`,
+    left: `calc(${adjustedX} * var(--cell-size))`,
+    top: `calc(${adjustedY} * var(--cell-size))`,
+    'background-image': `linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.35) 70%, rgba(0, 0, 0, 0.35) 100%), url("${props.imageUrl(dragPreviewPlant.value, false)}")`,
+  };
+});
+
+// Grid highlight style - shows target cells that will be occupied
+const gridHighlightSize = computed(() => {
+  return dragPreviewSize.value;
 });
 
 const gridHighlightStyle = computed(() => {
@@ -302,6 +340,31 @@ button.primary-bar.small.danger {
       rgba(0, 0, 0, 0.2) calc(var(--cell-size) - 1px),
       rgba(0, 0, 0, 0.2) var(--cell-size)
     );
+}
+
+.drag-preview {
+  position: absolute;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  border: 2px solid rgba(183, 77, 21, 0.6);
+  pointer-events: none;
+  z-index: 16;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  opacity: 0.7;
+}
+
+.drag-preview-label {
+  width: 100%;
+  font-family: Roboto;
+  font-size: 12px;
+  color: #fff;
+  padding: 8px 10px;
+  line-height: 1.2;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.35) 70%, rgba(0, 0, 0, 0.35) 100%);
 }
 </style>
 
