@@ -11,7 +11,19 @@ module.exports = {
   },
   filenameHashing: false,
   chainWebpack: webpackConfig => {
+    // Override TypeScript plugin's default entry point to use main.js
+    // The project uses JavaScript for the main entry, TypeScript only for components
     if (!process.env.SSR) {
+      webpackConfig.entry('app').clear().add('./src/main.js');
+      
+      // Exclude TypeScript files and Vue files from ESLint - TypeScript compiler handles them
+      webpackConfig.module
+        .rule('eslint')
+        .exclude
+        .add(/\.ts$/)
+        .add(/\.tsx$/)
+        .add(/\.vue$/);
+      
       return;
     }
 
