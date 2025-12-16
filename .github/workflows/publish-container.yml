@@ -41,8 +41,8 @@ jobs:
             --tag "${DOCKER_REPOSITORY}/app:${DOCKER_TAG}" \
             .
 
-    - name: Push Docker container image app:latest"
+    - name: 'Push Docker container image app:latest'
       run: docker push "${DOCKER_REPOSITORY}/app:latest"
 
-    - name: Push Docker container image app:v*"
+    - name: 'Push Docker container image app with tag'
       run: docker push "${DOCKER_REPOSITORY}/app:${DOCKER_TAG}"
