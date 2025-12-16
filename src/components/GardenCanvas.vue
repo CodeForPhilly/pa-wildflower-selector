@@ -126,7 +126,16 @@ const getGridCoords = (event: PointerEvent | MouseEvent): GridCoords | null => {
 };
 
 const handleDragEnd = (coords: GridCoords, dragType: 'place' | 'move', plantId: string) => {
-  if (dragType === 'move') {
+  const isCtrlHeld = dragState.value.ctrlKey;
+  
+  if (dragType === 'move' && isCtrlHeld) {
+    // Ctrl+drag: duplicate the plant
+    const placed = props.placedPlants.find(p => p.id === plantId);
+    if (placed) {
+      props.placePlant(placed.plantId, coords.x, coords.y);
+    }
+  } else if (dragType === 'move') {
+    // Normal drag: move the plant
     props.movePlant(plantId, coords.x, coords.y);
   } else if (dragType === 'place') {
     props.placePlant(plantId, coords.x, coords.y);

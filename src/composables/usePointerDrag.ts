@@ -9,6 +9,7 @@ export interface DragState {
   currentCoords: GridCoords | null;
   pointerX: number;
   pointerY: number;
+  ctrlKey: boolean;
 }
 
 export function usePointerDrag(
@@ -24,6 +25,7 @@ export function usePointerDrag(
     currentCoords: null,
     pointerX: 0,
     pointerY: 0,
+    ctrlKey: false,
   });
 
   const getGridCoords = (event: PointerEvent): GridCoords | null => {
@@ -56,6 +58,7 @@ export function usePointerDrag(
       currentCoords: coords,
       pointerX: event.clientX,
       pointerY: event.clientY,
+      ctrlKey: event.ctrlKey || event.metaKey, // Support both Ctrl (Windows/Linux) and Cmd (Mac)
     };
 
     // Capture pointer for smooth dragging
@@ -73,6 +76,7 @@ export function usePointerDrag(
     
     dragState.value.pointerX = event.clientX;
     dragState.value.pointerY = event.clientY;
+    dragState.value.ctrlKey = event.ctrlKey || event.metaKey; // Update Ctrl state during drag
     
     const coords = getGridCoords(event);
     if (coords) {
@@ -104,6 +108,7 @@ export function usePointerDrag(
       currentCoords: null,
       pointerX: 0,
       pointerY: 0,
+      ctrlKey: false,
     };
 
     // Remove global listeners
