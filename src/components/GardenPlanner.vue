@@ -112,6 +112,7 @@ const {
 const handlePaletteDragStart = (event: PointerEvent, plantId: string) => {
   // Forward the drag start to the canvas component
   if (canvasRef.value && 'startPaletteDrag' in canvasRef.value) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const canvas = canvasRef.value as { startPaletteDrag: (event: PointerEvent, plantId: string) => void };
     canvas.startPaletteDrag(event, plantId);
   }
