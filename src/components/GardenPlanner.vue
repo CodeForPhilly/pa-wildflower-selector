@@ -57,7 +57,6 @@
           :placed-plants="placedPlants"
           :plant-by-id="plantById"
           :overlap-ids="overlapIds"
-          :popover-plant-id="popoverPlantId"
           :selected-plant-id="selectedPlantId"
           :is-mobile="isMobile"
           :image-url="imageUrl"
@@ -65,8 +64,6 @@
           :place-plant="placePlant"
           :move-plant="movePlant"
           :remove-placed="removePlaced"
-          :open-popover="openPopover"
-          :close-popover="closePopover"
         />
       </section>
     </main>
@@ -95,7 +92,6 @@ const {
   favoritePlants,
   placedPlants,
   selectedPlantId,
-  popoverPlantId,
   plantById,
   overlapIds,
   imageUrl,
@@ -106,8 +102,6 @@ const {
   removePlaced,
   clearLayout,
   resetPlanner,
-  openPopover,
-  closePopover,
   selectPlant,
   undo,
   redo,

@@ -16,7 +16,6 @@ export function useGardenPlanner() {
   const favoritePlants = ref<Plant[]>([]);
   const placedPlants = ref<PlacedPlant[]>([]);
   const selectedPlantId = ref<string | null>(null);
-  const popoverPlantId = ref<string | null>(null);
 
   // LocalStorage
   const { storedValue: storageData, remove: clearStorage } = useLocalStorage<StoragePayload>(
@@ -56,11 +55,6 @@ export function useGardenPlanner() {
       }
     }
     return overlaps;
-  });
-
-  const popoverPlaced = computed(() => {
-    if (!popoverPlantId.value) return null;
-    return placedPlants.value.find((p) => p.id === popoverPlantId.value) || null;
   });
 
   // Methods
@@ -161,30 +155,17 @@ export function useGardenPlanner() {
     const newPlacedPlants = placedPlants.value.filter((p) => p.id !== id);
     placedPlants.value = newPlacedPlants;
     undoRedo.addState([...newPlacedPlants]);
-    
-    if (popoverPlantId.value === id) {
-      popoverPlantId.value = null;
-    }
   };
 
   const clearLayout = (): void => {
     placedPlants.value = [];
     undoRedo.reset([]);
-    popoverPlantId.value = null;
   };
 
   const resetPlanner = (): void => {
     clearStorage();
     selectedPlantId.value = null;
     clearLayout();
-  };
-
-  const openPopover = (id: string): void => {
-    popoverPlantId.value = id;
-  };
-
-  const closePopover = (): void => {
-    popoverPlantId.value = null;
   };
 
   const selectPlant = (plantId: string | null): void => {
@@ -258,13 +239,11 @@ export function useGardenPlanner() {
     favoritePlants,
     placedPlants,
     selectedPlantId,
-    popoverPlantId,
     
     // Computed
     favoriteIds,
     plantById,
     overlapIds,
-    popoverPlaced,
     
     // Methods
     imageUrl,
@@ -275,8 +254,6 @@ export function useGardenPlanner() {
     removePlaced,
     clearLayout,
     resetPlanner,
-    openPopover,
-    closePopover,
     selectPlant,
     undo,
     redo,

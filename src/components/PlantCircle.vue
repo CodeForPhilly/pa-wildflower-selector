@@ -3,12 +3,10 @@
     class="placed"
     :class="{
       overlapping: isOverlapping,
-      popoverOpen: isPopoverOpen,
       dragging: isDragging
     }"
     :style="placedStyle"
     @pointerdown="handlePointerDown"
-    @click.stop="handleClick"
   >
     <div class="placed-label">
       {{ plantName }}
@@ -24,14 +22,12 @@ interface Props {
   placed: PlacedPlant;
   plant: Plant | undefined;
   isOverlapping: boolean;
-  isPopoverOpen: boolean;
   isDragging?: boolean;
   cellSize: number;
   imageUrl: (plant: Plant | undefined, preview: boolean) => string;
 }
 
 interface Emits {
-  (e: 'click', placedId: string): void;
   (e: 'drag-start', event: PointerEvent, placedId: string): void;
 }
 
@@ -51,10 +47,6 @@ const placedStyle = computed(() => {
     'background-image': `linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.35) 70%, rgba(0, 0, 0, 0.35) 100%), url("${props.imageUrl(props.plant, false)}")`,
   };
 });
-
-const handleClick = () => {
-  emit('click', props.placed.id);
-};
 
 const handlePointerDown = (event: PointerEvent) => {
   if (event.isPrimary) {
@@ -84,10 +76,6 @@ const handlePointerDown = (event: PointerEvent) => {
 .placed.overlapping {
   border-color: rgba(200, 40, 40, 0.85);
   box-shadow: 0 0 0 2px rgba(200, 40, 40, 0.15);
-}
-
-.placed.popoverOpen {
-  box-shadow: 0 0 0 3px rgba(183, 77, 21, 0.15);
 }
 
 .placed.dragging {

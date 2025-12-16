@@ -16,11 +16,9 @@
           :placed="p"
           :plant="plantById[p.plantId]"
           :is-overlapping="overlapIds.has(p.id)"
-          :is-popover-open="popoverPlantId === p.id"
           :is-dragging="dragState.isDragging && dragState.plantId === p.id && dragState.dragType === 'move'"
           :cell-size="dynamicCellSize"
           :image-url="imageUrl"
-          @click="handlePlantClick"
           @drag-start="handlePlantDragStart"
         />
 
@@ -42,27 +40,6 @@
           </div>
         </div>
 
-        <div
-          v-if="popoverPlaced"
-          class="popover"
-          :style="popoverStyle"
-          @click.stop
-        >
-          <div class="popover-title">
-            {{ (plantById[popoverPlaced.plantId]?.['Common Name']) || popoverPlaced.plantId }}
-          </div>
-          <div class="popover-row" v-if="plantById[popoverPlaced.plantId]?.['Flowering Months']">
-            Bloom: {{ plantById[popoverPlaced.plantId]!['Flowering Months'] }}
-          </div>
-          <div class="popover-row">
-            Spread: {{ spreadFeetLabel(plantById[popoverPlaced.plantId]) }}ft ({{ popoverPlaced.width }} cell<span v-if="popoverPlaced.width !== 1">s</span>)
-          </div>
-          <div class="popover-actions">
-            <button class="primary primary-bar small danger" @click="handleRemove">
-              Remove
-            </button>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -73,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed } from 'vue';
 import { usePointerDrag } from '../composables/usePointerDrag';
 import PlantCircle from './PlantCircle.vue';
 import type { PlacedPlant, Plant, GridCoords } from '../types/garden';
@@ -82,7 +59,6 @@ interface Props {
   placedPlants: PlacedPlant[];
   plantById: Record<string, Plant>;
   overlapIds: Set<string>;
-  popoverPlantId: string | null;
   selectedPlantId: string | null;
   isMobile: boolean;
   imageUrl: (plant: Plant | undefined, preview: boolean) => string;
@@ -90,8 +66,6 @@ interface Props {
   placePlant: (plantId: string, x: number, y: number) => void;
   movePlant: (placedId: string, x: number, y: number) => void;
   removePlaced: (id: string) => void;
-  openPopover: (id: string) => void;
-  closePopover: () => void;
 }
 
 const props = defineProps<Props>();
@@ -129,19 +103,6 @@ const gridStyle = computed(() => {
   };
 });
 
-const popoverPlaced = computed(() => {
-  if (!props.popoverPlantId) return null;
-  return props.placedPlants.find((p) => p.id === props.popoverPlantId) || null;
-});
-
-const popoverStyle = computed(() => {
-  const p = popoverPlaced.value;
-  if (!p) return {};
-  return {
-    left: `calc(${p.x} * var(--cell-size))`,
-    top: `calc(${p.y} * var(--cell-size))`,
-  };
-});
 
 const getGridCoords = (event: PointerEvent | MouseEvent): GridCoords | null => {
   const grid = gridRef.value;
@@ -190,9 +151,7 @@ const handleGridClick = (event: MouseEvent) => {
     const coords = getGridCoords(event);
     if (!coords) return;
     props.placePlant(props.selectedPlantId, coords.x, coords.y);
-    return;
   }
-  props.closePopover();
 };
 
 const handleGridPointerDown = (event: PointerEvent) => {
@@ -205,9 +164,6 @@ const handleGridPointerDown = (event: PointerEvent) => {
   }
 };
 
-const handlePlantClick = (placedId: string) => {
-  props.openPopover(placedId);
-};
 
 const handlePlantDragStart = (event: PointerEvent, placedId: string) => {
   if (!props.isMobile && event.isPrimary) {
@@ -270,29 +226,7 @@ const gridHighlightStyle = computed(() => {
   };
 });
 
-const handleRemove = () => {
-  if (popoverPlaced.value) {
-    props.removePlaced(popoverPlaced.value.id);
-  }
-};
 
-const handleDocumentClick = (event: Event) => {
-  if (!gridAreaRef.value) return;
-  if (gridAreaRef.value.contains(event.target as Node)) return;
-  props.closePopover();
-};
-
-onMounted(() => {
-  if (typeof document !== 'undefined') {
-    document.addEventListener('click', handleDocumentClick, { passive: true });
-  }
-});
-
-onBeforeUnmount(() => {
-  if (typeof document !== 'undefined') {
-    document.removeEventListener('click', handleDocumentClick);
-  }
-});
 </script>
 
 <style scoped>
@@ -361,37 +295,6 @@ onBeforeUnmount(() => {
     );
   background-position: 0 0;
   touch-action: none;
-}
-
-.popover {
-  position: absolute;
-  transform: translate(8px, 8px);
-  width: 240px;
-  max-width: 80vw;
-  background: #fff;
-  border-radius: 14px;
-  border: 1px solid #e5e5e5;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.16);
-  padding: 12px;
-  z-index: 20;
-}
-
-.popover-title {
-  font-family: Roboto;
-  font-weight: 700;
-  margin-bottom: 6px;
-  color: #1d2e26;
-}
-
-.popover-row {
-  font-family: Roboto;
-  font-size: 13px;
-  color: #333;
-  margin-top: 4px;
-}
-
-.popover-actions {
-  margin-top: 10px;
 }
 
 .overlap-hint {
