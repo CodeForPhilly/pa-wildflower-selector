@@ -7,6 +7,7 @@
     }"
     :style="placedStyle"
     @pointerdown="handlePointerDown"
+    @dblclick="handleDoubleClick"
   >
     <div class="placed-label">
       <div class="label-line common">{{ plantName }}</div>
@@ -28,10 +29,12 @@ interface Props {
   isDragging?: boolean;
   cellSize: number;
   imageUrl: (plant: Plant | undefined, preview: boolean) => string;
+  isMobile: boolean;
 }
 
 interface Emits {
   (e: 'drag-start', event: PointerEvent, placedId: string): void;
+  (e: 'delete', placedId: string): void;
 }
 
 const props = defineProps<Props>();
@@ -55,9 +58,44 @@ const placedStyle = computed(() => {
   };
 });
 
+// Track for double-tap on mobile
+let lastTapTime = 0;
+let tapTimeout: number | null = null;
+
 const handlePointerDown = (event: PointerEvent) => {
   if (event.isPrimary) {
-    emit('drag-start', event, props.placed.id);
+    // On mobile, detect double-tap
+    if (props.isMobile) {
+      const currentTime = Date.now();
+      const tapLength = currentTime - lastTapTime;
+      
+      if (tapLength < 300 && tapLength > 0) {
+        // Double tap detected
+        if (tapTimeout) {
+          clearTimeout(tapTimeout);
+          tapTimeout = null;
+        }
+        event.preventDefault();
+        emit('delete', props.placed.id);
+        lastTapTime = 0;
+      } else {
+        // Single tap - wait for potential second tap
+        lastTapTime = currentTime;
+        // On mobile, we don't emit drag-start since mobile uses tap-to-place mode
+        // Just track the tap for potential double-tap
+      }
+    } else {
+      // Desktop: single click starts drag
+      emit('drag-start', event, props.placed.id);
+    }
+  }
+};
+
+const handleDoubleClick = (event: MouseEvent) => {
+  // Desktop: double-click to delete
+  if (!props.isMobile) {
+    event.preventDefault();
+    emit('delete', props.placed.id);
   }
 };
 </script>

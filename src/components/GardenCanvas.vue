@@ -19,7 +19,9 @@
           :is-dragging="dragState.isDragging && dragState.plantId === p.id && dragState.dragType === 'move'"
           :cell-size="dynamicCellSize"
           :image-url="imageUrl"
+          :is-mobile="isMobile"
           @drag-start="handlePlantDragStart"
+          @delete="handleDelete"
         />
 
         <!-- Grid cell highlight showing where plant will snap -->
@@ -172,6 +174,10 @@ const handlePlantDragStart = (event: PointerEvent, placedId: string) => {
   if (!props.isMobile && event.isPrimary) {
     handlePointerDragStart(event, 'move', placedId);
   }
+};
+
+const handleDelete = (placedId: string) => {
+  props.removePlaced(placedId);
 };
 
 // Drag preview - transparent plant image following cursor
