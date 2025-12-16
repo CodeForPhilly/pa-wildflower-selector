@@ -3,7 +3,8 @@
     class="placed"
     :class="{
       overlapping: isOverlapping,
-      popoverOpen: isPopoverOpen
+      popoverOpen: isPopoverOpen,
+      dragging: isDragging
     }"
     :style="placedStyle"
     @pointerdown="handlePointerDown"
@@ -24,6 +25,7 @@ interface Props {
   plant: Plant | undefined;
   isOverlapping: boolean;
   isPopoverOpen: boolean;
+  isDragging?: boolean;
   cellSize: number;
   imageUrl: (plant: Plant | undefined, preview: boolean) => string;
 }
@@ -86,6 +88,11 @@ const handlePointerDown = (event: PointerEvent) => {
 
 .placed.popoverOpen {
   box-shadow: 0 0 0 3px rgba(183, 77, 21, 0.15);
+}
+
+.placed.dragging {
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 .placed-label {

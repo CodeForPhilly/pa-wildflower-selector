@@ -7,6 +7,8 @@ export interface DragState {
   plantId: string | null;
   startCoords: GridCoords | null;
   currentCoords: GridCoords | null;
+  pointerX: number;
+  pointerY: number;
 }
 
 export function usePointerDrag(
@@ -20,6 +22,8 @@ export function usePointerDrag(
     plantId: null,
     startCoords: null,
     currentCoords: null,
+    pointerX: 0,
+    pointerY: 0,
   });
 
   const getGridCoords = (event: PointerEvent): GridCoords | null => {
@@ -50,6 +54,8 @@ export function usePointerDrag(
       plantId,
       startCoords: coords,
       currentCoords: coords,
+      pointerX: event.clientX,
+      pointerY: event.clientY,
     };
 
     // Capture pointer for smooth dragging
@@ -64,6 +70,9 @@ export function usePointerDrag(
 
   const handlePointerMove = (event: PointerEvent) => {
     if (!dragState.value.isDragging || !event.isPrimary) return;
+    
+    dragState.value.pointerX = event.clientX;
+    dragState.value.pointerY = event.clientY;
     
     const coords = getGridCoords(event);
     if (coords) {
@@ -93,6 +102,8 @@ export function usePointerDrag(
       plantId: null,
       startCoords: null,
       currentCoords: null,
+      pointerX: 0,
+      pointerY: 0,
     };
 
     // Remove global listeners
