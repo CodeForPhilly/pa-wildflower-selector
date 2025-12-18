@@ -95,6 +95,41 @@ export function useGardenPlanner() {
     return a.x < bx2 && ax2 > b.x && a.y < by2 && ay2 > b.y;
   };
 
+  // Find the closest left/top most empty space for a plant of given size
+  const findEmptySpace = (size: number): { x: number; y: number } | null => {
+    const increment = snapIncrement.value;
+    const maxX = gridWidth.value - size;
+    const maxY = gridHeight.value - size;
+
+    // Scan from top-left to bottom-right, respecting snap increment
+    for (let y = 0; y <= maxY; y += increment) {
+      for (let x = 0; x <= maxX; x += increment) {
+        // Create a temporary plant at this position to check for overlap
+        const testPlant: PlacedPlant = {
+          id: 'test',
+          plantId: 'test',
+          x,
+          y,
+          width: size,
+          height: size,
+        };
+
+        // Check if this position would overlap with any existing plant
+        const wouldOverlap = placedPlants.value.some(existing => 
+          rectsOverlap(testPlant, existing)
+        );
+
+        // If no overlap and fits within bounds, this is a valid position
+        if (!wouldOverlap && x + size <= gridWidth.value && y + size <= gridHeight.value) {
+          return { x, y };
+        }
+      }
+    }
+
+    // No empty space found
+    return null;
+  };
+
   const imageUrl = (plant: Plant | undefined, preview: boolean): string => {
     if (!plant) return '/assets/images/missing-image.png';
     if (plant.hasImage) {
@@ -238,15 +273,27 @@ export function useGardenPlanner() {
     const size = spreadCells(plant);
     const id = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 
-    // Ensure plant fits within grid bounds
-    const adjustedX = Math.max(0, Math.min(x, gridWidth.value - size));
-    const adjustedY = Math.max(0, Math.min(y, gridHeight.value - size));
+    // Find the closest left/top most empty space
+    const emptySpace = findEmptySpace(size);
+    
+    // Use the empty space if found, otherwise fall back to the provided coordinates (adjusted to fit)
+    let finalX: number;
+    let finalY: number;
+    
+    if (emptySpace) {
+      finalX = emptySpace.x;
+      finalY = emptySpace.y;
+    } else {
+      // No empty space found, use provided coordinates but ensure it fits within bounds
+      finalX = Math.max(0, Math.min(x, gridWidth.value - size));
+      finalY = Math.max(0, Math.min(y, gridHeight.value - size));
+    }
 
     const placed: PlacedPlant = {
       id,
       plantId,
-      x: adjustedX,
-      y: adjustedY,
+      x: finalX,
+      y: finalY,
       width: size,
       height: size,
     };
