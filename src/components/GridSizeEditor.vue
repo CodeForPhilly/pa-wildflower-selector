@@ -11,7 +11,7 @@
     >
       <div class="modal-content" ref="modalContentRef">
         <h2 id="modal-title" class="modal-title">Grid size</h2>
-        <p id="modal-description" class="modal-description">Set the garden dimensions (5–100 ft).</p>
+        <p id="modal-description" class="modal-description">Set the garden dimensions (minimum to fit plants, up to 100 ft).</p>
         
         <div class="input-group">
           <div class="input-field-wrapper">
@@ -23,7 +23,7 @@
                   id="grid-width"
                   type="number"
                   v-model.number="localWidth"
-                  min="5"
+                  :min="props.minSize ? Math.max(1, props.minSize.width) : 1"
                   max="100"
                   step="1"
                   inputmode="numeric"
@@ -69,7 +69,7 @@
                   id="grid-height"
                   type="number"
                   v-model.number="localHeight"
-                  min="5"
+                  :min="props.minSize ? Math.max(1, props.minSize.height) : 1"
                   max="100"
                   step="1"
                   inputmode="numeric"
@@ -234,7 +234,7 @@ const incrementWidth = () => {
 };
 
 const decrementWidth = () => {
-  const minWidth = props.minSize ? Math.max(5, props.minSize.width) : 5;
+  const minWidth = props.minSize ? Math.max(1, props.minSize.width) : 1;
   if (localWidth.value > minWidth) {
     localWidth.value = Math.max(minWidth, localWidth.value - 1);
     clearWidthError();
@@ -255,7 +255,7 @@ const incrementHeight = () => {
 };
 
 const decrementHeight = () => {
-  const minHeight = props.minSize ? Math.max(5, props.minSize.height) : 5;
+  const minHeight = props.minSize ? Math.max(1, props.minSize.height) : 1;
   if (localHeight.value > minHeight) {
     localHeight.value = Math.max(minHeight, localHeight.value - 1);
     clearHeightError();
@@ -271,12 +271,14 @@ const decrementHeight = () => {
 // Validation
 const validateWidth = () => {
   widthErrorMessage.value = '';
-  if (localWidth.value < 5 || localWidth.value > 100) {
-    widthErrorMessage.value = 'Must be between 5 and 100 ft';
-    return false;
-  }
+  // Check plant minimum first
   if (props.minSize && localWidth.value < props.minSize.width) {
     widthErrorMessage.value = `Must be at least ${props.minSize.width} ft to fit all plants`;
+    return false;
+  }
+  // Then check general range (1-100 ft) if no plant minimum constraint
+  if (localWidth.value < 1 || localWidth.value > 100) {
+    widthErrorMessage.value = 'Must be between 1 and 100 ft';
     return false;
   }
   return true;
@@ -284,12 +286,14 @@ const validateWidth = () => {
 
 const validateHeight = () => {
   heightErrorMessage.value = '';
-  if (localHeight.value < 5 || localHeight.value > 100) {
-    heightErrorMessage.value = 'Must be between 5 and 100 ft';
-    return false;
-  }
+  // Check plant minimum first
   if (props.minSize && localHeight.value < props.minSize.height) {
     heightErrorMessage.value = `Must be at least ${props.minSize.height} ft to fit all plants`;
+    return false;
+  }
+  // Then check general range (1-100 ft) if no plant minimum constraint
+  if (localHeight.value < 1 || localHeight.value > 100) {
+    heightErrorMessage.value = 'Must be between 1 and 100 ft';
     return false;
   }
   return true;
@@ -304,8 +308,15 @@ const clearHeightError = () => {
 };
 
 const isValid = computed(() => {
-  if (localWidth.value < 5 || localWidth.value > 100) return false;
-  if (localHeight.value < 5 || localHeight.value > 100) return false;
+  // Check plant minimums first
+  if (props.minSize) {
+    if (localWidth.value < props.minSize.width || localWidth.value > 100) return false;
+    if (localHeight.value < props.minSize.height || localHeight.value > 100) return false;
+  } else {
+    // No plants, enforce 1ft minimum
+    if (localWidth.value < 1 || localWidth.value > 100) return false;
+    if (localHeight.value < 1 || localHeight.value > 100) return false;
+  }
   return true;
 });
 

@@ -162,20 +162,31 @@ export function useGardenPlanner() {
   const setGridSize = (width: number, height: number): { success: boolean; error?: string } => {
     const minSize = getMinGridSize();
     
-    // Validate minimum size
-    if (width < minSize.width || height < minSize.height) {
+    // Validate maximum size
+    if (width > 100 || height > 100) {
       return {
         success: false,
-        error: `Grid must be at least ${minSize.width}ft × ${minSize.height}ft to fit all plants`,
+        error: 'Grid dimensions must be at most 100 feet',
       };
     }
     
-    // Validate range (5-100 ft)
-    if (width < 5 || width > 100 || height < 5 || height > 100) {
-      return {
-        success: false,
-        error: 'Grid dimensions must be between 5 and 100 feet',
-      };
+    // Validate minimum size
+    if (placedPlants.value.length > 0) {
+      // With plants: must be at least the plant bounding box
+      if (width < minSize.width || height < minSize.height) {
+        return {
+          success: false,
+          error: `Grid must be at least ${minSize.width}ft × ${minSize.height}ft to fit all plants`,
+        };
+      }
+    } else {
+      // No plants: enforce 1ft minimum
+      if (width < 1 || height < 1) {
+        return {
+          success: false,
+          error: 'Grid dimensions must be at least 1 foot',
+        };
+      }
     }
     
     gridWidth.value = width;
