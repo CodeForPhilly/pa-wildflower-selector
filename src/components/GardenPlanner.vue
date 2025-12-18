@@ -529,7 +529,6 @@ onUnmounted(() => {
   overflow-x: hidden;
 }
 
-
 @media screen and (max-width: 767px) {
   .planner-main {
     padding: 0 12px 8px;
