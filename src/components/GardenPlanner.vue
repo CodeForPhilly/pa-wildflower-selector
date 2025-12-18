@@ -7,46 +7,46 @@
         <div class="toolbar-container">
           <div class="toolbar-left">
             <button 
-              class="toolbar-button" 
+              class="toolbar-button icon-only" 
               @click="undo"
               :disabled="!canUndo"
               title="Undo"
             >
               <Undo2 :size="16" class="icon" />
-              Undo
+              <span class="button-text">Undo</span>
             </button>
             <button 
-              class="toolbar-button" 
+              class="toolbar-button icon-only" 
               @click="redo"
               :disabled="!canRedo"
               title="Redo"
             >
               <Redo2 :size="16" class="icon" />
-              Redo
+              <span class="button-text">Redo</span>
             </button>
             <button 
-              class="toolbar-button clear-button" 
+              class="toolbar-button clear-button icon-only" 
               @click="clearLayout"
               :disabled="placedPlants.length === 0"
             >
               <Trash2 :size="16" class="icon" />
-              Clear
+              <span class="button-text">Clear</span>
             </button>
             <button 
-              class="toolbar-button summary-button" 
+              class="toolbar-button summary-button icon-only" 
               :class="{ 'active': showSummary }"
               @click="handleSummaryToggle"
               title="View Summary"
             >
               <Info :size="16" class="icon" />
-              Summary
+              <span class="button-text">Summary</span>
             </button>
           </div>
 
           <div class="toolbar-right">
             <div class="toolbar-zoom">
               <button
-                class="toolbar-button"
+                class="toolbar-button icon-only"
                 @click="zoom = Math.max(zoom - 0.1, 0.5)"
                 :disabled="zoom <= 0.5"
                 title="Zoom Out (Ctrl+-)"
@@ -55,7 +55,7 @@
               </button>
               <span class="zoom-value">{{ Math.round(zoom * 100) }}%</span>
               <button
-                class="toolbar-button"
+                class="toolbar-button icon-only"
                 @click="zoom = Math.min(zoom + 0.1, 2)"
                 :disabled="zoom >= 2"
                 title="Zoom In (Ctrl+=)"
@@ -63,7 +63,7 @@
                 <ZoomIn :size="16" class="icon" />
               </button>
               <button
-                class="toolbar-button"
+                class="toolbar-button icon-only"
                 @click="zoom = 1"
                 :disabled="zoom === 1"
                 title="Reset Zoom"
@@ -408,16 +408,19 @@ onUnmounted(() => {
 
 .toolbar-right {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   align-items: center;
   flex-wrap: wrap;
   margin-left: auto;
+  text-align: right;
+  font-family: Roboto;
 }
 
 .toolbar-zoom {
   display: flex;
   gap: 6px;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .zoom-value {
@@ -465,6 +468,10 @@ onUnmounted(() => {
   stroke-width: 2;
 }
 
+.toolbar-button .button-text {
+  display: inline;
+}
+
 .toolbar-button.clear-button {
   color: #dc2626;
   border-color: #dc2626;
@@ -499,15 +506,6 @@ onUnmounted(() => {
 .snap-value {
   font-weight: 600;
 }
-
-.toolbar-right {
-  text-align: right;
-  font-family: Roboto;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
 
 .grid-dimensions-button strong {
   font-weight: 600;
@@ -546,6 +544,27 @@ onUnmounted(() => {
   .toolbar-container {
     padding: 6px;
     gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .toolbar-left {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .toolbar-right {
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-left: 0;
+    text-align: left;
+  }
+
+  .toolbar-zoom {
+    gap: 4px;
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
   }
 
   .toolbar-buttons {
@@ -557,8 +576,15 @@ onUnmounted(() => {
     font-size: 13px;
   }
 
-  .toolbar-zoom {
-    gap: 4px;
+  .toolbar-button.icon-only {
+    padding: 8px;
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .toolbar-button.icon-only .button-text {
+    display: none;
   }
 
   .zoom-value {
