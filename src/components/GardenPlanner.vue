@@ -8,17 +8,6 @@
           <button class="primary primary-bar small" @click="clearLayout">
             Clear Layout
           </button>
-          <button class="primary primary-bar small subtle" @click="resetPlanner">
-            Reset
-          </button>
-          <button 
-            v-if="canUndo" 
-            class="primary primary-bar small" 
-            @click="undo"
-            title="Undo"
-          >
-            Undo
-          </button>
           <button 
             v-if="canRedo" 
             class="primary primary-bar small" 
@@ -146,11 +135,8 @@ const {
   movePlant,
   removePlaced,
   clearLayout,
-  resetPlanner,
   selectPlant,
-  undo,
   redo,
-  canUndo,
   canRedo,
   gridWidth,
   gridHeight,
