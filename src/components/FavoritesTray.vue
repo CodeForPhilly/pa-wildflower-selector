@@ -26,7 +26,7 @@
         <span class="info">
           <span class="name">{{ plant['Common Name'] || plant._id }}</span>
           <span class="meta">
-            Spread: {{ spreadFeetLabel(plant) }}ft ({{ spreadCells(plant) }} cell<span v-if="spreadCells(plant) !== 1">s</span>)
+            {{ spreadFeetLabel(plant) }}ft Spread
           </span>
         </span>
       </button>
