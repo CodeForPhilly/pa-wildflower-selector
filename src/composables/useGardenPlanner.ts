@@ -134,6 +134,77 @@ export function useGardenPlanner() {
     });
   };
 
+  // Get minimum grid size based on placed plants
+  const getMinGridSize = (): { width: number; height: number } => {
+    if (placedPlants.value.length === 0) return { width: 1, height: 1 };
+    const minX = Math.min(...placedPlants.value.map(p => p.x));
+    const maxX = Math.max(...placedPlants.value.map(p => p.x + p.width));
+    const minY = Math.min(...placedPlants.value.map(p => p.y));
+    const maxY = Math.max(...placedPlants.value.map(p => p.y + p.height));
+    return { width: maxX - minX, height: maxY - minY };
+  };
+
+  // Set grid size with validation
+  const setGridSize = (width: number, height: number): { success: boolean; error?: string } => {
+    const minSize = getMinGridSize();
+    
+    // Validate minimum size
+    if (width < minSize.width || height < minSize.height) {
+      return {
+        success: false,
+        error: `Grid must be at least ${minSize.width}ft × ${minSize.height}ft to fit all plants`,
+      };
+    }
+    
+    // Validate range (5-100 ft)
+    if (width < 5 || width > 100 || height < 5 || height > 100) {
+      return {
+        success: false,
+        error: 'Grid dimensions must be between 5 and 100 feet',
+      };
+    }
+    
+    gridWidth.value = width;
+    gridHeight.value = height;
+    
+    return { success: true };
+  };
+
+  // Fit grid to plants by removing empty padding
+  const fitGridToPlants = (): void => {
+    if (placedPlants.value.length === 0) {
+      // No plants, set to minimum
+      gridWidth.value = 1;
+      gridHeight.value = 1;
+      return;
+    }
+    
+    // Find bounding box
+    const minX = Math.min(...placedPlants.value.map(p => p.x));
+    const maxX = Math.max(...placedPlants.value.map(p => p.x + p.width));
+    const minY = Math.min(...placedPlants.value.map(p => p.y));
+    const maxY = Math.max(...placedPlants.value.map(p => p.y + p.height));
+    
+    // Calculate new dimensions
+    const newWidth = maxX - minX;
+    const newHeight = maxY - minY;
+    
+    // Shift all plants to start at (0, 0)
+    placedPlants.value.forEach(p => {
+      p.x -= minX;
+      p.y -= minY;
+    });
+    
+    // Update grid dimensions
+    gridWidth.value = Math.max(1, newWidth);
+    gridHeight.value = Math.max(1, newHeight);
+    
+    // Trigger reactivity
+    const newPlacedPlants = [...placedPlants.value];
+    placedPlants.value = newPlacedPlants;
+    undoRedo.addState([...newPlacedPlants]);
+  };
+
   const placePlant = (plantId: string, x: number, y: number): void => {
     const plant = plantById.value[plantId];
     if (!plant) return;
@@ -366,6 +437,11 @@ export function useGardenPlanner() {
         gridWidth.value -= 1;
       }
     },
+
+    // Grid size management methods
+    getMinGridSize,
+    setGridSize,
+    fitGridToPlants,
   };
 }
 

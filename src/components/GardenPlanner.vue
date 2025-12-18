@@ -37,9 +37,13 @@
         </div>
 
         <div class="toolbar-right">
-          <div class="grid-readout">
+          <button
+            class="grid-dimensions-button"
+            @click="showGridEditor = true"
+            :title="`Current grid: ${gridWidth}ft × ${gridHeight}ft`"
+          >
             Grid: <strong>{{ gridWidth }}</strong>ft × <strong>{{ gridHeight }}</strong>ft
-          </div>
+          </button>
         </div>
       </section>
 
@@ -91,6 +95,17 @@
         </template>
       </section>
     </main>
+
+    <GridSizeEditor
+      :is-open="showGridEditor"
+      :current-width="gridWidth"
+      :current-height="gridHeight"
+      :min-size="minGridSize"
+      :placed-plants-count="placedPlants.length"
+      @close="showGridEditor = false"
+      @apply="handleGridSizeApply"
+      @fit-to-plants="handleGridSizeFit"
+    />
   </div>
 </template>
 
@@ -102,6 +117,7 @@ import Header from './Header.vue';
 import FavoritesTray from './FavoritesTray.vue';
 import GardenCanvas from './GardenCanvas.vue';
 import GardenSummary from './GardenSummary.vue';
+import GridSizeEditor from './GridSizeEditor.vue';
 import type { PlacedPlant, Plant } from '../types/garden';
 
 interface Props {
@@ -113,6 +129,7 @@ defineProps<Props>();
 const { isMobile } = useViewport();
 const canvasRef = ref<InstanceType<typeof GardenCanvas> | null>(null);
 const showSummary = ref(false);
+const showGridEditor = ref(false);
 
 const {
   loading,
@@ -145,6 +162,9 @@ const {
   removeColumnLeft,
   addColumnRight,
   removeColumnRight,
+  getMinGridSize,
+  setGridSize,
+  fitGridToPlants,
 } = useGardenPlanner();
 
 const handlePaletteDragStart = (event: PointerEvent, plantId: string) => {
@@ -244,6 +264,21 @@ const summaryData = computed(() => {
     families,
   };
 });
+
+// Grid editor handlers
+const minGridSize = computed(() => getMinGridSize());
+
+const handleGridSizeApply = (width: number, height: number) => {
+  const result = setGridSize(width, height);
+  if (!result.success && result.error) {
+    // Error is shown in the modal component
+    console.error(result.error);
+  }
+};
+
+const handleGridSizeFit = () => {
+  fitGridToPlants();
+};
 </script>
 
 <style scoped>
@@ -278,8 +313,31 @@ const summaryData = computed(() => {
   font-family: Roboto;
 }
 
-.grid-readout {
+.grid-dimensions-button {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 16px;
   font-size: 14px;
+  font-family: Roboto, sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.grid-dimensions-button:hover {
+  background-color: #c8e6c9;
+  transform: scale(1.02);
+}
+
+.grid-dimensions-button:active {
+  transform: scale(0.98);
+}
+
+.grid-dimensions-button strong {
+  font-weight: 600;
 }
 
 .workspace {
@@ -332,8 +390,9 @@ button.primary-bar.small.subtle {
     min-width: 0;
   }
 
-  .grid-readout {
+  .grid-dimensions-button {
     font-size: 12px;
+    padding: 6px 12px;
     line-height: 1.3;
   }
 
