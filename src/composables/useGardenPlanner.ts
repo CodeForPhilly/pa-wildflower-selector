@@ -69,7 +69,7 @@ export function useGardenPlanner() {
       const a = items[i];
       for (let j = i + 1; j < items.length; j++) {
         const b = items[j];
-        if (rectsOverlap(a, b)) {
+        if (circlesOverlap(a, b)) {
           overlaps.add(a.id);
           overlaps.add(b.id);
         }
@@ -87,12 +87,25 @@ export function useGardenPlanner() {
   });
 
   // Methods
-  const rectsOverlap = (a: PlacedPlant, b: PlacedPlant): boolean => {
-    const ax2 = a.x + a.width;
-    const ay2 = a.y + a.height;
-    const bx2 = b.x + b.width;
-    const by2 = b.y + b.height;
-    return a.x < bx2 && ax2 > b.x && a.y < by2 && ay2 > b.y;
+  // Check if two circular plants overlap (using actual circle collision, not bounding boxes)
+  const circlesOverlap = (a: PlacedPlant, b: PlacedPlant): boolean => {
+    // Calculate center points of each circle
+    const centerAX = a.x + a.width / 2;
+    const centerAY = a.y + a.height / 2;
+    const centerBX = b.x + b.width / 2;
+    const centerBY = b.y + b.height / 2;
+    
+    // Calculate radii (assuming width = height for circles)
+    const radiusA = a.width / 2;
+    const radiusB = b.width / 2;
+    
+    // Calculate distance between centers
+    const dx = centerBX - centerAX;
+    const dy = centerBY - centerAY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Circles overlap if distance is less than sum of radii
+    return distance < radiusA + radiusB;
   };
 
   // Find the closest left/top most empty space for a plant of given size
@@ -116,7 +129,7 @@ export function useGardenPlanner() {
 
         // Check if this position would overlap with any existing plant
         const wouldOverlap = placedPlants.value.some(existing => 
-          rectsOverlap(testPlant, existing)
+          circlesOverlap(testPlant, existing)
         );
 
         // If no overlap and fits within bounds, this is a valid position
@@ -290,7 +303,7 @@ export function useGardenPlanner() {
 
     // Check if the intended position would overlap with any existing plants
     const wouldOverlap = placedPlants.value.some(existing => 
-      rectsOverlap(tempPlant, existing)
+      circlesOverlap(tempPlant, existing)
     );
 
     // If there would be an overlap, first try to find empty space in the current grid
@@ -324,7 +337,7 @@ export function useGardenPlanner() {
         };
         
         const wouldOverlapRight = placedPlants.value.some(existing => 
-          rectsOverlap(rightTestPlant, existing)
+          circlesOverlap(rightTestPlant, existing)
         );
         
         if (!wouldOverlapRight) {
@@ -347,7 +360,7 @@ export function useGardenPlanner() {
           };
           
           const wouldOverlapBottom = placedPlants.value.some(existing => 
-            rectsOverlap(bottomTestPlant, existing)
+            circlesOverlap(bottomTestPlant, existing)
           );
           
           if (!wouldOverlapBottom) {
