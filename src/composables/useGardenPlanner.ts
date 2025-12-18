@@ -273,21 +273,122 @@ export function useGardenPlanner() {
     const size = spreadCells(plant);
     const id = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 
-    // Find the closest left/top most empty space
-    const emptySpace = findEmptySpace(size);
-    
-    // Use the empty space if found, otherwise fall back to the provided coordinates (adjusted to fit)
-    let finalX: number;
-    let finalY: number;
-    
-    if (emptySpace) {
-      finalX = emptySpace.x;
-      finalY = emptySpace.y;
-    } else {
-      // No empty space found, use provided coordinates but ensure it fits within bounds
-      finalX = Math.max(0, Math.min(x, gridWidth.value - size));
-      finalY = Math.max(0, Math.min(y, gridHeight.value - size));
+    // Use provided coordinates directly (user's intended position)
+    // This allows automatic grid expansion when dragging outside current bounds
+    let finalX = x;
+    let finalY = y;
+
+    // Create a temporary plant to check for overlaps at the intended position
+    const tempPlant: PlacedPlant = {
+      id: 'temp',
+      plantId,
+      x: finalX,
+      y: finalY,
+      width: size,
+      height: size,
+    };
+
+    // Check if the intended position would overlap with any existing plants
+    const wouldOverlap = placedPlants.value.some(existing => 
+      rectsOverlap(tempPlant, existing)
+    );
+
+    // If there would be an overlap, first try to find empty space in the current grid
+    if (wouldOverlap) {
+      const emptySpace = findEmptySpace(size);
+      if (emptySpace) {
+        // Found empty space - use it instead of expanding
+        finalX = emptySpace.x;
+        finalY = emptySpace.y;
+      } else {
+        // No empty space found - expand grid to make room
+        // Find the rightmost and bottommost positions of existing plants
+        let maxRight = 0;
+        let maxBottom = 0;
+        
+        for (const existing of placedPlants.value) {
+          maxRight = Math.max(maxRight, existing.x + existing.width);
+          maxBottom = Math.max(maxBottom, existing.y + existing.height);
+        }
+        
+        // Check if we need to expand horizontally or vertically
+        // Try placing to the right first (preferred)
+        const rightX = maxRight;
+        const rightTestPlant: PlacedPlant = {
+          id: 'test-right',
+          plantId,
+          x: rightX,
+          y: finalY,
+          width: size,
+          height: size,
+        };
+        
+        const wouldOverlapRight = placedPlants.value.some(existing => 
+          rectsOverlap(rightTestPlant, existing)
+        );
+        
+        if (!wouldOverlapRight) {
+          // Can place to the right - expand width and place there
+          finalX = rightX;
+          const neededWidth = rightX + size;
+          if (neededWidth > gridWidth.value) {
+            gridWidth.value = neededWidth;
+          }
+        } else {
+          // Can't place to the right, try placing below
+          const bottomY = maxBottom;
+          const bottomTestPlant: PlacedPlant = {
+            id: 'test-bottom',
+            plantId,
+            x: finalX,
+            y: bottomY,
+            width: size,
+            height: size,
+          };
+          
+          const wouldOverlapBottom = placedPlants.value.some(existing => 
+            rectsOverlap(bottomTestPlant, existing)
+          );
+          
+          if (!wouldOverlapBottom) {
+            // Can place below - expand height and place there
+            finalY = bottomY;
+            const neededHeight = bottomY + size;
+            if (neededHeight > gridHeight.value) {
+              gridHeight.value = neededHeight;
+            }
+          } else {
+            // Can't place to the right or below, place at bottom-right corner
+            finalX = maxRight;
+            finalY = maxBottom;
+            const neededWidth = finalX + size;
+            const neededHeight = finalY + size;
+            if (neededWidth > gridWidth.value) {
+              gridWidth.value = neededWidth;
+            }
+            if (neededHeight > gridHeight.value) {
+              gridHeight.value = neededHeight;
+            }
+          }
+        }
+      }
     }
+
+    // Calculate required grid dimensions to fit the plant at the final position
+    const requiredWidth = finalX + size;
+    const requiredHeight = finalY + size;
+
+    // Expand grid if needed to accommodate the plant
+    if (requiredWidth > gridWidth.value) {
+      gridWidth.value = requiredWidth;
+    }
+    if (requiredHeight > gridHeight.value) {
+      gridHeight.value = requiredHeight;
+    }
+
+    // Ensure coordinates are within bounds (should be after expansion, but safety check)
+    finalX = Math.max(0, Math.min(finalX, gridWidth.value - size));
+    finalY = Math.max(0, Math.min(finalY, gridHeight.value - size));
 
     const placed: PlacedPlant = {
       id,
@@ -311,7 +412,19 @@ export function useGardenPlanner() {
     const plant = placedPlants.value.find((p) => p.id === placedId);
     if (!plant) return;
 
-    // Ensure plant fits within grid bounds
+    // Calculate required grid dimensions to fit the plant at the new position
+    const requiredWidth = x + plant.width;
+    const requiredHeight = y + plant.height;
+
+    // Expand grid if needed to accommodate the plant
+    if (requiredWidth > gridWidth.value) {
+      gridWidth.value = requiredWidth;
+    }
+    if (requiredHeight > gridHeight.value) {
+      gridHeight.value = requiredHeight;
+    }
+
+    // Ensure coordinates are within bounds (should be after expansion, but safety check)
     const adjustedX = Math.max(0, Math.min(x, gridWidth.value - plant.width));
     const adjustedY = Math.max(0, Math.min(y, gridHeight.value - plant.height));
 

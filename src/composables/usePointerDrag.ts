@@ -31,7 +31,7 @@ export function usePointerDrag(
     ctrlKey: false,
   });
 
-  const getGridCoords = (event: PointerEvent): GridCoords | null => {
+  const getGridCoords = (event: PointerEvent, allowOutsideBounds = false): GridCoords | null => {
     const grid = gridRef.value;
     if (!grid || typeof window === 'undefined') return null;
     
@@ -48,6 +48,15 @@ export function usePointerDrag(
     
     const snappedX = snapToIncrement(xFeet, snapIncrement.value);
     const snappedY = snapToIncrement(yFeet, snapIncrement.value);
+    
+    if (allowOutsideBounds) {
+      // Allow coordinates outside grid bounds (for automatic grid expansion)
+      // Still ensure non-negative coordinates
+      return {
+        x: Math.max(0, snappedX),
+        y: Math.max(0, snappedY),
+      };
+    }
     
     // Ensure coordinates are within grid bounds
     // For decimal snap, allow up to gridWidth/gridHeight (exclusive)
@@ -95,7 +104,9 @@ export function usePointerDrag(
     dragState.value.pointerY = event.clientY;
     dragState.value.ctrlKey = event.ctrlKey || event.metaKey; // Update Ctrl state during drag
     
-    const coords = getGridCoords(event);
+    // Allow coordinates outside bounds when placing (for automatic grid expansion)
+    const allowOutside = dragState.value.dragType === 'place';
+    const coords = getGridCoords(event, allowOutside);
     if (coords) {
       dragState.value.currentCoords = coords;
     }
@@ -105,7 +116,9 @@ export function usePointerDrag(
     if (!dragState.value.isDragging || !event.isPrimary) return;
     
     event.preventDefault();
-    const coords = getGridCoords(event);
+    // Allow coordinates outside bounds when placing (for automatic grid expansion)
+    const allowOutside = dragState.value.dragType === 'place';
+    const coords = getGridCoords(event, allowOutside);
     
     if (coords && dragState.value.dragType && dragState.value.plantId) {
       onDragEnd(coords, dragState.value.dragType, dragState.value.plantId);

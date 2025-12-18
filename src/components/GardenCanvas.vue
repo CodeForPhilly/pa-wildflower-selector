@@ -253,7 +253,7 @@ const canDecreaseHeight = computed(() => {
 });
 
 
-const getGridCoords = (event: PointerEvent | MouseEvent): GridCoords | null => {
+const getGridCoords = (event: PointerEvent | MouseEvent, allowOutsideBounds = false): GridCoords | null => {
   const grid = gridRef.value;
   if (!grid || typeof window === 'undefined') return null;
   
@@ -272,6 +272,15 @@ const getGridCoords = (event: PointerEvent | MouseEvent): GridCoords | null => {
   
   const snappedX = snapToIncrement(xFeet, props.snapIncrement);
   const snappedY = snapToIncrement(yFeet, props.snapIncrement);
+  
+  if (allowOutsideBounds) {
+    // Allow coordinates outside grid bounds (for automatic grid expansion)
+    // Still ensure non-negative coordinates
+    return {
+      x: Math.max(0, snappedX),
+      y: Math.max(0, snappedY),
+    };
+  }
   
   // Ensure coordinates are within grid bounds
   // For decimal snap, allow up to gridWidth/gridHeight (exclusive)
@@ -329,7 +338,8 @@ const handleGridClick = (event: MouseEvent) => {
   }
   
   if (props.isMobile && props.selectedPlantId) {
-    const coords = getGridCoords(event);
+    // Allow coordinates outside bounds for mobile clicks to enable automatic grid expansion
+    const coords = getGridCoords(event, true);
     if (!coords) return;
     props.placePlant(props.selectedPlantId, coords.x, coords.y);
   }
@@ -338,7 +348,9 @@ const handleGridClick = (event: MouseEvent) => {
 const handleGridPointerDown = (event: PointerEvent) => {
   // If there's an active drag from palette, handle it
   if (activeDrag.value && event.isPrimary) {
-    const coords = getGridCoords(event);
+    // Allow coordinates outside bounds when placing (for automatic grid expansion)
+    const allowOutside = activeDrag.value.type === 'place';
+    const coords = getGridCoords(event, allowOutside);
     if (coords) {
       handleDragEnd(coords, activeDrag.value.type, activeDrag.value.plantId);
     }
@@ -371,8 +383,9 @@ const handleDuplicate = (placedId: string) => {
   const placed = props.placedPlants.find(p => p.id === placedId);
   if (placed) {
     // Place duplicate at an offset position (one snap increment to the right and down)
-    const newX = Math.min(placed.x + props.snapIncrement, props.gridWidth - placed.width);
-    const newY = Math.min(placed.y + props.snapIncrement, props.gridHeight - placed.height);
+    // Allow grid to expand if needed, so don't clamp to current grid bounds
+    const newX = placed.x + props.snapIncrement;
+    const newY = placed.y + props.snapIncrement;
     props.placePlant(placed.plantId, newX, newY);
   }
 };
@@ -417,9 +430,19 @@ const dragPreviewWrapperStyle = computed(() => {
   const coords = dragState.value.currentCoords;
   const size = dragPreviewSize.value;
   
-  // Use same positioning as grid highlight - centered on target cells
-  const adjustedX = Math.max(0, Math.min(coords.x, props.gridWidth - size));
-  const adjustedY = Math.max(0, Math.min(coords.y, props.gridHeight - size));
+  // Allow preview to show outside current grid bounds when placing (for visual feedback)
+  // Only clamp for move operations to keep within bounds
+  let adjustedX = coords.x;
+  let adjustedY = coords.y;
+  
+  if (dragState.value.dragType === 'move') {
+    adjustedX = Math.max(0, Math.min(coords.x, props.gridWidth - size));
+    adjustedY = Math.max(0, Math.min(coords.y, props.gridHeight - size));
+  } else {
+    // For place operations, allow outside bounds but ensure non-negative
+    adjustedX = Math.max(0, coords.x);
+    adjustedY = Math.max(0, coords.y);
+  }
   
   return {
     left: `calc(${adjustedX} * var(--cell-size))`,
@@ -438,9 +461,19 @@ const gridHighlightStyle = computed(() => {
   const coords = dragState.value.currentCoords;
   const size = gridHighlightSize.value;
   
-  // Ensure highlight fits within grid bounds
-  const adjustedX = Math.max(0, Math.min(coords.x, props.gridWidth - size));
-  const adjustedY = Math.max(0, Math.min(coords.y, props.gridHeight - size));
+  // Allow highlight to show outside current grid bounds when placing (for visual feedback)
+  // Only clamp for move operations to keep within bounds
+  let adjustedX = coords.x;
+  let adjustedY = coords.y;
+  
+  if (dragState.value.dragType === 'move') {
+    adjustedX = Math.max(0, Math.min(coords.x, props.gridWidth - size));
+    adjustedY = Math.max(0, Math.min(coords.y, props.gridHeight - size));
+  } else {
+    // For place operations, allow outside bounds but ensure non-negative
+    adjustedX = Math.max(0, coords.x);
+    adjustedY = Math.max(0, coords.y);
+  }
   
   return {
     left: `calc(${adjustedX} * var(--cell-size))`,
