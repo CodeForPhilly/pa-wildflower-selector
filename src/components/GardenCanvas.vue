@@ -94,20 +94,24 @@ const activeDrag = ref<{ type: 'place' | 'move'; plantId: string } | null>(null)
 const dynamicCellSize = computed(() => {
   if (typeof window === 'undefined') return 36;
   
-  const sidebarWidth = props.isMobile ? 0 : 340;
-  const toolbarHeight = 100;
+  const toolbarHeight = props.isMobile ? 60 : 100;
   const headerHeight = 80;
-  const padding = 32;
-  const gap = 16;
-  const mainPadding = 32;
+  const padding = props.isMobile ? 12 : 16;
+  const gap = props.isMobile ? 8 : 12;
+  const mainPadding = props.isMobile ? 12 : 16;
+  // Estimate favorites tray height - compact on all sizes
+  const favoritesTrayHeight = 120;
   
-  const availableWidth = window.innerWidth - sidebarWidth - padding - gap - mainPadding * 2;
-  const availableHeight = window.innerHeight - toolbarHeight - headerHeight - mainPadding * 2;
+  const availableWidth = window.innerWidth - mainPadding * 2 - padding * 2;
+  const availableHeight = window.innerHeight - toolbarHeight - headerHeight - mainPadding * 2 - favoritesTrayHeight - gap;
   
-  const minDimension = Math.min(availableWidth, availableHeight);
-  const cellSize = minDimension / 10;
+  // Use width as primary constraint to fill screen width
+  const cellSize = availableWidth / 10;
   
-  return Math.max(20, Math.min(80, cellSize));
+  // But don't exceed height constraint
+  const maxCellSizeFromHeight = availableHeight / 10;
+  
+  return Math.max(20, Math.min(cellSize, maxCellSizeFromHeight, 80));
 });
 
 const gridStyle = computed(() => {
@@ -192,7 +196,7 @@ const handleGridPointerDown = (event: PointerEvent) => {
 
 
 const handlePlantDragStart = (event: PointerEvent, placedId: string) => {
-  if (!props.isMobile && event.isPrimary) {
+  if (event.isPrimary) {
     handlePointerDragStart(event, 'move', placedId);
   }
 };
@@ -299,9 +303,21 @@ const gridHighlightStyle = computed(() => {
   flex: 1;
   display: flex;
   align-items: flex-start;
-  justify-content: flex-start;
+  justify-content: center;
   min-height: 400px;
-  padding: 16px;
+  padding: 8px;
+}
+
+@media screen and (max-width: 767px) {
+  .grid-scroll {
+    border-radius: 12px;
+    padding: 4px;
+    min-height: 200px;
+  }
+}
+
+.grid {
+  margin: 0 auto;
 }
 
 .grid {

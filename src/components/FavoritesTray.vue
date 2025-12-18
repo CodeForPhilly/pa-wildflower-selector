@@ -79,45 +79,71 @@ const thumbStyle = (plant: Plant) => {
   background: #fff;
   border: 1px solid #e5e5e5;
   border-radius: 16px;
-  padding: 12px;
+  padding: 8px;
+  flex-shrink: 0;
 }
 
 .palette.mobile {
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-  border-radius: 16px 16px 0 0;
-  padding-bottom: 8px;
+  padding: 6px 8px;
+  max-height: 120px;
+  overflow-y: hidden;
 }
 
 .palette-header h2 {
   margin: 0;
   font-family: Arvo;
-  font-size: 18px;
+  font-size: 16px;
+}
+
+.palette.mobile .palette-header {
+  margin-bottom: 4px;
+}
+
+.palette.mobile .palette-header h2 {
+  font-size: 14px;
 }
 
 .palette-subtitle {
-  margin-top: 4px;
+  margin-top: 2px;
   font-family: Roboto;
-  font-size: 13px;
+  font-size: 11px;
   color: #555;
+  line-height: 1.2;
+}
+
+.palette.mobile .palette-subtitle {
+  font-size: 10px;
+  margin-top: 1px;
 }
 
 .palette-items {
-  margin-top: 10px;
+  margin-top: 6px;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow: visible;
-  padding-right: 4px;
+  flex-direction: row;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
-.palette.mobile .palette-items {
-  max-height: none;
-  overflow-x: visible;
-  overflow-y: visible;
-  flex-direction: row;
-  padding-bottom: 6px;
+.palette-items::-webkit-scrollbar {
+  height: 4px;
+}
+
+.palette-items::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 2px;
+}
+
+.palette.mobile .palette-items::-webkit-scrollbar {
+  height: 4px;
+}
+
+.palette.mobile .palette-items::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 2px;
 }
 
 .palette-item {
@@ -135,7 +161,10 @@ const thumbStyle = (plant: Plant) => {
 }
 
 .palette.mobile .palette-item {
-  min-width: 240px;
+  min-width: 180px;
+  padding: 8px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .palette-item.active {
@@ -151,6 +180,12 @@ const thumbStyle = (plant: Plant) => {
   background-position: center;
   flex: 0 0 auto;
   border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.palette.mobile .thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
 }
 
 .info {
@@ -170,10 +205,19 @@ const thumbStyle = (plant: Plant) => {
   text-overflow: ellipsis;
 }
 
+.palette.mobile .name {
+  font-size: 13px;
+}
+
 .meta {
   font-family: Roboto;
   font-size: 12px;
   color: #666;
+}
+
+.palette.mobile .meta {
+  font-size: 11px;
+  line-height: 1.2;
 }
 </style>
 

@@ -10,6 +10,10 @@
     @dblclick="handleDoubleClick"
   >
     <div class="placed-label">
+      <!-- Coordinate badge above common name -->
+      <div class="coordinate-badge">
+        {{ centerPosition }}
+      </div>
       <div class="label-line common">{{ plantName }}</div>
       <div v-if="scientificName" class="label-line scientific">
         <i>{{ scientificName }}</i>
@@ -48,6 +52,14 @@ const scientificName = computed(() => {
   return props.plant?.['Scientific Name'] || null;
 });
 
+// Calculate center position in grid coordinates (top-left is 0,0 anchor)
+const centerPosition = computed(() => {
+  const centerX = props.placed.x + (props.placed.width / 2);
+  const centerY = props.placed.y + (props.placed.height / 2);
+  // Round to nearest whole number and format as simple grid coordinates
+  return `${Math.round(centerX)},${Math.round(centerY)}`;
+});
+
 const placedStyle = computed(() => {
   return {
     '--x': props.placed.x,
@@ -61,16 +73,19 @@ const placedStyle = computed(() => {
 // Track for double-tap on mobile
 let lastTapTime = 0;
 let tapTimeout: number | null = null;
+let dragStartTime = 0;
+let dragStartPos: { x: number; y: number } | null = null;
+let hasMoved = false;
 
 const handlePointerDown = (event: PointerEvent) => {
   if (event.isPrimary) {
-    // On mobile, detect double-tap
+    // On mobile, detect double-tap or drag
     if (props.isMobile) {
       const currentTime = Date.now();
       const tapLength = currentTime - lastTapTime;
       
-      if (tapLength < 300 && tapLength > 0) {
-        // Double tap detected
+      if (tapLength < 300 && tapLength > 0 && !hasMoved) {
+        // Double tap detected (only if no movement occurred)
         if (tapTimeout) {
           clearTimeout(tapTimeout);
           tapTimeout = null;
@@ -78,11 +93,55 @@ const handlePointerDown = (event: PointerEvent) => {
         event.preventDefault();
         emit('delete', props.placed.id);
         lastTapTime = 0;
+        hasMoved = false;
+        dragStartPos = null;
       } else {
-        // Single tap - wait for potential second tap
+        // Single tap - track for potential drag or double-tap
         lastTapTime = currentTime;
-        // On mobile, we don't emit drag-start since mobile uses tap-to-place mode
-        // Just track the tap for potential double-tap
+        dragStartTime = currentTime;
+        dragStartPos = { x: event.clientX, y: event.clientY };
+        hasMoved = false;
+        
+        // Set up listeners to detect drag vs tap
+        const handleMove = (moveEvent: PointerEvent) => {
+          if (!dragStartPos) return;
+          
+          const moveDistance = Math.sqrt(
+            Math.pow(moveEvent.clientX - dragStartPos.x, 2) + 
+            Math.pow(moveEvent.clientY - dragStartPos.y, 2)
+          );
+          
+          // If moved more than 5px, it's a drag
+          if (moveDistance > 5) {
+            hasMoved = true;
+            if (tapTimeout) {
+              clearTimeout(tapTimeout);
+              tapTimeout = null;
+            }
+            // Start drag
+            emit('drag-start', event, props.placed.id);
+            document.removeEventListener('pointermove', handleMove);
+            document.removeEventListener('pointerup', handleUp);
+          }
+        };
+        
+        const handleUp = () => {
+          document.removeEventListener('pointermove', handleMove);
+          document.removeEventListener('pointerup', handleUp);
+          
+          // If no movement, wait for potential second tap
+          if (!hasMoved) {
+            tapTimeout = window.setTimeout(() => {
+              // Single tap completed, do nothing
+              tapTimeout = null;
+            }, 300);
+          }
+          
+          dragStartPos = null;
+        };
+        
+        document.addEventListener('pointermove', handleMove);
+        document.addEventListener('pointerup', handleUp);
       }
     } else {
       // Desktop: single click starts drag
@@ -166,6 +225,32 @@ const handleDoubleClick = (event: MouseEvent) => {
 
 .label-line.scientific i {
   font-style: italic;
+}
+
+.coordinate-badge {
+  display: inline-block;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-shadow: none;
+  white-space: nowrap;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  margin-bottom: 4px;
+}
+
+@media screen and (max-width: 767px) {
+  .coordinate-badge {
+    font-size: 10px;
+    padding: 2px 5px;
+    margin-bottom: 3px;
+  }
 }
 </style>
 

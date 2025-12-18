@@ -39,7 +39,7 @@
         </div>
       </section>
 
-      <section class="workspace" :class="{ mobile: isMobile }">
+      <section class="workspace">
         <FavoritesTray
           :favorite-plants="favoritePlants"
           :selected-plant-id="selectedPlantId"
@@ -165,18 +165,13 @@ const handlePaletteDragStart = (event: PointerEvent, plantId: string) => {
 }
 
 .workspace {
-  display: grid;
-  grid-template-columns: 340px 1fr;
-  gap: 16px;
-  align-items: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   flex: 1;
   min-height: 0;
   overflow: hidden;
   height: 100%;
-}
-
-.workspace.mobile {
-  grid-template-columns: 1fr;
 }
 
 button.primary-bar.small {
@@ -191,8 +186,40 @@ button.primary-bar.small.subtle {
 }
 
 @media screen and (max-width: 767px) {
+  .planner-main {
+    padding: 0 12px 8px;
+  }
+
+  .toolbar {
+    gap: 8px;
+    margin-bottom: 8px;
+    align-items: center;
+  }
+
+  .size-controls {
+    gap: 6px;
+  }
+
   .toolbar-right {
     text-align: left;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .grid-readout {
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .tap-hint {
+    margin-top: 3px;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  button.primary-bar.small {
+    padding: 8px 10px;
+    font-size: 13px;
   }
 }
 </style>
