@@ -471,7 +471,7 @@ const gridHighlightStyle = computed(() => {
 @media screen and (max-width: 767px) {
   .grid-scroll {
     border-radius: 12px;
-    padding: 4px;
+    padding: 32px 4px 4px 40px;
     min-height: 200px;
   }
 }
@@ -665,6 +665,22 @@ button.primary-bar.small.danger {
 }
 
 @media screen and (max-width: 767px) {
+  .resize-controls.top {
+    top: -28px;
+  }
+
+  .resize-controls.left {
+    left: -28px;
+  }
+
+  .resize-controls.right {
+    right: -28px;
+  }
+
+  .resize-controls.bottom {
+    bottom: -28px;
+  }
+
   .grid-resize-controls-vertical {
     right: -36px;
   }
