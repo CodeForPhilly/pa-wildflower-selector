@@ -27,6 +27,14 @@
 
         <div class="toolbar-right">
           <button
+            class="snap-toggle-button"
+            @click="toggleSnapIncrement"
+            :title="`Snap to ${snapIncrement}ft increments`"
+          >
+            <span class="snap-icon">⊞</span>
+            <span class="snap-value">{{ snapIncrement }}ft</span>
+          </button>
+          <button
             class="grid-dimensions-button"
             @click="showGridEditor = true"
             :title="`Current grid: ${gridWidth}ft × ${gridHeight}ft`"
@@ -65,6 +73,7 @@
             :remove-placed="removePlaced"
             :grid-width="gridWidth"
             :grid-height="gridHeight"
+            :snap-increment="snapIncrement"
             :add-row-top="addRowTop"
             :remove-row-top="removeRowTop"
             :add-row-bottom="addRowBottom"
@@ -140,6 +149,7 @@ const {
   canRedo,
   gridWidth,
   gridHeight,
+  snapIncrement,
   addRowTop,
   removeRowTop,
   addRowBottom,
@@ -151,6 +161,7 @@ const {
   getMinGridSize,
   setGridSize,
   fitGridToPlants,
+  toggleSnapIncrement,
 } = useGardenPlanner();
 
 const handlePaletteDragStart = (event: PointerEvent, plantId: string) => {
@@ -297,6 +308,45 @@ const handleGridSizeFit = () => {
 .toolbar-right {
   text-align: right;
   font-family: Roboto;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.snap-toggle-button {
+  background-color: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ffb74d;
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-family: Roboto, sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s, border-color 0.2s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.snap-toggle-button:hover {
+  background-color: #ffe0b2;
+  border-color: #ff9800;
+  transform: scale(1.02);
+}
+
+.snap-toggle-button:active {
+  transform: scale(0.98);
+}
+
+.snap-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.snap-value {
+  font-weight: 600;
 }
 
 .grid-dimensions-button {
@@ -374,6 +424,17 @@ button.primary-bar.small.subtle {
     text-align: left;
     flex: 1;
     min-width: 0;
+    gap: 8px;
+  }
+
+  .snap-toggle-button {
+    font-size: 12px;
+    padding: 6px 12px;
+    line-height: 1.3;
+  }
+
+  .snap-icon {
+    font-size: 14px;
   }
 
   .grid-dimensions-button {

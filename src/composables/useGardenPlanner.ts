@@ -6,6 +6,7 @@ import { useLocalStorage } from './useLocalStorage';
 import { useUndoRedo } from './useUndoRedo';
 
 const STORAGE_KEY = 'gardenPlanner:v1';
+const SNAP_INCREMENT_KEY = 'gardenPlanner:snapIncrement';
 
 export function useGardenPlanner() {
   const store = useStore();
@@ -18,6 +19,18 @@ export function useGardenPlanner() {
   const selectedPlantId = ref<string | null>(null);
   const gridWidth = ref(10);
   const gridHeight = ref(10);
+
+  // Snap increment (0.5 or 1.0 ft) - default to 1.0
+  const { storedValue: snapIncrementStorage } = useLocalStorage<number>(
+    SNAP_INCREMENT_KEY,
+    1.0
+  );
+  const snapIncrement = computed({
+    get: () => snapIncrementStorage.value || 1.0,
+    set: (value: number) => {
+      snapIncrementStorage.value = value;
+    }
+  });
 
   // LocalStorage
   const { storedValue: storageData, remove: clearStorage } = useLocalStorage<StoragePayload>(
@@ -328,6 +341,11 @@ export function useGardenPlanner() {
     fetchFavorites();
   });
 
+  // Toggle snap increment between 0.5 and 1.0
+  const toggleSnapIncrement = (): void => {
+    snapIncrement.value = snapIncrement.value === 1.0 ? 0.5 : 1.0;
+  };
+
   // Initialize
   onMounted(() => {
     loadFromStorage();
@@ -343,6 +361,7 @@ export function useGardenPlanner() {
     selectedPlantId,
     gridWidth,
     gridHeight,
+    snapIncrement,
 
     // Computed
     favoriteIds,
@@ -442,6 +461,9 @@ export function useGardenPlanner() {
     getMinGridSize,
     setGridSize,
     fitGridToPlants,
+    
+    // Snap increment
+    toggleSnapIncrement,
   };
 }
 

@@ -34,6 +34,7 @@ interface Props {
   cellSize: number;
   imageUrl: (plant: Plant | undefined, preview: boolean) => string;
   isMobile: boolean;
+  snapIncrement: number;
 }
 
 interface Emits {
@@ -56,8 +57,23 @@ const scientificName = computed(() => {
 const centerPosition = computed(() => {
   const centerX = props.placed.x + (props.placed.width / 2);
   const centerY = props.placed.y + (props.placed.height / 2);
-  // Round to nearest whole number and format as simple grid coordinates
-  return `${Math.round(centerX)},${Math.round(centerY)}`;
+  
+  // Format based on snap increment
+  const formatCoord = (value: number, increment: number): string => {
+    if (increment === 0.5) {
+      // Show one decimal place for 0.5ft snap, but remove .0 for whole numbers
+      if (value % 1 === 0) {
+        return Math.round(value).toString();
+      } else {
+        return value.toFixed(1);
+      }
+    } else {
+      // Show whole numbers for 1ft snap
+      return Math.round(value).toString();
+    }
+  };
+  
+  return `${formatCoord(centerX, props.snapIncrement)},${formatCoord(centerY, props.snapIncrement)}`;
 });
 
 const placedStyle = computed(() => {

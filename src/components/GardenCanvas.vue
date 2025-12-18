@@ -21,6 +21,7 @@
           :cell-size="dynamicCellSize"
           :image-url="imageUrl"
           :is-mobile="isMobile"
+          :snap-increment="snapIncrement"
           @drag-start="handlePlantDragStart"
           @delete="handleDelete"
         />
@@ -166,6 +167,7 @@ interface Props {
   removePlaced: (id: string) => void;
   gridWidth: number;
   gridHeight: number;
+  snapIncrement: number;
   addRowTop: () => void;
   removeRowTop: () => void;
   addRowBottom: () => void;
@@ -235,12 +237,27 @@ const getGridCoords = (event: PointerEvent | MouseEvent): GridCoords | null => {
   const rect = grid.getBoundingClientRect();
   const clientX = event.clientX;
   const clientY = event.clientY;
-  const x = Math.floor((clientX - rect.left) / dynamicCellSize.value);
-  const y = Math.floor((clientY - rect.top) / dynamicCellSize.value);
+  
+  // Convert pixel position to feet
+  const xFeet = (clientX - rect.left) / dynamicCellSize.value;
+  const yFeet = (clientY - rect.top) / dynamicCellSize.value;
+  
+  // Snap to the specified increment (0.5 or 1.0 ft)
+  const snapToIncrement = (value: number, increment: number): number => {
+    return Math.round(value / increment) * increment;
+  };
+  
+  const snappedX = snapToIncrement(xFeet, props.snapIncrement);
+  const snappedY = snapToIncrement(yFeet, props.snapIncrement);
+  
+  // Ensure coordinates are within grid bounds
+  // For decimal snap, allow up to gridWidth/gridHeight (exclusive)
+  const maxX = props.gridWidth - props.snapIncrement;
+  const maxY = props.gridHeight - props.snapIncrement;
   
   return {
-    x: Math.max(0, Math.min(props.gridWidth - 1, x)),
-    y: Math.max(0, Math.min(props.gridHeight - 1, y)),
+    x: Math.max(0, Math.min(maxX, snappedX)),
+    y: Math.max(0, Math.min(maxY, snappedY)),
   };
 };
 
@@ -267,6 +284,7 @@ const { dragState, handlePointerDown: handlePointerDragStart } = usePointerDrag(
   dynamicCellSize,
   computed(() => props.gridWidth),
   computed(() => props.gridHeight),
+  computed(() => props.snapIncrement),
   handleDragEnd
 );
 
@@ -435,35 +453,22 @@ const gridHighlightStyle = computed(() => {
   min-height: 200px;
   flex-shrink: 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  /* 1ft grid + 5ft grid */
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  /* 1ft grid lines */
   background-image:
     repeating-linear-gradient(
       to right,
-      rgba(0, 0, 0, 0.08) 0,
-      rgba(0, 0, 0, 0.08) 1px,
+      rgba(0, 0, 0, 0.15) 0,
+      rgba(0, 0, 0, 0.15) 1px,
       transparent 1px,
       transparent var(--cell-size)
     ),
     repeating-linear-gradient(
       to bottom,
-      rgba(0, 0, 0, 0.08) 0,
-      rgba(0, 0, 0, 0.08) 1px,
+      rgba(0, 0, 0, 0.15) 0,
+      rgba(0, 0, 0, 0.15) 1px,
       transparent 1px,
       transparent var(--cell-size)
-    ),
-    repeating-linear-gradient(
-      to right,
-      rgba(0, 0, 0, 0.18) 0,
-      rgba(0, 0, 0, 0.18) 2px,
-      transparent 2px,
-      transparent calc(var(--cell-size) * 5)
-    ),
-    repeating-linear-gradient(
-      to bottom,
-      rgba(0, 0, 0, 0.18) 0,
-      rgba(0, 0, 0, 0.18) 2px,
-      transparent 2px,
-      transparent calc(var(--cell-size) * 5)
     );
   background-position: 0 0;
   touch-action: none;

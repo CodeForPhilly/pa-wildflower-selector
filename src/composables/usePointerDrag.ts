@@ -17,6 +17,7 @@ export function usePointerDrag(
   cellSize: Ref<number>,
   gridWidth: Ref<number>,
   gridHeight: Ref<number>,
+  snapIncrement: Ref<number>,
   onDragEnd: (coords: GridCoords, dragType: 'place' | 'move', plantId: string) => void
 ) {
   const dragState = ref<DragState>({
@@ -35,13 +36,27 @@ export function usePointerDrag(
     if (!grid || typeof window === 'undefined') return null;
     
     const rect = grid.getBoundingClientRect();
-    const x = Math.floor((event.clientX - rect.left) / cellSize.value);
-    const y = Math.floor((event.clientY - rect.top) / cellSize.value);
+    
+    // Convert pixel position to feet
+    const xFeet = (event.clientX - rect.left) / cellSize.value;
+    const yFeet = (event.clientY - rect.top) / cellSize.value;
+    
+    // Snap to the specified increment (0.5 or 1.0 ft)
+    const snapToIncrement = (value: number, increment: number): number => {
+      return Math.round(value / increment) * increment;
+    };
+    
+    const snappedX = snapToIncrement(xFeet, snapIncrement.value);
+    const snappedY = snapToIncrement(yFeet, snapIncrement.value);
     
     // Ensure coordinates are within grid bounds
+    // For decimal snap, allow up to gridWidth/gridHeight (exclusive)
+    const maxX = gridWidth.value - snapIncrement.value;
+    const maxY = gridHeight.value - snapIncrement.value;
+    
     return {
-      x: Math.max(0, Math.min(gridWidth.value - 1, x)),
-      y: Math.max(0, Math.min(gridHeight.value - 1, y)),
+      x: Math.max(0, Math.min(maxX, snappedX)),
+      y: Math.max(0, Math.min(maxY, snappedY)),
     };
   };
 
