@@ -40,9 +40,6 @@
           <div class="grid-readout">
             Grid: <strong>{{ gridWidth }}</strong>ft × <strong>{{ gridHeight }}</strong>ft
           </div>
-          <div class="tap-hint" v-if="isMobile">
-            Tap a plant below, then tap the grid to place.
-          </div>
         </div>
       </section>
 
@@ -285,12 +282,6 @@ const summaryData = computed(() => {
   font-size: 14px;
 }
 
-.tap-hint {
-  margin-top: 6px;
-  font-size: 13px;
-  color: #1d2e26;
-}
-
 .workspace {
   display: flex;
   flex-direction: column;
@@ -344,12 +335,6 @@ button.primary-bar.small.subtle {
   .grid-readout {
     font-size: 12px;
     line-height: 1.3;
-  }
-
-  .tap-hint {
-    margin-top: 3px;
-    font-size: 11px;
-    line-height: 1.2;
   }
 
   button.primary-bar.small {

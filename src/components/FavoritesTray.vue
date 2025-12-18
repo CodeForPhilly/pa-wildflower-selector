@@ -2,9 +2,10 @@
   <aside class="palette" :class="{ mobile: isMobile }" aria-label="Plant palette">
     <div class="palette-header">
       <h2>Favorites</h2>
-      <div class="palette-subtitle" v-if="favoritePlants.length">
-        Drag (desktop) or tap-to-place (mobile)
-      </div>
+        <div class="palette-subtitle" v-if="favoritePlants.length">
+          <span v-if="isMobile">Tap a plant below, then tap the grid to place</span>
+          <span v-else>Drag to grid to place</span>
+        </div>
       <div class="palette-subtitle" v-else-if="!loading">
         No favorites yet. Add favorites first.
       </div>
