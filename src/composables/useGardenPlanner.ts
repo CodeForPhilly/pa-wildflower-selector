@@ -460,8 +460,11 @@ export function useGardenPlanner() {
   };
 
   const clearLayout = (): void => {
+    // Save current state to history before clearing so undo can restore it
+    if (placedPlants.value.length > 0) {
+      undoRedo.addState(placedPlants.value.map(p => ({ ...p })));
+    }
     placedPlants.value = [];
-    undoRedo.reset([]);
   };
 
   const resetPlanner = (): void => {
