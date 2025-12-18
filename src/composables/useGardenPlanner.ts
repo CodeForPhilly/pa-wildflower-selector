@@ -64,6 +64,14 @@ export function useGardenPlanner() {
     return overlaps;
   });
 
+  const plantCounts = computed(() => {
+    const counts: Record<string, number> = {};
+    for (const p of placedPlants.value) {
+      counts[p.plantId] = (counts[p.plantId] || 0) + 1;
+    }
+    return counts;
+  });
+
   // Methods
   const rectsOverlap = (a: PlacedPlant, b: PlacedPlant): boolean => {
     const ax2 = a.x + a.width;
@@ -269,6 +277,7 @@ export function useGardenPlanner() {
     favoriteIds,
     plantById,
     overlapIds,
+    plantCounts,
 
     // Methods
     // Methods

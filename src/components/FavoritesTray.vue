@@ -22,7 +22,11 @@
         @pointerdown="handlePointerDown($event, plant._id)"
         :title="plant['Common Name'] || plant._id"
       >
-        <span class="thumb" :style="thumbStyle(plant)"></span>
+        <span class="thumb" :style="thumbStyle(plant)">
+          <span class="count-badge" v-if="plantCounts && plantCounts[plant._id]">
+            {{ plantCounts[plant._id] }}
+          </span>
+        </span>
         <span class="info">
           <span class="name">{{ plant['Common Name'] || plant._id }}</span>
           <span class="meta">
@@ -45,6 +49,7 @@ interface Props {
   imageUrl: (plant: Plant | undefined, preview: boolean) => string;
   spreadFeetLabel: (plant: Plant | undefined) => string;
   spreadCells: (plant: Plant | undefined) => number;
+  plantCounts?: Record<string, number>;
 }
 
 interface Emits {
@@ -178,6 +183,27 @@ const thumbStyle = (plant: Plant) => {
   background-position: center;
   flex: 0 0 auto;
   border: 1px solid rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+
+.count-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background-color: #0fb554;
+  color: #fff;
+  font-family: Roboto, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  z-index: 2;
 }
 
 .palette.mobile .thumb {

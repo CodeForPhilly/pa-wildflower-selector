@@ -48,6 +48,7 @@
           :image-url="imageUrl"
           :spread-feet-label="spreadFeetLabel"
           :spread-cells="spreadCells"
+          :plant-counts="plantCounts"
           @select="selectPlant"
           @drag-start="handlePaletteDragStart"
         />
@@ -104,6 +105,7 @@ const {
   selectedPlantId,
   plantById,
   overlapIds,
+  plantCounts,
   imageUrl,
   spreadFeetLabel,
   spreadCells,
