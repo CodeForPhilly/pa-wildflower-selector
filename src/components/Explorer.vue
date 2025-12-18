@@ -4,18 +4,11 @@
       :h1="
         favorites
           ? 'Favorites'
-          : questions
-          ? 'Quick Search'
           : 'Choose Native Plants'
       "
       :large-h1="false"
     >
-      <template v-if="!(questions || favorites)" v-slot:after-bar>
-        <p class="not-large-help">
-          <router-link to="/quick-search"
-            >Not sure where to start?<br />Try quick search</router-link
-          >
-        </p>
+      <template v-if="!favorites" v-slot:after-bar>
         <div class="not-large-help" v-if="zipCode">
           <button class="primary primary-bar" @click="setLocation()">
               <span class="material-icons">place</span> Change Location [{{
@@ -49,13 +42,10 @@
             <p>
               Find which native shrubs, plants and flowers <span v-if="displayLocation">from
               <strong>{{ displayLocation }}</strong></span> have the right conditions
-              to flourish in your garden. Use the quick search option or side
+              to flourish in your garden. Use the side
               filters to get started. Detailed instructions are found
               <router-link to="/how-to-use#the-directions">here</router-link>
             </p>
-            <button class="primary" @click="$router.push('/quick-search')">
-              Quick Search
-            </button>
           </div>
           <div class="two-up-image" :style="twoUpImage(twoUpIndex)">
             <span class="two-up-credit"
@@ -67,7 +57,7 @@
         </div>
       </template>
     </Header>
-    <div class="search-desktop-parent" v-if="!(questions || favorites)">
+    <div class="search-desktop-parent" v-if="!favorites">
       <div class="search-with-autocomplete">
         <form class="search-desktop" @submit.prevent="handleSearchSubmit">
           <span class="material-icons">search</span>
@@ -249,107 +239,6 @@
       </div>
     </article>
     <main :class="mainClasses" ref="mainContent">
-      <div v-if="questions" class="questions-box">
-        <div :class="questionsClasses">
-          <div v-if="!question" class="questions-prologue">
-            <h1 class="large">Quick search</h1>
-            <p class="small">Novice gardener?</p>
-            <p class="small">Don't know where to start?</p>
-            <p class="large">Novice gardener? Don't know where to start?</p>
-            <p>
-              Answering these easy questions will get you well on your way to a
-              selection of plants for your garden.
-            </p>
-          </div>
-          <form
-            :class="questionClasses(index)"
-            v-for="(questionDetail, index) in questionDetails"
-            :key="index"
-          >
-            <h4>{{ questionDetail.title }}</h4>
-            <div class="radio-inputs" v-if="questionDetail.type === 'boolean'">
-              <label>
-                <input
-                  name="{{ questionDetail.name }}"
-                  type="radio"
-                  value="1"
-                  v-model="questionDetail.value"
-                />
-                <span class="label">Yes</span>
-              </label>
-              <label>
-                <input
-                  name="{{ questionDetail.name }}"
-                  type="radio"
-                  value=""
-                  v-model="questionDetail.value"
-                />
-                <span class="label">No</span>
-              </label>
-            </div>
-            <div v-else-if="questionDetail.type === 'month'" class="month">
-              <button @click.stop.prevent="toggleMonth" class="list-button">
-                <span class="label">Planting Month</span>
-                <span class="value">{{ currentMonthLabel }}</span>
-                <span class="material-icons">{{
-                  monthIsOpen ? "arrow_drop_up" : "arrow_drop_down"
-                }}</span>
-              </button>
-              <Menu
-                :open="monthIsOpen"
-                :choices="questionDetail.choices"
-                v-model="questionDetail.value"
-                @close="toggleMonth"
-              />
-            </div>
-            <div class="question-buttons">
-              <div
-                v-if="index + 1 === questionDetails.length"
-                class="show-back"
-              >
-                <button
-                  class="primary"
-                  v-if="index + 1 === questionDetails.length"
-                  @click.prevent="endQuestions"
-                >
-                  Show Plants
-                </button>
-                <button v-if="index > 0" @click.prevent="question = index - 1">
-                  Back
-                </button>
-              </div>
-              <div v-else class="next-back">
-                <button
-                  class="primary next"
-                  v-if="index + 1 < questionDetails.length"
-                  @click.prevent="nextQuestion"
-                >
-                  Next
-                </button>
-                <button
-                  class="back"
-                  v-if="index > 0"
-                  @click.prevent="question = index - 1"
-                >
-                  Back
-                </button>
-              </div>
-              <button @click="quitQuestions">Quit Questions</button>
-            </div>
-          </form>
-        </div>
-        <div
-          class="questions-decoration"
-          :style="twoUpImage(questionsHeroIndex)"
-        >
-          <span class="two-up-credit"
-            ><a :href="twoUpImageCredit(twoUpIndex).href" target="_blank">{{
-              twoUpImageCredit(twoUpIndex).title
-            }}</a></span
-          >
-        </div>
-      </div>
-      <template v-else>
         <div class="controls">
           <div class="filter-toggle-and-sort">
             <button
@@ -629,7 +518,6 @@
             ></article>
           </article>
         </div>
-      </template>
     </main>
     <!-- Useful if we go back to using an observer for infinite scroll -->
     <div ref="next"></div>
@@ -686,10 +574,6 @@ export default {
   },
   props: {
     favorites: {
-      type: Boolean,
-      default: false,
-    },
-    questions: {
       type: Boolean,
       default: false,
     },
@@ -826,185 +710,6 @@ export default {
 
     this.defaultFilterValues = getDefaultFilterValues(filters);
 
-    const questionDetails = [
-      {
-        name: "flowers",
-        type: "boolean",
-        def: "1",
-        filter(value) {
-          // QUIZ_FLOWER: Field "Plant Type" contains "Graminoid" or "Herb" or "Shrub" or "Vine" and Field "Showy" = "Yes"
-          return value
-            ? {
-                "Plant Type Flags": ["Graminoid", "Herb", "Shrub", "Vine"],
-                Showy: ["Showy"],
-              }
-            : {};
-        },
-        title: "Do you want flowers?",
-      },
-      {
-        name: "perennial",
-        type: "boolean",
-        def: "1",
-        filter() {
-          return {
-            "Life Cycle Flags": ["Perennial"],
-          };
-        },
-        title:
-          "Do you want the plant to show up in your garden every year, without having to buy it again?",
-      },
-      {
-        name: "sunny",
-        type: "boolean",
-        def: "1",
-        filter() {
-          return {};
-        },
-        title: "Is your garden sunny?",
-      },
-      {
-        name: "shady",
-        type: "boolean",
-        def: "1",
-        filter(value, others) {
-          const exposure = [];
-          if (value) {
-            exposure.push("Shade");
-          }
-          if (others.sunny) {
-            exposure.push("Sun");
-          }
-          if (value && others.sunny) {
-            exposure.push("Part Shade");
-          }
-          if (exposure.length) {
-            return {
-              "Sun Exposure": exposure,
-            };
-          } else {
-            return {};
-          }
-        },
-        title: "Is your garden shady?",
-      },
-      {
-        name: "puddle",
-        type: "boolean",
-        def: "1",
-        filter() {
-          return {};
-        },
-        title: "Does your garden puddle when it rains?",
-      },
-      {
-        name: "dry",
-        type: "boolean",
-        def: "1",
-        filter() {
-          return {};
-        },
-        title: "Does your garden ever looked cracked or dry?",
-      },
-      {
-        name: "moist",
-        type: "boolean",
-        def: "1",
-        filter(value, others) {
-          if (others.puddle) {
-            return {
-              "Soil Moisture": "Wet",
-            };
-          } else if (others.dry) {
-            return {
-              "Soil Moisture": "Dry",
-            };
-          } else if (value) {
-            return {
-              "Soil Moisture": "Moist",
-            };
-          }
-        },
-        title:
-          "Is your garden a little damp when you stick your finger in the ground?",
-      },
-      {
-        name: "bees",
-        type: "boolean",
-        def: "1",
-        filter() {
-          return {};
-        },
-        title: "Do you want to attract bees?",
-      },
-      {
-        name: "butterflies",
-        type: "boolean",
-        def: "1",
-        filter() {
-          return {};
-        },
-        title: "Do you want to attract butterflies?",
-      },
-      {
-        name: "hummingbirds",
-        type: "boolean",
-        def: "1",
-        filter(value, others) {
-          const flags = [];
-          if (others.bees) {
-            flags.push("Native Bees");
-            flags.push("Bombus");
-            flags.push("Honey Bees");
-            flags.push("Nesting and Structure (Bees)");
-          }
-          if (others.butterflies) {
-            flags.push("Butterflies");
-            flags.push("Larval Host (Butterfly)");
-          }
-          if (value) {
-            flags.push("Hummingbirds");
-          }
-          if (flags.length) {
-            return {
-              "Pollinator Flags": flags,
-            };
-          } else {
-            return {};
-          }
-        },
-        title: "Do you want to attract hummingbirds?",
-      },
-      {
-        name: "online",
-        type: "boolean",
-        def: "1",
-        filter() {
-          return {};
-        },
-        title: "Do you want to buy your plants online?",
-      },
-      {
-        name: "local",
-        type: "boolean",
-        def: "1",
-        filter(value, others) {
-          const availabilityFlags = [];
-          if (others.online) {
-            availabilityFlags.push("Online");
-          }
-          if (value) {
-            availabilityFlags.push("Local");
-          }
-          return {
-            AvailabilityFlags: availabilityFlags,
-          };
-        },
-        title: "Do you want to buy your plants at a local store?",
-      },
-    ];
-
-    this.initQuestionValues(questionDetails);
 
     const twoUpIndex = 0;
     return {
@@ -1033,8 +738,6 @@ export default {
       baseSorts,
       sortIsOpen: false,
       monthIsOpen: false,
-      question: 0,
-      questionDetails,
       twoUpIndex,
       isCopied: false,
       showAutocomplete: false,
@@ -1044,15 +747,6 @@ export default {
     };
   },
   computed: {
-    questionsHeroIndex() {
-      return (this.twoUpIndex + this.question + 1) % twoUpImageCredits.length;
-    },
-    questionsClasses() {
-      return {
-        questions: 1,
-        first: !this.question,
-      };
-    },
     selectedName() {
       return this.$route.params.name;
     },
@@ -1159,14 +853,6 @@ export default {
     },
     favorites() {
       this.determineFilterCountsAndSubmit();
-    },
-    questions() {
-      if (this.questions) {
-        this.filterValues = { ...this.defaultFilterValues };
-        this.determineFilterCountsAndSubmit();
-        this.question = 0;
-        this.initQuestionValues(this.questionDetails);
-      }
     },
     sortIsOpen() {
       this.$store.commit("setSortIsOpen", this.sortIsOpen);
@@ -2749,7 +2435,7 @@ export default {
           filter.choices = data.choices[filter.name];
         }
       }
-      if (!data.results.length || this.favorites || this.questions) {
+      if (!data.results.length || this.favorites) {
         this.loadedAll = true;
       }
       if (replace) {
@@ -3139,42 +2825,6 @@ ${htmlLines.join("\n")}
       return this.$store.state.favorites.has(_id)
         ? "favorite"
         : "favorite_outline";
-    },
-    questionClasses(index) {
-      if (this.question === index) {
-        return "question active-question";
-      } else {
-        return "question inactive-question";
-      }
-    },
-    nextQuestion() {
-      this.question = this.question + 1;
-    },
-    endQuestions() {
-      for (const questionDetail of this.questionDetails) {
-        const filters = questionDetail.filter(
-          questionDetail.value,
-          Object.fromEntries(
-            this.questionDetails.map((questionDetail) => [
-              questionDetail.name,
-              questionDetail.value,
-            ])
-          )
-        );
-        for (const [name, value] of Object.entries(filters)) {
-          this.filterIsOpen[name] = true;
-          this.filterValues[name] = value;
-        }
-      }
-      this.$router.push("/");
-    },
-    quitQuestions() {
-      this.$router.push("/");
-    },
-    initQuestionValues(questionDetails) {
-      for (const questionDetail of questionDetails) {
-        questionDetail.value = questionDetail.def;
-      }
     },
     twoUpImage(index) {
       return `background-image: url(/assets/images/two-up/${index}.jpg`;
@@ -3761,119 +3411,6 @@ th {
   text-align: center;
 }
 
-.questions-page main {
-  padding: 0;
-}
-
-.questions {
-  display: flex;
-  flex-direction: column;
-  margin: auto;
-  padding-top: 48px;
-  background-color: #b74d15;
-  text-align: center;
-  font-family: Roboto;
-}
-
-.questions.first {
-  padding-top: 0;
-}
-
-.questions-prologue {
-  background-image: url("/assets/images/questions-prologue-background.png");
-  background-repeat: no-repeat;
-  background-size: cover;
-  padding: 72px 32px;
-}
-
-.questions-prologue p {
-  color: white;
-  font-size: 20px;
-  font-family: Arvo;
-  font-weight: 700;
-}
-
-.question {
-  flex-grow: 1;
-  border-radius: 16px 16px 0 0;
-  background-color: #fcf9f4;
-  padding: 0 32px;
-}
-
-.question .radio-inputs {
-  display: flex;
-  flex-direction: column;
-  font-size: 18px;
-}
-
-.question .radio-inputs label {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 32px;
-}
-
-.question .radio-inputs .label {
-  width: 3em;
-}
-
-.question .month {
-  margin-bottom: 48px;
-}
-
-/* https://moderncss.dev/pure-css-custom-styled-radio-buttons/ */
-
-.question input[type="radio"] {
-  -webkit-appearance: none;
-  appearance: none;
-  background-color: #fcf9f4;
-  margin: 0;
-  font: inherit;
-  color: #b74d15;
-  width: 1.15em;
-  height: 1.15em;
-  border: 0.15em solid #b74d15;
-  border-radius: 50%;
-  display: grid;
-  place-content: center;
-}
-
-.question input[type="radio"]::before {
-  content: "";
-  width: 0.65em;
-  height: 0.65em;
-  border-radius: 50%;
-  transform: scale(0);
-  transition: 120ms transform ease-in-out;
-  box-shadow: inset 1em 1em #b74d15;
-}
-
-.question input[type="radio"]:checked::before {
-  transform: scale(1);
-}
-
-.question h4 {
-  font-weight: normal;
-  font-size: 24px;
-}
-
-.question .month {
-  position: relative;
-}
-
-.inactive-question {
-  display: none;
-}
-
-.question-buttons,
-.next-back,
-.show-back {
-  display: flex;
-  flex-direction: column;
-}
-
-.question-buttons button {
-  margin-bottom: 48px;
-}
 
 .modal-bar {
   padding: 12px;
@@ -3963,8 +3500,7 @@ th {
   display: flex;
 }
 
-.two-up-image,
-.questions-decoration {
+.two-up-image {
   position: relative;
 }
 
@@ -4425,43 +3961,6 @@ th {
     white-space: normal;
     overflow: visible;
     height: auto;
-  }
-  .questions-box {
-    display: flex;
-    flex-direction: row;
-    width: 100%;
-    height: calc(100vh - 140px);
-  }
-  .questions-box > * {
-    flex-basis: 0;
-    flex-grow: 1;
-  }
-  .questions-decoration {
-    background-size: cover;
-  }
-  .questions {
-    background-color: #fcf9f4;
-    color: #1d2e26;
-  }
-  .questions-prologue {
-    background: none;
-    background-color: #fcf9f4;
-    padding: 40px 32px 0;
-  }
-  .questions-prologue h1 {
-    font-family: Arvo;
-    font-size: 60px;
-    margin: 16px 0;
-  }
-  .questions-prologue p {
-    font-family: Roboto;
-    font-weight: 400;
-    font-size: 20px;
-    color: #1d2e26;
-  }
-  .questions form {
-    width: 70%;
-    margin: auto;
   }
   .next-back {
     flex-direction: row;
