@@ -278,7 +278,7 @@ const summaryData = computed(() => {
     const plant = plantById.value[placed.plantId];
     if (!plant) continue;
 
-    const plantFamily = (plant['Plant Family'] as string) || 'Unspecified';
+    const plantFamily = (plant['Plant Family']) || 'Unspecified';
     const centerCoord = getCenterCoordinates(placed);
 
     if (!familyMap.has(plantFamily)) {

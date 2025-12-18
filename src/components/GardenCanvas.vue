@@ -291,20 +291,33 @@ const getGridCoords = (event: PointerEvent | MouseEvent, allowOutsideBounds = fa
   };
 };
 
+const getPlantSize = (plantId: string): number => {
+  const plant = props.plantById[plantId];
+  if (!plant) return 1;
+  const raw = plant['Spread (feet)'];
+  const num = parseFloat(String(raw));
+  return Number.isFinite(num) && num > 0 ? Math.max(1, Math.round(num)) : 1;
+};
+
 const handleDragEnd = (coords: GridCoords, dragType: 'place' | 'move', plantId: string) => {
   const isCtrlHeld = dragState.value.ctrlKey;
+  
+  // coords now represent the top-left corner where the plant should be placed
+  // No additional adjustment needed
+  const finalX = coords.x;
+  const finalY = coords.y;
   
   if (dragType === 'move' && isCtrlHeld) {
     // Ctrl+drag: duplicate the plant
     const placed = props.placedPlants.find(p => p.id === plantId);
     if (placed) {
-      props.placePlant(placed.plantId, coords.x, coords.y);
+      props.placePlant(placed.plantId, finalX, finalY);
     }
   } else if (dragType === 'move') {
     // Normal drag: move the plant
-    props.movePlant(plantId, coords.x, coords.y);
+    props.movePlant(plantId, finalX, finalY);
   } else if (dragType === 'place') {
-    props.placePlant(plantId, coords.x, coords.y);
+    props.placePlant(plantId, finalX, finalY);
   }
   activeDrag.value = null;
 };
@@ -315,7 +328,8 @@ const { dragState, handlePointerDown: handlePointerDragStart } = usePointerDrag(
   computed(() => props.gridWidth),
   computed(() => props.gridHeight),
   computed(() => props.snapIncrement),
-  handleDragEnd
+  handleDragEnd,
+  getPlantSize
 );
 
 // Expose method for palette to start drag
@@ -357,7 +371,30 @@ const handleGridPointerDown = (event: PointerEvent) => {
 
 const handlePlantDragStart = (event: PointerEvent, placedId: string) => {
   if (event.isPrimary) {
-    handlePointerDragStart(event, 'move', placedId);
+    // Calculate offset from plant's actual position for precise cursor tracking
+    const placed = props.placedPlants.find(p => p.id === placedId);
+    if (!placed || !gridRef.value) {
+      handlePointerDragStart(event, 'move', placedId);
+      return;
+    }
+    
+    const grid = gridRef.value;
+    const rect = grid.getBoundingClientRect();
+    
+    // Calculate cursor position relative to grid
+    const cursorX = event.clientX - rect.left;
+    const cursorY = event.clientY - rect.top;
+    
+    // Calculate plant's position in pixels (relative to grid)
+    const plantX = placed.x * dynamicCellSize.value;
+    const plantY = placed.y * dynamicCellSize.value;
+    
+    // Calculate offset from cursor to plant's top-left corner (in grid-relative pixels)
+    const offsetX = cursorX - plantX;
+    const offsetY = cursorY - plantY;
+    
+    // Pass offset to drag handler
+    handlePointerDragStart(event, 'move', placedId, offsetX, offsetY);
   }
 };
 
@@ -423,28 +460,35 @@ const dragPreviewStyle = computed(() => {
 });
 
 const dragPreviewWrapperStyle = computed(() => {
-  if (!dragState.value.isDragging || !dragState.value.currentCoords) return {};
+  if (!dragState.value.isDragging || !gridRef.value) return {};
   
-  const coords = dragState.value.currentCoords;
-  const size = dragPreviewSize.value;
+  const grid = gridRef.value;
+  const rect = grid.getBoundingClientRect();
   
-  // Allow preview to show outside current grid bounds when placing (for visual feedback)
-  // Only clamp for move operations to keep within bounds
-  let adjustedX = coords.x;
-  let adjustedY = coords.y;
+  // Calculate cursor position relative to grid
+  const cursorX = dragState.value.pointerX - rect.left;
+  const cursorY = dragState.value.pointerY - rect.top;
   
-  if (dragState.value.dragType === 'move') {
-    adjustedX = Math.max(0, Math.min(coords.x, props.gridWidth - size));
-    adjustedY = Math.max(0, Math.min(coords.y, props.gridHeight - size));
+  // Calculate where the drag preview should be positioned
+  let previewX, previewY;
+  
+  if (dragState.value.dragType === 'place') {
+    // For placing new plants, center the preview on the cursor
+    const size = dragPreviewSize.value;
+    const sizePx = size * dynamicCellSize.value;
+    previewX = cursorX - (sizePx / 2);
+    previewY = cursorY - (sizePx / 2);
   } else {
-    // For place operations, allow outside bounds but ensure non-negative
-    adjustedX = Math.max(0, coords.x);
-    adjustedY = Math.max(0, coords.y);
+    // For move operations, use stored offset to maintain relative position
+    previewX = cursorX - dragState.value.offsetX;
+    previewY = cursorY - dragState.value.offsetY;
   }
   
   return {
-    left: `calc(${adjustedX} * var(--cell-size))`,
-    top: `calc(${adjustedY} * var(--cell-size))`,
+    position: 'absolute',
+    left: `${previewX}px`,
+    top: `${previewY}px`,
+    pointerEvents: 'none',
   };
 });
 
@@ -458,26 +502,17 @@ const gridHighlightStyle = computed(() => {
   
   const coords = dragState.value.currentCoords;
   const size = gridHighlightSize.value;
+  const sizePx = size * dynamicCellSize.value;
   
-  // Allow highlight to show outside current grid bounds when placing (for visual feedback)
-  // Only clamp for move operations to keep within bounds
-  let adjustedX = coords.x;
-  let adjustedY = coords.y;
-  
-  if (dragState.value.dragType === 'move') {
-    adjustedX = Math.max(0, Math.min(coords.x, props.gridWidth - size));
-    adjustedY = Math.max(0, Math.min(coords.y, props.gridHeight - size));
-  } else {
-    // For place operations, allow outside bounds but ensure non-negative
-    adjustedX = Math.max(0, coords.x);
-    adjustedY = Math.max(0, coords.y);
-  }
+  // coordinates already represent the top-left corner where the plant will be placed
+  const snappedPixelX = coords.x * dynamicCellSize.value;
+  const snappedPixelY = coords.y * dynamicCellSize.value;
   
   return {
-    left: `calc(${adjustedX} * var(--cell-size))`,
-    top: `calc(${adjustedY} * var(--cell-size))`,
-    width: `calc(${size} * var(--cell-size))`,
-    height: `calc(${size} * var(--cell-size))`,
+    left: `${snappedPixelX}px`,
+    top: `${snappedPixelY}px`,
+    width: `${sizePx}px`,
+    height: `${sizePx}px`,
   };
 });
 </script>
