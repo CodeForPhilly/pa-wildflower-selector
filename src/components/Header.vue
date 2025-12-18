@@ -80,10 +80,9 @@ export default {
 }
 
 .main-nav {
-  padding-bottom: 32px;
+  padding-bottom: 20px;
   border-bottom: 2px solid #d3d3d3;
-  /* TODO reduce this when we have more text to make this space look good */
-  margin-bottom: 32px;
+  margin-bottom: 16px;
 }
 
 .main-nav.seamless {
@@ -252,7 +251,7 @@ menu .copyright {
     border-bottom: none;
     padding: 0;
     margin: 0;
-    height: 140px;
+    height: 120px;
   }
   a.logo-parent h1 {
     display: flex;
@@ -262,7 +261,7 @@ menu .copyright {
     font-size: 24px;
     line-height: 30px;
     font-weight: normal;
-    height: 100px;
+    height: 80px;
     display: flex;
   }
   h1 .text {

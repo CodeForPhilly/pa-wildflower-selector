@@ -9,50 +9,21 @@
       :large-h1="false"
     >
       <template v-if="!favorites" v-slot:after-bar>
-        <div class="not-large-help" v-if="zipCode">
-          <button class="primary primary-bar" @click="setLocation()">
-              <span class="material-icons">place</span> Change Location [{{
-                zipCode
-              }}]
-            </button>
-          </div>
-        <div v-else class="hide-desk">
-          <button class="primary primary-bar" @click="setLocation()">
-            <span class="material-icons">place</span> Set Location
-          </button>
-        </div>
-       
-        <div class="two-up large-help">
-          <div class="two-up-text">
-            <h2>
-              Native plants promote a healthier ecosystem in your garden
-              <div v-if="zipCode">
-                <button @click="setLocation()">
-                  <span class="material-icons">place</span> change location [{{
-                    zipCode
-                  }}]
-                </button>
-              </div>
-              <div v-else>
-                <button @click="setLocation()">
-                  <span class="material-icons">place</span> set location
-                </button>
-              </div>
-            </h2>
-            <p>
-              Find which native shrubs, plants and flowers <span v-if="displayLocation">from
-              <strong>{{ displayLocation }}</strong></span> have the right conditions
-              to flourish in your garden. Use the side
-              filters to get started. Detailed instructions are found
-              <router-link to="/how-to-use#the-directions">here</router-link>
-            </p>
-          </div>
-          <div class="two-up-image" :style="twoUpImage(twoUpIndex)">
-            <span class="two-up-credit"
-              ><a target="_blank" :href="twoUpImageCredit(twoUpIndex).href">{{
-                twoUpImageCredit(twoUpIndex).title
-              }}</a></span
-            >
+        <div class="compact-utility-header">
+          <div class="utility-content">
+            <div class="location-section">
+              <button class="location-btn" @click="setLocation()">
+                <span class="material-icons">place</span>
+                <span v-if="zipCode">Change Location [{{ zipCode }}]</span>
+                <span v-else>Set Location</span>
+              </button>
+            </div>
+            <div class="helper-text" v-if="displayLocation">
+              Find native plants for your yard in <strong>{{ displayLocation }}</strong>. Filter by sun, soil, size, and maintenance.
+            </div>
+            <div class="helper-text" v-else>
+              Find native plants for your yard. Filter by sun, soil, size, and maintenance.
+            </div>
           </div>
         </div>
       </template>
@@ -3691,7 +3662,7 @@ th {
   .search-desktop-parent {
     display: flex;
     justify-content: right;
-    padding: 24px 32px;
+    padding: 16px 32px;
   }
   .search-desktop {
     display: flex;
@@ -4001,6 +3972,80 @@ th {
     color: white;
     background: none;
     text-shadow: 0px 0px 2px black;
+  }
+
+  /* Compact utility header styles */
+  .compact-utility-header {
+    background-color: #f5f5f5;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 12px 40px 8px;
+    margin-bottom: 8px;
+  }
+  
+  .utility-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  
+  .location-section {
+    flex-shrink: 0;
+  }
+  
+  .location-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background-color: #B74D15;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-family: Roboto;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .location-btn:hover {
+    background-color: #a03d0e;
+  }
+  
+  .location-btn .material-icons {
+    font-size: 16px;
+  }
+  
+  .helper-text {
+    color: #555;
+    font-family: Roboto;
+    font-size: 14px;
+    line-height: 1.4;
+    flex: 1;
+    min-width: 200px;
+  }
+  
+  /* Mobile responsive for compact header */
+  @media screen and (max-width: 768px) {
+    .compact-utility-header {
+      padding: 8px 16px 6px;
+    }
+    
+    .utility-content {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    
+    .location-btn {
+      font-size: 13px;
+      padding: 6px 12px;
+    }
+    
+    .helper-text {
+      font-size: 13px;
+    }
   }
 }
 </style>
