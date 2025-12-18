@@ -237,7 +237,7 @@ const gridWrapperStyle = computed(() => {
   const zoomValue = props.zoom ?? 1;
   return {
     transform: `scale(${zoomValue})`,
-    transformOrigin: 'top left',
+    transformOrigin: 'center center',
   };
 });
 
@@ -505,7 +505,7 @@ const gridHighlightStyle = computed(() => {
   height: 100%;
   flex: 1;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   min-height: 400px;
   padding: 48px;
