@@ -1,13 +1,18 @@
 <template>
   <div
+    ref="plantRef"
     class="placed"
     :class="{
       overlapping: isOverlapping,
-      dragging: isDragging
+      dragging: isDragging,
+      selected: isSelected
     }"
     :style="placedStyle"
+    tabindex="0"
+    @click="handleClick"
     @pointerdown="handlePointerDown"
     @dblclick="handleDoubleClick"
+    @keydown="handleKeyDown"
   >
     <div class="placed-label">
       <!-- Coordinate badge above common name -->
@@ -23,27 +28,44 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch, nextTick } from 'vue';
 import type { PlacedPlant, Plant } from '../types/garden';
+
+
+interface Emits {
+  (e: 'drag-start', event: PointerEvent, placedId: string): void;
+  (e: 'delete', placedId: string): void;
+  (e: 'select', placedId: string): void;
+  (e: 'move', placedId: string, x: number, y: number): void;
+}
 
 interface Props {
   placed: PlacedPlant;
   plant: Plant | undefined;
   isOverlapping: boolean;
   isDragging?: boolean;
+  isSelected?: boolean;
   cellSize: number;
   imageUrl: (plant: Plant | undefined, preview: boolean) => string;
   isMobile: boolean;
   snapIncrement: number;
-}
-
-interface Emits {
-  (e: 'drag-start', event: PointerEvent, placedId: string): void;
-  (e: 'delete', placedId: string): void;
+  gridWidth: number;
+  gridHeight: number;
 }
 
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
+
+const plantRef = ref<HTMLElement | null>(null);
+
+// Focus the plant when it becomes selected
+watch(() => props.isSelected, (isSelected) => {
+  if (isSelected && plantRef.value) {
+    nextTick(() => {
+      plantRef.value?.focus();
+    });
+  }
+});
 
 const plantName = computed(() => {
   return props.plant?.['Common Name'] || props.placed.plantId;
@@ -92,9 +114,11 @@ let tapTimeout: number | null = null;
 let dragStartTime = 0;
 let dragStartPos: { x: number; y: number } | null = null;
 let hasMoved = false;
+let isClicking = false;
 
 const handlePointerDown = (event: PointerEvent) => {
   if (event.isPrimary) {
+    // Don't preventDefault here - let click events fire
     // On mobile, detect double-tap or drag
     if (props.isMobile) {
       const currentTime = Date.now();
@@ -160,9 +184,109 @@ const handlePointerDown = (event: PointerEvent) => {
         document.addEventListener('pointerup', handleUp);
       }
     } else {
-      // Desktop: single click starts drag
-      emit('drag-start', event, props.placed.id);
+      // Desktop: detect drag vs click
+      dragStartTime = Date.now();
+      dragStartPos = { x: event.clientX, y: event.clientY };
+      hasMoved = false;
+      isClicking = true;
+      
+      const handleMove = (moveEvent: PointerEvent) => {
+        if (!dragStartPos) return;
+        
+        const moveDistance = Math.sqrt(
+          Math.pow(moveEvent.clientX - dragStartPos.x, 2) + 
+          Math.pow(moveEvent.clientY - dragStartPos.y, 2)
+        );
+        
+        // If moved more than 5px, it's a drag
+        if (moveDistance > 5) {
+          hasMoved = true;
+          isClicking = false;
+          // Start drag - now we can preventDefault to stop click
+          event.preventDefault();
+          emit('drag-start', event, props.placed.id);
+          document.removeEventListener('pointermove', handleMove);
+          document.removeEventListener('pointerup', handleUp);
+        }
+      };
+      
+      const handleUp = (upEvent: PointerEvent) => {
+        document.removeEventListener('pointermove', handleMove);
+        document.removeEventListener('pointerup', handleUp);
+        
+        // Don't handle selection here - let the click event handle it
+        // But prevent grid click if it was just a click
+        if (!hasMoved) {
+          upEvent.stopPropagation();
+        }
+        
+        dragStartPos = null;
+      };
+      
+      document.addEventListener('pointermove', handleMove);
+      document.addEventListener('pointerup', handleUp);
     }
+  }
+};
+
+const handleClick = (event: MouseEvent) => {
+  // Only handle click if it wasn't part of a drag (on desktop)
+  if (!props.isMobile) {
+    // Check if this was a real click (not a drag end)
+    // hasMoved will be false if it was just a click
+    if (!hasMoved) {
+      event.preventDefault();
+      event.stopPropagation();
+      emit('select', props.placed.id);
+      // Focus the plant element
+      nextTick(() => {
+        if (plantRef.value) {
+          plantRef.value.focus();
+        }
+      });
+    }
+    // Reset the flag after handling
+    hasMoved = false;
+  }
+};
+
+const handleKeyDown = (event: KeyboardEvent) => {
+  // Only handle keyboard events if this plant is selected
+  if (!props.isSelected) return;
+  
+  // Handle arrow keys for movement
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+    event.preventDefault();
+    
+    let newX = props.placed.x;
+    let newY = props.placed.y;
+    const moveDistance = props.snapIncrement;
+    
+    switch (event.key) {
+      case 'ArrowUp':
+        newY = Math.max(0, props.placed.y - moveDistance);
+        break;
+      case 'ArrowDown':
+        newY = Math.min(props.gridHeight - props.placed.height, props.placed.y + moveDistance);
+        break;
+      case 'ArrowLeft':
+        newX = Math.max(0, props.placed.x - moveDistance);
+        break;
+      case 'ArrowRight':
+        newX = Math.min(props.gridWidth - props.placed.width, props.placed.x + moveDistance);
+        break;
+    }
+    
+    // Only move if position actually changed
+    if (newX !== props.placed.x || newY !== props.placed.y) {
+      emit('move', props.placed.id, newX, newY);
+    }
+  }
+  
+  // Handle delete key
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    event.preventDefault();
+    emit('delete', props.placed.id);
   }
 };
 
@@ -202,6 +326,19 @@ const handleDoubleClick = (event: MouseEvent) => {
 .placed.dragging {
   opacity: 0.4;
   pointer-events: none;
+}
+
+.placed.selected {
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 1), 0 0 0 6px rgba(255, 255, 255, 0.8);
+  z-index: 20;
+}
+
+.placed:focus {
+  outline: none;
+}
+
+.placed:focus.selected {
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 1), 0 0 0 6px rgba(255, 255, 255, 0.8);
 }
 
 .placed-label {

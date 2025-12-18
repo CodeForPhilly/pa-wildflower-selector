@@ -18,12 +18,17 @@
           :plant="plantById[p.plantId]"
           :is-overlapping="overlapIds.has(p.id)"
           :is-dragging="dragState.isDragging && dragState.plantId === p.id && dragState.dragType === 'move'"
+          :is-selected="selectedPlacedPlantId === p.id"
           :cell-size="dynamicCellSize"
           :image-url="imageUrl"
           :is-mobile="isMobile"
           :snap-increment="snapIncrement"
+          :grid-width="gridWidth"
+          :grid-height="gridHeight"
           @drag-start="handlePlantDragStart"
           @delete="handleDelete"
+          @select="handlePlantSelect"
+          @move="handlePlantMove"
         />
 
         <!-- Grid cell highlight showing where plant will snap -->
@@ -159,12 +164,14 @@ interface Props {
   plantById: Record<string, Plant>;
   overlapIds: Set<string>;
   selectedPlantId: string | null;
+  selectedPlacedPlantId: string | null;
   isMobile: boolean;
   imageUrl: (plant: Plant | undefined, preview: boolean) => string;
   spreadFeetLabel: (plant: Plant | undefined) => string;
   placePlant: (plantId: string, x: number, y: number) => void;
   movePlant: (placedId: string, x: number, y: number) => void;
   removePlaced: (id: string) => void;
+  selectPlacedPlant: (placedId: string | null) => void;
   gridWidth: number;
   gridHeight: number;
   snapIncrement: number;
@@ -300,6 +307,11 @@ defineExpose({
 });
 
 const handleGridClick = (event: MouseEvent) => {
+  // Deselect any selected plant when clicking on empty grid
+  if (props.selectedPlacedPlantId && !props.isMobile) {
+    props.selectPlacedPlant(null);
+  }
+  
   if (props.isMobile && props.selectedPlantId) {
     const coords = getGridCoords(event);
     if (!coords) return;
@@ -325,6 +337,18 @@ const handlePlantDragStart = (event: PointerEvent, placedId: string) => {
 
 const handleDelete = (placedId: string) => {
   props.removePlaced(placedId);
+  // Clear selection if deleted plant was selected
+  if (props.selectedPlacedPlantId === placedId) {
+    props.selectPlacedPlant(null);
+  }
+};
+
+const handlePlantSelect = (placedId: string) => {
+  props.selectPlacedPlant(placedId);
+};
+
+const handlePlantMove = (placedId: string, x: number, y: number) => {
+  props.movePlant(placedId, x, y);
 };
 
 // Drag preview - transparent plant image following cursor

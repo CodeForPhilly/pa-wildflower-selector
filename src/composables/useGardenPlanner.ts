@@ -17,6 +17,7 @@ export function useGardenPlanner() {
   const favoritePlants = ref<Plant[]>([]);
   const placedPlants = ref<PlacedPlant[]>([]);
   const selectedPlantId = ref<string | null>(null);
+  const selectedPlacedPlantId = ref<string | null>(null);
   const gridWidth = ref(10);
   const gridHeight = ref(10);
 
@@ -285,6 +286,10 @@ export function useGardenPlanner() {
     selectedPlantId.value = selectedPlantId.value === plantId ? null : plantId;
   };
 
+  const selectPlacedPlant = (placedId: string | null): void => {
+    selectedPlacedPlantId.value = selectedPlacedPlantId.value === placedId ? null : placedId;
+  };
+
   const undo = (): void => {
     const state = undoRedo.undo();
     if (state) {
@@ -359,6 +364,7 @@ export function useGardenPlanner() {
     favoritePlants,
     placedPlants,
     selectedPlantId,
+    selectedPlacedPlantId,
     gridWidth,
     gridHeight,
     snapIncrement,
@@ -380,6 +386,7 @@ export function useGardenPlanner() {
     clearLayout,
     resetPlanner,
     selectPlant,
+    selectPlacedPlant,
     undo,
     redo,
     canUndo: undoRedo.canUndo,

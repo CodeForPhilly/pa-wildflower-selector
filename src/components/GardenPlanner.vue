@@ -65,12 +65,14 @@
             :plant-by-id="plantById"
             :overlap-ids="overlapIds"
             :selected-plant-id="selectedPlantId"
+            :selected-placed-plant-id="selectedPlacedPlantId"
             :is-mobile="isMobile"
             :image-url="imageUrl"
             :spread-feet-label="spreadFeetLabel"
             :place-plant="placePlant"
             :move-plant="movePlant"
             :remove-placed="removePlaced"
+            :select-placed-plant="selectPlacedPlant"
             :grid-width="gridWidth"
             :grid-height="gridHeight"
             :snap-increment="snapIncrement"
@@ -134,6 +136,7 @@ const {
   favoritePlants,
   placedPlants,
   selectedPlantId,
+  selectedPlacedPlantId,
   plantById,
   overlapIds,
   plantCounts,
@@ -145,6 +148,7 @@ const {
   removePlaced,
   clearLayout,
   selectPlant,
+  selectPlacedPlant,
   redo,
   canRedo,
   gridWidth,
