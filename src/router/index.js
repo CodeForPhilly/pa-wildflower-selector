@@ -24,14 +24,6 @@ const routes = [
     }
   },
   {
-    path: "/quick-search",
-    name: "Quick Search",
-    component: Explorer,
-    props: {
-      questions: true
-    }
-  },
-  {
     path: "/people-page",
     name: "People Page",
     component: PeoplePage
