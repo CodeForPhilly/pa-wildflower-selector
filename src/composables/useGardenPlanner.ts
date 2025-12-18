@@ -227,7 +227,8 @@ export function useGardenPlanner() {
     // Trigger reactivity
     const newPlacedPlants = [...placedPlants.value];
     placedPlants.value = newPlacedPlants;
-    undoRedo.addState([...newPlacedPlants]);
+    // Create deep copy for history
+    undoRedo.addState(newPlacedPlants.map(p => ({ ...p })));
   };
 
   const placePlant = (plantId: string, x: number, y: number): void => {
@@ -252,7 +253,8 @@ export function useGardenPlanner() {
 
     const newPlacedPlants = [...placedPlants.value, placed];
     placedPlants.value = newPlacedPlants;
-    undoRedo.addState([...newPlacedPlants]);
+    // Create deep copy for history
+    undoRedo.addState(newPlacedPlants.map(p => ({ ...p })));
 
     // Clear mobile selection after placement
     selectedPlantId.value = null;
@@ -273,13 +275,15 @@ export function useGardenPlanner() {
     // Trigger reactivity
     const newPlacedPlants = [...placedPlants.value];
     placedPlants.value = newPlacedPlants;
-    undoRedo.addState([...newPlacedPlants]);
+    // Create deep copy for history
+    undoRedo.addState(newPlacedPlants.map(p => ({ ...p })));
   };
 
   const removePlaced = (id: string): void => {
     const newPlacedPlants = placedPlants.value.filter((p) => p.id !== id);
     placedPlants.value = newPlacedPlants;
-    undoRedo.addState([...newPlacedPlants]);
+    // Create deep copy for history
+    undoRedo.addState(newPlacedPlants.map(p => ({ ...p })));
   };
 
   const clearLayout = (): void => {
@@ -303,15 +307,17 @@ export function useGardenPlanner() {
 
   const undo = (): void => {
     const state = undoRedo.undo();
-    if (state) {
-      placedPlants.value = [...state];
+    if (state !== null) {
+      // Create a deep copy to ensure Vue reactivity
+      placedPlants.value = state.map(p => ({ ...p }));
     }
   };
 
   const redo = (): void => {
     const state = undoRedo.redo();
-    if (state) {
-      placedPlants.value = [...state];
+    if (state !== null) {
+      // Create a deep copy to ensure Vue reactivity
+      placedPlants.value = state.map(p => ({ ...p }));
     }
   };
 
@@ -411,7 +417,8 @@ export function useGardenPlanner() {
       placedPlants.value.forEach(p => p.y += 1);
       // Trigger update
       placedPlants.value = [...placedPlants.value];
-      undoRedo.addState([...placedPlants.value]);
+      // Create deep copy for history
+      undoRedo.addState(placedPlants.value.map(p => ({ ...p })));
     },
     removeRowTop: () => {
       // Check if any plant is in the top row (y < 1)
@@ -421,9 +428,10 @@ export function useGardenPlanner() {
         gridHeight.value -= 1;
         // Shift all plants up by 1
         placedPlants.value.forEach(p => p.y -= 1);
-        // Trigger update
-        placedPlants.value = [...placedPlants.value];
-        undoRedo.addState([...placedPlants.value]);
+      // Trigger update
+      placedPlants.value = [...placedPlants.value];
+      // Create deep copy for history
+      undoRedo.addState(placedPlants.value.map(p => ({ ...p })));
       }
     },
     addRowBottom: () => {
@@ -448,7 +456,8 @@ export function useGardenPlanner() {
       placedPlants.value.forEach(p => p.x += 1);
       // Trigger update
       placedPlants.value = [...placedPlants.value];
-      undoRedo.addState([...placedPlants.value]);
+      // Create deep copy for history
+      undoRedo.addState(placedPlants.value.map(p => ({ ...p })));
     },
     removeColumnLeft: () => {
       // Check if any plant is in the left column (x < 1)
@@ -457,9 +466,10 @@ export function useGardenPlanner() {
         gridWidth.value -= 1;
         // Shift all plants left by 1
         placedPlants.value.forEach(p => p.x -= 1);
-        // Trigger update
-        placedPlants.value = [...placedPlants.value];
-        undoRedo.addState([...placedPlants.value]);
+      // Trigger update
+      placedPlants.value = [...placedPlants.value];
+      // Create deep copy for history
+      undoRedo.addState(placedPlants.value.map(p => ({ ...p })));
       }
     },
     addColumnRight: () => {

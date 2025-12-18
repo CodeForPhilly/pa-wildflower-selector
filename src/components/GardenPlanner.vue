@@ -4,43 +4,102 @@
 
     <main class="planner-main">
       <section class="toolbar" aria-label="Planner toolbar">
-        <div class="size-controls">
-          <button class="primary primary-bar small" @click="clearLayout">
-            Clear Layout
-          </button>
-          <button 
-            v-if="canRedo" 
-            class="primary primary-bar small" 
-            @click="redo"
-            title="Redo"
-          >
-            Redo
-          </button>
-          <button 
-            class="primary primary-bar small" 
-            @click="handleSummaryToggle"
-            :title="showSummary ? 'Back to Grid' : 'View Summary'"
-          >
-            {{ showSummary ? 'Back to Grid' : 'Summary' }}
-          </button>
-        </div>
+        <div class="toolbar-container">
+          <div class="toolbar-left">
+            <button 
+              class="toolbar-button" 
+              @click="undo"
+              :disabled="!canUndo"
+              title="Undo"
+            >
+              <Undo2 :size="16" class="icon" />
+              Undo
+            </button>
+            <button 
+              class="toolbar-button" 
+              @click="redo"
+              :disabled="!canRedo"
+              title="Redo"
+            >
+              <Redo2 :size="16" class="icon" />
+              Redo
+            </button>
+            <button 
+              class="toolbar-button clear-button" 
+              @click="clearLayout"
+              :disabled="placedPlants.length === 0"
+            >
+              <Trash2 :size="16" class="icon" />
+              Clear
+            </button>
+            <button 
+              class="toolbar-button summary-button" 
+              :class="{ 'active': showSummary }"
+              @click="handleSummaryToggle"
+              title="View Summary"
+            >
+              <Info :size="16" class="icon" />
+              Summary
+            </button>
+          </div>
 
-        <div class="toolbar-right">
-          <button
-            class="snap-toggle-button"
-            @click="toggleSnapIncrement"
-            :title="`Snap to ${snapIncrement}ft increments`"
-          >
-            <span class="snap-icon">⊞</span>
-            <span class="snap-value">{{ snapIncrement }}ft</span>
-          </button>
-          <button
-            class="grid-dimensions-button"
-            @click="showGridEditor = true"
-            :title="`Current grid: ${gridWidth}ft × ${gridHeight}ft`"
-          >
-            Grid: <strong>{{ gridWidth }}</strong>ft × <strong>{{ gridHeight }}</strong>ft
-          </button>
+          <div class="toolbar-right">
+            <div class="toolbar-zoom">
+              <button
+                class="toolbar-button"
+                @click="zoom = Math.max(zoom - 0.1, 0.5)"
+                :disabled="zoom <= 0.5"
+                title="Zoom Out (Ctrl+-)"
+              >
+                <ZoomOut :size="16" class="icon" />
+              </button>
+              <span class="zoom-value">{{ Math.round(zoom * 100) }}%</span>
+              <button
+                class="toolbar-button"
+                @click="zoom = Math.min(zoom + 0.1, 2)"
+                :disabled="zoom >= 2"
+                title="Zoom In (Ctrl+=)"
+              >
+                <ZoomIn :size="16" class="icon" />
+              </button>
+              <button
+                class="toolbar-button"
+                @click="zoom = 1"
+                :disabled="zoom === 1"
+                title="Reset Zoom"
+              >
+                <RotateCcw :size="16" class="icon" />
+              </button>
+            </div>
+            <button
+              class="toolbar-button grid-dimensions-button"
+              @click="showGridEditor = true"
+              :title="`Current grid: ${gridWidth}ft × ${gridHeight}ft`"
+            >
+              Grid: <strong>{{ gridWidth }}</strong>ft × <strong>{{ gridHeight }}</strong>ft
+            </button>
+            <button
+              class="toolbar-button snap-toggle-button"
+              @click="toggleSnapIncrement"
+              :title="`Toggle grid snap size (currently ${snapIncrement}ft)`"
+            >
+              <svg
+                class="icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                style="width: 16px; height: 16px;"
+              >
+                <rect x="3" y="3" width="18" height="18" />
+                <line x1="12" y1="3" x2="12" y2="21" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+              </svg>
+              <span class="snap-value">{{ snapIncrement }}ft</span>
+            </button>
+          </div>
         </div>
       </section>
 
@@ -76,6 +135,7 @@
             :grid-width="gridWidth"
             :grid-height="gridHeight"
             :snap-increment="snapIncrement"
+            :zoom="zoom"
             :add-row-top="addRowTop"
             :remove-row-top="removeRowTop"
             :add-row-bottom="addRowBottom"
@@ -110,7 +170,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { Undo2, Redo2, Trash2, Info, ZoomIn, ZoomOut, RotateCcw } from 'lucide-vue-next';
 import { useGardenPlanner } from '../composables/useGardenPlanner';
 import { useViewport } from '../composables/useViewport';
 import Header from './Header.vue';
@@ -130,6 +191,7 @@ const { isMobile } = useViewport();
 const canvasRef = ref<InstanceType<typeof GardenCanvas> | null>(null);
 const showSummary = ref(false);
 const showGridEditor = ref(false);
+const zoom = ref(1);
 
 const {
   loading,
@@ -149,6 +211,8 @@ const {
   clearLayout,
   selectPlant,
   selectPlacedPlant,
+  undo,
+  canUndo,
   redo,
   canRedo,
   gridWidth,
@@ -280,6 +344,25 @@ const handleGridSizeApply = (width: number, height: number) => {
 const handleGridSizeFit = () => {
   fitGridToPlants();
 };
+
+// Keyboard shortcuts for zoom
+const handleKeyDown = (e: KeyboardEvent) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === '=') {
+    e.preventDefault();
+    zoom.value = Math.min(zoom.value + 0.1, 2);
+  } else if ((e.ctrlKey || e.metaKey) && e.key === '-') {
+    e.preventDefault();
+    zoom.value = Math.max(zoom.value - 0.1, 0.5);
+  }
+};
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeyDown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown);
+});
 </script>
 
 <style scoped>
@@ -297,16 +380,124 @@ const handleGridSizeFit = () => {
   display: flex;
   gap: 16px;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
   margin-bottom: 16px;
   flex-wrap: wrap;
 }
 
-.size-controls {
+.toolbar-container {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   display: flex;
-  gap: 12px;
-  align-items: end;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
+  flex: 1;
+}
+
+.toolbar-left {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.toolbar-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.toolbar-zoom {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.zoom-value {
+  font-size: 14px;
+  font-weight: 500;
+  font-family: Roboto, sans-serif;
+  color: #374151;
+  min-width: 3rem;
+  text-align: center;
+}
+
+.toolbar-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-family: Roboto, sans-serif;
+  font-weight: 500;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: #fff;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.toolbar-button:hover:not(:disabled) {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.toolbar-button:active:not(:disabled) {
+  background-color: #f3f4f6;
+}
+
+.toolbar-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toolbar-button .icon {
+  flex-shrink: 0;
+  stroke-width: 2;
+}
+
+.toolbar-button.clear-button {
+  color: #dc2626;
+  border-color: #dc2626;
+  background-color: transparent;
+}
+
+.toolbar-button.clear-button:hover:not(:disabled) {
+  color: #b91c1c;
+  background-color: #fef2f2;
+  border-color: #b91c1c;
+}
+
+.toolbar-button.summary-button {
+  background-color: transparent;
+}
+
+.toolbar-button.summary-button.active {
+  background-color: #16a34a;
+  color: #fff;
+  border-color: #16a34a;
+}
+
+.toolbar-button.summary-button.active:hover {
+  background-color: #15803d;
+  border-color: #15803d;
+}
+
+.snap-toggle-button {
+  font-family: 'Roboto Mono', monospace;
+}
+
+.snap-value {
+  font-weight: 600;
 }
 
 .toolbar-right {
@@ -317,64 +508,6 @@ const handleGridSizeFit = () => {
   align-items: center;
 }
 
-.snap-toggle-button {
-  background-color: #fff3e0;
-  color: #e65100;
-  border: 1px solid #ffb74d;
-  border-radius: 20px;
-  padding: 8px 16px;
-  font-size: 14px;
-  font-family: Roboto, sans-serif;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s, transform 0.1s, border-color 0.2s;
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.snap-toggle-button:hover {
-  background-color: #ffe0b2;
-  border-color: #ff9800;
-  transform: scale(1.02);
-}
-
-.snap-toggle-button:active {
-  transform: scale(0.98);
-}
-
-.snap-icon {
-  font-size: 16px;
-  line-height: 1;
-}
-
-.snap-value {
-  font-weight: 600;
-}
-
-.grid-dimensions-button {
-  background-color: #e8f5e9;
-  color: #2e7d32;
-  border: none;
-  border-radius: 20px;
-  padding: 8px 16px;
-  font-size: 14px;
-  font-family: Roboto, sans-serif;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s, transform 0.1s;
-  white-space: nowrap;
-}
-
-.grid-dimensions-button:hover {
-  background-color: #c8e6c9;
-  transform: scale(1.02);
-}
-
-.grid-dimensions-button:active {
-  transform: scale(0.98);
-}
 
 .grid-dimensions-button strong {
   font-weight: 600;
@@ -398,16 +531,6 @@ const handleGridSizeFit = () => {
   overflow-x: hidden;
 }
 
-button.primary-bar.small {
-  width: auto;
-  max-width: none;
-  margin: 0;
-  padding: 10px 14px;
-}
-
-button.primary-bar.small.subtle {
-  background-color: #1d2e26;
-}
 
 @media screen and (max-width: 767px) {
   .planner-main {
@@ -420,36 +543,33 @@ button.primary-bar.small.subtle {
     align-items: center;
   }
 
-  .size-controls {
+  .toolbar-container {
+    padding: 6px;
     gap: 6px;
   }
 
-  .toolbar-right {
-    text-align: left;
-    flex: 1;
-    min-width: 0;
-    gap: 8px;
+  .toolbar-buttons {
+    gap: 6px;
   }
 
-  .snap-toggle-button {
+  .toolbar-button {
+    padding: 5px 10px;
+    font-size: 13px;
+  }
+
+  .toolbar-zoom {
+    gap: 4px;
+  }
+
+  .zoom-value {
     font-size: 12px;
-    padding: 6px 12px;
-    line-height: 1.3;
-  }
-
-  .snap-icon {
-    font-size: 14px;
+    min-width: 2.5rem;
   }
 
   .grid-dimensions-button {
     font-size: 12px;
-    padding: 6px 12px;
+    padding: 5px 10px;
     line-height: 1.3;
-  }
-
-  button.primary-bar.small {
-    padding: 8px 10px;
-    font-size: 13px;
   }
 }
 </style>

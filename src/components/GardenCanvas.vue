@@ -1,11 +1,11 @@
 <template>
   <div class="grid-area" ref="gridAreaRef">
-    <div class="grid-scroll">
-      <div class="grid-wrapper">
-        <div
-          ref="gridRef"
-          class="grid"
-          :style="gridStyle"
+      <div class="grid-scroll">
+        <div class="grid-wrapper" :style="gridWrapperStyle">
+          <div
+            ref="gridRef"
+            class="grid"
+            :style="gridStyle"
           @click="handleGridClick"
           @pointerdown="handleGridPointerDown"
           aria-label="Garden planner grid"
@@ -175,6 +175,7 @@ interface Props {
   gridWidth: number;
   gridHeight: number;
   snapIncrement: number;
+  zoom?: number;
   addRowTop: () => void;
   removeRowTop: () => void;
   addRowBottom: () => void;
@@ -222,6 +223,14 @@ const gridStyle = computed(() => {
     '--cell-size': `${cellSize}px`,
     width: `${gridWidthPx}px`,
     height: `${gridHeightPx}px`,
+  };
+});
+
+const gridWrapperStyle = computed(() => {
+  const zoomValue = props.zoom ?? 1;
+  return {
+    transform: `scale(${zoomValue})`,
+    transformOrigin: 'top left',
   };
 });
 
@@ -453,6 +462,7 @@ const gridHighlightStyle = computed(() => {
 }
 
 .grid-wrapper {
+  transition: transform 0.1s ease-out;
   position: relative;
   display: inline-block;
   margin: 0 auto;
