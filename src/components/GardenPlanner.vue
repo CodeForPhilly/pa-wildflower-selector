@@ -3,7 +3,7 @@
     <Header h1="Garden Planner" :large-h1="false" />
 
     <main class="planner-main">
-      <section class="toolbar" aria-label="Planner toolbar">
+      <section class="toolbar" aria-label="Plannwer toolbar">
         <div class="size-controls">
           <button class="primary primary-bar small" @click="clearLayout">
             Clear Layout
@@ -27,6 +27,13 @@
           >
             Redo
           </button>
+          <button 
+            class="primary primary-bar small" 
+            @click="handleSummaryToggle"
+            :title="showSummary ? 'Back to Grid' : 'View Summary'"
+          >
+            {{ showSummary ? 'Back to Grid' : 'Summary' }}
+          </button>
         </div>
 
         <div class="toolbar-right">
@@ -40,54 +47,65 @@
       </section>
 
       <section class="workspace">
-        <FavoritesTray
-          :favorite-plants="favoritePlants"
-          :selected-plant-id="selectedPlantId"
-          :is-mobile="isMobile"
-          :loading="loading"
-          :image-url="imageUrl"
-          :spread-feet-label="spreadFeetLabel"
-          :spread-cells="spreadCells"
-          :plant-counts="plantCounts"
-          @select="selectPlant"
-          @drag-start="handlePaletteDragStart"
-        />
+        <template v-if="!showSummary">
+          <FavoritesTray
+            :favorite-plants="favoritePlants"
+            :selected-plant-id="selectedPlantId"
+            :is-mobile="isMobile"
+            :loading="loading"
+            :image-url="imageUrl"
+            :spread-feet-label="spreadFeetLabel"
+            :spread-cells="spreadCells"
+            :plant-counts="plantCounts"
+            @select="selectPlant"
+            @drag-start="handlePaletteDragStart"
+          />
 
-        <GardenCanvas
-          ref="canvasRef"
-          :placed-plants="placedPlants"
-          :plant-by-id="plantById"
-          :overlap-ids="overlapIds"
-          :selected-plant-id="selectedPlantId"
-          :is-mobile="isMobile"
-          :image-url="imageUrl"
-          :spread-feet-label="spreadFeetLabel"
-          :place-plant="placePlant"
-          :move-plant="movePlant"
-          :remove-placed="removePlaced"
-          :grid-width="gridWidth"
-          :grid-height="gridHeight"
-          :add-row-top="addRowTop"
-          :remove-row-top="removeRowTop"
-          :add-row-bottom="addRowBottom"
-          :remove-row-bottom="removeRowBottom"
-          :add-column-left="addColumnLeft"
-          :remove-column-left="removeColumnLeft"
-          :add-column-right="addColumnRight"
-          :remove-column-right="removeColumnRight"
-        />
+          <GardenCanvas
+            ref="canvasRef"
+            :placed-plants="placedPlants"
+            :plant-by-id="plantById"
+            :overlap-ids="overlapIds"
+            :selected-plant-id="selectedPlantId"
+            :is-mobile="isMobile"
+            :image-url="imageUrl"
+            :spread-feet-label="spreadFeetLabel"
+            :place-plant="placePlant"
+            :move-plant="movePlant"
+            :remove-placed="removePlaced"
+            :grid-width="gridWidth"
+            :grid-height="gridHeight"
+            :add-row-top="addRowTop"
+            :remove-row-top="removeRowTop"
+            :add-row-bottom="addRowBottom"
+            :remove-row-bottom="removeRowBottom"
+            :add-column-left="addColumnLeft"
+            :remove-column-left="removeColumnLeft"
+            :add-column-right="addColumnRight"
+            :remove-column-right="removeColumnRight"
+          />
+        </template>
+        <template v-else>
+          <GardenSummary
+            :summary-data="summaryData"
+            :grid-width="gridWidth"
+            :grid-height="gridHeight"
+          />
+        </template>
       </section>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useGardenPlanner } from '../composables/useGardenPlanner';
 import { useViewport } from '../composables/useViewport';
 import Header from './Header.vue';
 import FavoritesTray from './FavoritesTray.vue';
 import GardenCanvas from './GardenCanvas.vue';
+import GardenSummary from './GardenSummary.vue';
+import type { PlacedPlant, Plant } from '../types/garden';
 
 interface Props {
   favorites?: boolean;
@@ -97,6 +115,7 @@ defineProps<Props>();
 
 const { isMobile } = useViewport();
 const canvasRef = ref<InstanceType<typeof GardenCanvas> | null>(null);
+const showSummary = ref(false);
 
 const {
   loading,
@@ -142,6 +161,92 @@ const handlePaletteDragStart = (event: PointerEvent, plantId: string) => {
     }
   }
 };
+
+const handleSummaryToggle = () => {
+  showSummary.value = !showSummary.value;
+};
+
+// Calculate center-point coordinates for a placed plant
+const getCenterCoordinates = (placed: PlacedPlant): string => {
+  const centerX = Math.round(placed.x + (placed.width / 2));
+  const centerY = Math.round(placed.y + (placed.height / 2));
+  return `${centerX},${centerY}`;
+};
+
+// Summary data computed property
+const summaryData = computed(() => {
+  // Calculate overall statistics
+  const totalPlants = placedPlants.value.length;
+  const uniqueSpeciesSet = new Set(placedPlants.value.map(p => p.plantId));
+  const uniqueSpecies = uniqueSpeciesSet.size;
+
+  // Group by Plant Family
+  const familyMap = new Map<string, {
+    plants: Map<string, {
+      plantId: string;
+      commonName: string;
+      scientificName?: string;
+      count: number;
+      coordinates: string[];
+    }>;
+  }>();
+
+  // Process each placed plant
+  for (const placed of placedPlants.value) {
+    const plant = plantById.value[placed.plantId];
+    if (!plant) continue;
+
+    const plantFamily = (plant['Plant Family'] as string) || 'Unspecified';
+    const centerCoord = getCenterCoordinates(placed);
+
+    if (!familyMap.has(plantFamily)) {
+      familyMap.set(plantFamily, { plants: new Map() });
+    }
+
+    const family = familyMap.get(plantFamily)!;
+    if (!family.plants.has(placed.plantId)) {
+      family.plants.set(placed.plantId, {
+        plantId: placed.plantId,
+        commonName: plant['Common Name'] || placed.plantId,
+        scientificName: plant['Scientific Name'],
+        count: 0,
+        coordinates: [],
+      });
+    }
+
+    const plantEntry = family.plants.get(placed.plantId)!;
+    plantEntry.count++;
+    plantEntry.coordinates.push(centerCoord);
+  }
+
+  // Convert to array format and calculate family statistics
+  const families = Array.from(familyMap.entries()).map(([familyName, familyData]) => {
+    const plants = Array.from(familyData.plants.values());
+    const uniqueSpeciesCount = plants.length;
+    const totalPlantCount = plants.reduce((sum, p) => sum + p.count, 0);
+
+    return {
+      family: familyName,
+      uniqueSpeciesCount,
+      totalPlantCount,
+      plants: plants.sort((a, b) => {
+        // Sort by common name
+        return a.commonName.localeCompare(b.commonName);
+      }),
+    };
+  });
+
+  // Sort families by unique species count (descending)
+  families.sort((a, b) => b.uniqueSpeciesCount - a.uniqueSpeciesCount);
+
+  return {
+    overallStats: {
+      totalPlants,
+      uniqueSpecies,
+    },
+    families,
+  };
+});
 </script>
 
 <style scoped>
@@ -194,6 +299,14 @@ const handlePaletteDragStart = (event: PointerEvent, plantId: string) => {
   min-height: 0;
   overflow: hidden;
   height: 100%;
+}
+
+/* Only apply flex to GardenSummary when shown, not to FavoritesTray */
+.workspace > .garden-summary {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 button.primary-bar.small {
