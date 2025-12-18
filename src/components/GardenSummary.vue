@@ -1,7 +1,17 @@
 <template>
   <div class="garden-summary" ref="summaryRef">
     <div class="summary-header">
-      <h2 class="summary-title">Garden Planting Summary</h2>
+      <div class="header-top">
+        <h2 class="summary-title">Garden Planting Summary</h2>
+        <button 
+          v-if="summaryData?.families && summaryData.families.length > 0"
+          class="chatgpt-button"
+          @click="openChatGPT"
+          title="Get advice from ChatGPT about this garden plan"
+        >
+          Ask ChatGPT
+        </button>
+      </div>
       <div class="header-info">
         <span class="garden-size">Garden Size: <strong>{{ gridWidth }}ft × {{ gridHeight }}ft</strong></span>
         <span class="header-separator">•</span>
@@ -82,6 +92,51 @@ const summaryRef = ref<HTMLElement | null>(null);
 const formatCoordinates = (coordinates: string[]): string => {
   return coordinates.map(coord => `(${coord})`).join(', ');
 };
+
+const generateChatGPTPrompt = (): string => {
+  if (!props.summaryData || !props.summaryData.families || props.summaryData.families.length === 0) {
+    return '';
+  }
+
+  const lines: string[] = [];
+  lines.push('I have created a native plant garden plan using the choosenativeplants garden planner. I would like your advice on this planting plan.');
+  lines.push('');
+  lines.push(`Garden Size: ${props.gridWidth} feet wide × ${props.gridHeight} feet tall`);
+  lines.push(`Total Plants: ${props.summaryData.overallStats.totalPlants}`);
+  lines.push(`Unique Species: ${props.summaryData.overallStats.uniqueSpecies}`);
+  lines.push('');
+  lines.push('Planting Plan (organized by plant family):');
+  lines.push('');
+
+  for (const family of props.summaryData.families) {
+    lines.push(`${family.family} Family (${family.uniqueSpeciesCount} species, ${family.totalPlantCount} total plants):`);
+    for (const plant of family.plants) {
+      const scientificName = plant.scientificName ? ` (${plant.scientificName})` : '';
+      const coords = formatCoordinates(plant.coordinates);
+      lines.push(`  - ${plant.commonName}${scientificName}: Quantity ${plant.count}, Plant at coordinates: ${coords}`);
+    }
+    lines.push('');
+  }
+
+  lines.push('Coordinates indicate the center point where each plant should be planted (where to dig the hole), measured in feet from the top-left corner of the garden.');
+  lines.push('');
+  lines.push('Please provide advice on:');
+  lines.push('1. Whether this is a good plant selection and arrangement');
+  lines.push('2. Any concerns about plant spacing, compatibility, or growth requirements');
+  lines.push('3. Suggestions for improvement or additional considerations');
+  lines.push('4. Any specific care instructions or tips for these native plants');
+
+  return lines.join('\n');
+};
+
+const openChatGPT = () => {
+  const prompt = generateChatGPTPrompt();
+  if (!prompt) return;
+  
+  const encodedPrompt = encodeURIComponent(prompt);
+  const url = `https://chatgpt.com/?q=${encodedPrompt}`;
+  window.open(url, '_blank', 'noopener,noreferrer');
+};
 </script>
 
 <style scoped>
@@ -107,12 +162,44 @@ const formatCoordinates = (coordinates: string[]): string => {
   border-bottom: 2px solid #e0e0e0;
 }
 
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 16px;
+}
+
 .summary-title {
   font-size: 22px;
   font-weight: 700;
   color: #1d2e26;
-  margin: 0 0 8px 0;
+  margin: 0;
   font-family: 'Roboto', sans-serif;
+  flex: 1;
+}
+
+.chatgpt-button {
+  background-color: #10a37f;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Roboto', sans-serif;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.chatgpt-button:hover {
+  background-color: #0d8c6e;
+}
+
+.chatgpt-button:active {
+  background-color: #0b7a5f;
 }
 
 .header-info {
@@ -264,9 +351,21 @@ const formatCoordinates = (coordinates: string[]): string => {
     padding: 12px;
   }
 
+  .header-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
   .summary-title {
     font-size: 20px;
-    margin-bottom: 6px;
+    margin-bottom: 0;
+  }
+
+  .chatgpt-button {
+    width: 100%;
+    padding: 10px 16px;
+    font-size: 13px;
   }
 
   .header-info {

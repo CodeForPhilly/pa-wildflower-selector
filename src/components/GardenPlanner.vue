@@ -3,7 +3,7 @@
     <Header h1="Garden Planner" :large-h1="false" />
 
     <main class="planner-main">
-      <section class="toolbar" aria-label="Plannwer toolbar">
+      <section class="toolbar" aria-label="Planner toolbar">
         <div class="size-controls">
           <button class="primary primary-bar small" @click="clearLayout">
             Clear Layout
