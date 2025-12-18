@@ -24,11 +24,32 @@
         <i>{{ scientificName }}</i>
       </div>
     </div>
+    
+    <!-- Action buttons shown when selected -->
+    <div v-if="isSelected && !isDragging" class="plant-actions">
+      <button
+        class="action-button duplicate-button"
+        @click.stop="handleDuplicate"
+        title="Duplicate plant"
+        aria-label="Duplicate plant"
+      >
+        <Copy :size="18" />
+      </button>
+      <button
+        class="action-button delete-button"
+        @click.stop="handleDeleteClick"
+        title="Delete plant"
+        aria-label="Delete plant"
+      >
+        <Trash2 :size="18" />
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue';
+import { Copy, Trash2 } from 'lucide-vue-next';
 import type { PlacedPlant, Plant } from '../types/garden';
 
 
@@ -37,6 +58,7 @@ interface Emits {
   (e: 'delete', placedId: string): void;
   (e: 'select', placedId: string): void;
   (e: 'move', placedId: string, x: number, y: number): void;
+  (e: 'duplicate', placedId: string): void;
 }
 
 interface Props {
@@ -297,6 +319,14 @@ const handleDoubleClick = (event: MouseEvent) => {
     emit('delete', props.placed.id);
   }
 };
+
+const handleDuplicate = () => {
+  emit('duplicate', props.placed.id);
+};
+
+const handleDeleteClick = () => {
+  emit('delete', props.placed.id);
+};
 </script>
 
 <style scoped>
@@ -410,11 +440,93 @@ const handleDoubleClick = (event: MouseEvent) => {
   }
 }
 
+.plant-actions {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 6px;
+  z-index: 25;
+  pointer-events: auto;
+}
+
+.action-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.3);
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  padding: 0;
+}
+
+.action-button:hover {
+  background-color: rgba(255, 255, 255, 1);
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border-color: rgba(0, 0, 0, 0.5);
+}
+
+.action-button:active {
+  transform: scale(0.95);
+}
+
+.action-button.duplicate-button:hover {
+  background-color: rgba(76, 175, 80, 0.95);
+  border-color: rgba(76, 175, 80, 0.8);
+}
+
+.action-button.duplicate-button:hover svg {
+  color: #000;
+  stroke: #000;
+}
+
+.action-button.delete-button:hover {
+  background-color: rgba(220, 30, 30, 0.95);
+  border-color: rgba(220, 30, 30, 0.8);
+}
+
+.action-button.delete-button:hover svg {
+  color: #000;
+  stroke: #000;
+}
+
+.action-button svg {
+  stroke-width: 2.5;
+  color: #000;
+  stroke: #000;
+}
+
 @media screen and (max-width: 767px) {
   .coordinate-badge {
     font-size: 10px;
     padding: 2px 5px;
     margin-bottom: 3px;
+  }
+  
+  .plant-actions {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    gap: 4px;
+  }
+  
+  .action-button {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .action-button svg {
+    width: 16px;
+    height: 16px;
   }
 }
 </style>

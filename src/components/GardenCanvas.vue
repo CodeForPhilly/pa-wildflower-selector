@@ -29,6 +29,7 @@
           @delete="handleDelete"
           @select="handlePlantSelect"
           @move="handlePlantMove"
+          @duplicate="handleDuplicate"
         />
 
         <!-- Grid cell highlight showing where plant will snap -->
@@ -362,6 +363,16 @@ const handlePlantSelect = (placedId: string) => {
 
 const handlePlantMove = (placedId: string, x: number, y: number) => {
   props.movePlant(placedId, x, y);
+};
+
+const handleDuplicate = (placedId: string) => {
+  const placed = props.placedPlants.find(p => p.id === placedId);
+  if (placed) {
+    // Place duplicate at an offset position (one snap increment to the right and down)
+    const newX = Math.min(placed.x + props.snapIncrement, props.gridWidth - placed.width);
+    const newY = Math.min(placed.y + props.snapIncrement, props.gridHeight - placed.height);
+    props.placePlant(placed.plantId, newX, newY);
+  }
 };
 
 // Drag preview - transparent plant image following cursor
