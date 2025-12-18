@@ -46,16 +46,6 @@
           class="drag-preview-wrapper"
           :style="dragPreviewWrapperStyle"
         >
-          <!-- Indicator badge for move/duplicate -->
-          <div 
-            v-if="dragState.dragType === 'move'"
-            class="drag-indicator"
-            :class="{ 'duplicate': dragState.ctrlKey }"
-          >
-            <span v-if="dragState.ctrlKey" class="indicator-icon">➕</span>
-            <span v-else class="indicator-icon">➡️</span>
-          </div>
-          
           <div class="drag-preview" :style="dragPreviewStyle">
             <div class="drag-preview-label">
               <div class="label-line common">{{ dragPreviewPlant['Common Name'] || dragState.plantId }}</div>
@@ -669,32 +659,6 @@ button.primary-bar.small.danger {
 
 .drag-preview-label .label-line.scientific i {
   font-style: italic;
-}
-
-.drag-indicator {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background-color: rgba(0, 0, 0, 0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 18;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-}
-
-.drag-indicator.duplicate {
-  background-color: rgba(76, 175, 80, 0.9); /* Green for duplicate */
-}
-
-.indicator-icon {
-  font-size: 16px;
-  color: #fff;
-  line-height: 1;
 }
 
 .resize-controls {
