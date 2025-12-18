@@ -2,9 +2,10 @@
   <aside class="palette" :class="{ mobile: isMobile }" aria-label="Plant palette">
     <div class="palette-header">
       <h2>Favorites</h2>
-      <div class="palette-subtitle" v-if="favoritePlants.length">
-        Drag (desktop) or tap-to-place (mobile)
-      </div>
+        <div class="palette-subtitle" v-if="favoritePlants.length">
+          <span v-if="isMobile">Tap a plant below, then tap the grid to place</span>
+          <span v-else>Drag to grid to place</span>
+        </div>
       <div class="palette-subtitle" v-else-if="!loading">
         No favorites yet. Add favorites first.
       </div>
@@ -22,11 +23,15 @@
         @pointerdown="handlePointerDown($event, plant._id)"
         :title="plant['Common Name'] || plant._id"
       >
-        <span class="thumb" :style="thumbStyle(plant)"></span>
+        <span class="thumb" :style="thumbStyle(plant)">
+          <span class="count-badge" v-if="plantCounts && plantCounts[plant._id]">
+            {{ plantCounts[plant._id] }}
+          </span>
+        </span>
         <span class="info">
           <span class="name">{{ plant['Common Name'] || plant._id }}</span>
           <span class="meta">
-            Spread: {{ spreadFeetLabel(plant) }}ft ({{ spreadCells(plant) }} cell<span v-if="spreadCells(plant) !== 1">s</span>)
+            {{ spreadFeetLabel(plant) }}ft Spread
           </span>
         </span>
       </button>
@@ -45,6 +50,7 @@ interface Props {
   imageUrl: (plant: Plant | undefined, preview: boolean) => string;
   spreadFeetLabel: (plant: Plant | undefined) => string;
   spreadCells: (plant: Plant | undefined) => number;
+  plantCounts?: Record<string, number>;
 }
 
 interface Emits {
@@ -79,45 +85,71 @@ const thumbStyle = (plant: Plant) => {
   background: #fff;
   border: 1px solid #e5e5e5;
   border-radius: 16px;
-  padding: 12px;
+  padding: 8px;
+  flex-shrink: 0;
 }
 
 .palette.mobile {
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-  border-radius: 16px 16px 0 0;
-  padding-bottom: 8px;
+  padding: 6px 8px;
+  max-height: 120px;
+  overflow-y: hidden;
 }
 
 .palette-header h2 {
   margin: 0;
   font-family: Arvo;
-  font-size: 18px;
+  font-size: 16px;
+}
+
+.palette.mobile .palette-header {
+  margin-bottom: 4px;
+}
+
+.palette.mobile .palette-header h2 {
+  font-size: 14px;
 }
 
 .palette-subtitle {
-  margin-top: 4px;
+  margin-top: 2px;
   font-family: Roboto;
-  font-size: 13px;
+  font-size: 11px;
   color: #555;
+  line-height: 1.2;
+}
+
+.palette.mobile .palette-subtitle {
+  font-size: 10px;
+  margin-top: 1px;
 }
 
 .palette-items {
-  margin-top: 10px;
+  margin-top: 6px;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow: visible;
-  padding-right: 4px;
+  flex-direction: row;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
-.palette.mobile .palette-items {
-  max-height: none;
-  overflow-x: visible;
-  overflow-y: visible;
-  flex-direction: row;
-  padding-bottom: 6px;
+.palette-items::-webkit-scrollbar {
+  height: 4px;
+}
+
+.palette-items::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 2px;
+}
+
+.palette.mobile .palette-items::-webkit-scrollbar {
+  height: 4px;
+}
+
+.palette.mobile .palette-items::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 2px;
 }
 
 .palette-item {
@@ -130,12 +162,13 @@ const thumbStyle = (plant: Plant) => {
   padding: 10px;
   cursor: pointer;
   text-align: left;
-  min-width: 260px;
   touch-action: none;
 }
 
 .palette.mobile .palette-item {
-  min-width: 240px;
+  padding: 8px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .palette-item.active {
@@ -151,6 +184,33 @@ const thumbStyle = (plant: Plant) => {
   background-position: center;
   flex: 0 0 auto;
   border: 1px solid rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+
+.count-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background-color: #0fb554;
+  color: #fff;
+  font-family: Roboto, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  z-index: 2;
+}
+
+.palette.mobile .thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
 }
 
 .info {
@@ -170,10 +230,19 @@ const thumbStyle = (plant: Plant) => {
   text-overflow: ellipsis;
 }
 
+.palette.mobile .name {
+  font-size: 13px;
+}
+
 .meta {
   font-family: Roboto;
   font-size: 12px;
   color: #666;
+}
+
+.palette.mobile .meta {
+  font-size: 11px;
+  line-height: 1.2;
 }
 </style>
 

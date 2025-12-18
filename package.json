@@ -31,6 +31,7 @@
     "dev:full": "concurrently --names \"SERVER,CLIENT\" --prefix-colors \"blue,green\" \"npm run dev:server\" \"npm run dev:client\""
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.0.0",
     "@vue/cli-plugin-babel": "^4.5.16",
     "@vue/cli-plugin-eslint": "^4.5.16",
     "@vue/cli-service": "^4.5.16",
@@ -50,9 +51,9 @@
     "google-spreadsheet": "^5.0.2",
     "leaflet": "^1.7.1",
     "limiter": "^2.1.0",
+    "lucide-vue-next": "^0.562.0",
     "mongodb": "^3.6.7",
     "mongodb-mcp-server": "^1.2.0",
-    "@aws-sdk/client-s3": "^3.0.0",
     "node-fetch": "^2.6.1",
     "qs": "^6.10.2",
     "regexp-quote": "0.0.0",

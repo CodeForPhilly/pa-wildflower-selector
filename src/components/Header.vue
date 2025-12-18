@@ -18,6 +18,7 @@
           <button @click="closeNav" class="material-icons router-button close-nav">close</button>
           <span class="regular-links">
             <router-link to="/">Home</router-link>
+            <router-link to="/favorites">Favorites</router-link>
             <router-link to="/people-page">People Page</router-link>
             <router-link to="/how-to-use">How to Use</router-link>
             <router-link to="/map">Nurseries</router-link>
