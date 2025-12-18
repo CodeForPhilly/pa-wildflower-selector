@@ -1,7 +1,8 @@
 <template>
   <div class="grid-area" ref="gridAreaRef">
       <div class="grid-scroll">
-        <div class="grid-wrapper" :style="gridWrapperStyle">
+        <div class="grid-scroll-inner">
+          <div class="grid-wrapper" :style="gridWrapperStyle">
           <div
             ref="gridRef"
             class="grid"
@@ -72,8 +73,6 @@
         >
           Some plants overlap (crowding risk)
         </div>
-      </div>
-      </div>
       </div>
 
       <!-- Top Controls -->
@@ -154,6 +153,9 @@
         >
           <span class="resize-icon">−</span>
         </button>
+      </div>
+        </div>
+        </div>
       </div>
     </div>
 </template>
@@ -476,6 +478,13 @@ const gridHighlightStyle = computed(() => {
   padding: 48px;
 }
 
+.grid-scroll-inner {
+  position: relative;
+  margin: 0 auto;
+  min-width: fit-content;
+  min-height: fit-content;
+}
+
 .grid-wrapper {
   transition: transform 0.1s ease-out;
   position: relative;
@@ -660,6 +669,7 @@ button.primary-bar.small.danger {
   display: flex;
   gap: 4px;
   z-index: 10;
+  pointer-events: auto;
 }
 
 .resize-controls.top {
@@ -690,47 +700,60 @@ button.primary-bar.small.danger {
   flex-direction: column;
 }
 
+.resize-button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 500;
+  color: #374151;
+  transition: all 0.2s;
+  padding: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.resize-button:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.resize-button:active {
+  background-color: #f3f4f6;
+}
+
+.resize-icon {
+  line-height: 1;
+  display: block;
+}
+
 @media screen and (max-width: 767px) {
   .resize-controls.top {
-    top: -28px;
+    top: 4px;
   }
 
   .resize-controls.left {
-    left: -28px;
+    left: 4px;
   }
 
   .resize-controls.right {
-    right: -28px;
+    right: 4px;
   }
 
   .resize-controls.bottom {
-    bottom: -28px;
-  }
-
-  .grid-resize-controls-vertical {
-    right: -36px;
-  }
-
-  .grid-resize-controls-horizontal {
-    bottom: -36px;
+    bottom: 4px;
   }
 
   .resize-button {
-    width: 36px;
-    height: 36px;
-    font-size: 20px;
-  }
-
-  .grid-padding-controls-top,
-  .grid-padding-controls-bottom {
-    top: -40px;
-    bottom: -40px;
-  }
-
-  .grid-padding-controls-left,
-  .grid-padding-controls-right {
-    left: -40px;
-    right: -40px;
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
   }
 }
 </style>
