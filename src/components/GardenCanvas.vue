@@ -46,6 +46,13 @@
           class="drag-preview-wrapper"
           :style="dragPreviewWrapperStyle"
         >
+          <!-- Duplicate icon shown when Ctrl is held during drag -->
+          <div 
+            v-if="dragState.dragType === 'move' && dragState.ctrlKey"
+            class="drag-duplicate-icon"
+          >
+            <Copy :size="18" />
+          </div>
           <div class="drag-preview" :style="dragPreviewStyle">
             <div class="drag-preview-label">
               <div class="label-line common">{{ dragPreviewPlant['Common Name'] || dragState.plantId }}</div>
@@ -152,6 +159,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { Copy } from 'lucide-vue-next';
 import { usePointerDrag } from '../composables/usePointerDrag';
 import PlantCircle from './PlantCircle.vue';
 import type { PlacedPlant, Plant, GridCoords } from '../types/garden';
@@ -659,6 +667,44 @@ button.primary-bar.small.danger {
 
 .drag-preview-label .label-line.scientific i {
   font-style: italic;
+}
+
+.drag-duplicate-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.3);
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 18;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+
+.drag-duplicate-icon svg {
+  stroke-width: 2.5;
+  color: #000;
+  stroke: #000;
+}
+
+@media screen and (max-width: 767px) {
+  .drag-duplicate-icon {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .drag-duplicate-icon svg {
+    width: 16px;
+    height: 16px;
+  }
 }
 
 .resize-controls {
