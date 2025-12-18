@@ -156,12 +156,10 @@ const thumbStyle = (plant: Plant) => {
   padding: 10px;
   cursor: pointer;
   text-align: left;
-  min-width: 260px;
   touch-action: none;
 }
 
 .palette.mobile .palette-item {
-  min-width: 180px;
   padding: 8px;
   gap: 8px;
   flex-shrink: 0;
