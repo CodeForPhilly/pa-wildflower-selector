@@ -63,6 +63,16 @@
             </div>
           </div>
         </div>
+
+        <!-- Overlap warning - positioned on canvas -->
+        <div 
+          v-if="placedPlants.length && overlapIds.size"
+          class="overlap-hint"
+        >
+          Some plants overlap (crowding risk)
+        </div>
+      </div>
+      </div>
       </div>
 
       <!-- Top Controls -->
@@ -145,12 +155,6 @@
         </button>
       </div>
     </div>
-
-      <div class="overlap-hint" v-if="placedPlants.length && overlapIds.size">
-        Some plants overlap (outlined in red). Overlap is allowed, but may indicate crowding.
-      </div>
-    </div>
-  </div>
 </template>
 
 <script setup lang="ts">
@@ -509,10 +513,21 @@ const gridHighlightStyle = computed(() => {
 }
 
 .overlap-hint {
-  margin-top: 10px;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(200, 40, 40, 0.4);
+  border-left: 3px solid rgba(200, 40, 40, 0.85);
+  border-radius: 4px;
+  padding: 6px 10px;
   font-family: Roboto;
-  font-size: 13px;
+  font-size: 12px;
   color: #6b1b1b;
+  z-index: 10;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  white-space: nowrap;
 }
 
 button.primary-bar.small.danger {
