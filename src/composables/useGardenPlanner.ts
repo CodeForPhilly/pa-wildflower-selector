@@ -9,18 +9,25 @@ const STORAGE_KEY = 'gardenPlanner:v1';
 
 export function useGardenPlanner() {
   const store = useStore();
-  
+
   // State
   const loading = ref(false);
   const loadError = ref<Error | null>(null);
   const favoritePlants = ref<Plant[]>([]);
   const placedPlants = ref<PlacedPlant[]>([]);
   const selectedPlantId = ref<string | null>(null);
+  const gridWidth = ref(10);
+  const gridHeight = ref(10);
 
   // LocalStorage
   const { storedValue: storageData, remove: clearStorage } = useLocalStorage<StoragePayload>(
     STORAGE_KEY,
-    { placedPlants: [], selectedPlantId: null }
+    {
+      placedPlants: [],
+      selectedPlantId: null,
+      gridWidth: 10,
+      gridHeight: 10,
+    }
   );
 
   // Undo/Redo
@@ -103,6 +110,20 @@ export function useGardenPlanner() {
     if (data && (typeof data.selectedPlantId === 'string' || data.selectedPlantId === null)) {
       selectedPlantId.value = data.selectedPlantId;
     }
+    // Load grid size from storage
+    if (data && typeof data.gridWidth === 'number' && data.gridWidth > 0) {
+      gridWidth.value = data.gridWidth;
+    }
+    if (data && typeof data.gridHeight === 'number' && data.gridHeight > 0) {
+      gridHeight.value = data.gridHeight;
+    }
+  };
+
+  // Helper to check if plants would be clipped by new grid size
+  const wouldClipPlants = (newWidth: number, newHeight: number): boolean => {
+    return placedPlants.value.some(plant => {
+      return plant.x + plant.width > newWidth || plant.y + plant.height > newHeight;
+    });
   };
 
   const placePlant = (plantId: string, x: number, y: number): void => {
@@ -112,9 +133,9 @@ export function useGardenPlanner() {
     const size = spreadCells(plant);
     const id = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 
-    // Ensure plant fits within 10x10 grid bounds
-    const adjustedX = Math.max(0, Math.min(x, 10 - size));
-    const adjustedY = Math.max(0, Math.min(y, 10 - size));
+    // Ensure plant fits within grid bounds
+    const adjustedX = Math.max(0, Math.min(x, gridWidth.value - size));
+    const adjustedY = Math.max(0, Math.min(y, gridHeight.value - size));
 
     const placed: PlacedPlant = {
       id,
@@ -128,7 +149,7 @@ export function useGardenPlanner() {
     const newPlacedPlants = [...placedPlants.value, placed];
     placedPlants.value = newPlacedPlants;
     undoRedo.addState([...newPlacedPlants]);
-    
+
     // Clear mobile selection after placement
     selectedPlantId.value = null;
   };
@@ -137,9 +158,9 @@ export function useGardenPlanner() {
     const plant = placedPlants.value.find((p) => p.id === placedId);
     if (!plant) return;
 
-    // Ensure plant fits within 10x10 grid bounds
-    const adjustedX = Math.max(0, Math.min(x, 10 - plant.width));
-    const adjustedY = Math.max(0, Math.min(y, 10 - plant.height));
+    // Ensure plant fits within grid bounds
+    const adjustedX = Math.max(0, Math.min(x, gridWidth.value - plant.width));
+    const adjustedY = Math.max(0, Math.min(y, gridHeight.value - plant.height));
 
     // Update position
     plant.x = adjustedX;
@@ -211,11 +232,13 @@ export function useGardenPlanner() {
 
   // Watch for changes and sync to storage
   watch(
-    [placedPlants, selectedPlantId],
+    [placedPlants, selectedPlantId, gridWidth, gridHeight],
     () => {
       storageData.value = {
         placedPlants: placedPlants.value,
         selectedPlantId: selectedPlantId.value,
+        gridWidth: gridWidth.value,
+        gridHeight: gridHeight.value,
       };
     },
     { deep: true }
@@ -239,12 +262,15 @@ export function useGardenPlanner() {
     favoritePlants,
     placedPlants,
     selectedPlantId,
-    
+    gridWidth,
+    gridHeight,
+
     // Computed
     favoriteIds,
     plantById,
     overlapIds,
-    
+
+    // Methods
     // Methods
     imageUrl,
     spreadFeetLabel,
@@ -260,6 +286,77 @@ export function useGardenPlanner() {
     canUndo: undoRedo.canUndo,
     canRedo: undoRedo.canRedo,
     fetchFavorites,
+
+    // New Directional Resize Methods
+    addRowTop: () => {
+      gridHeight.value += 1;
+      // Shift all plants down by 1
+      placedPlants.value.forEach(p => p.y += 1);
+      // Trigger update
+      placedPlants.value = [...placedPlants.value];
+      undoRedo.addState([...placedPlants.value]);
+    },
+    removeRowTop: () => {
+      // Check if any plant is in the top row (y < 1)
+      // Note: A plant at y=0 has height >= 1, so it occupies row 0.
+      const hasPlantAtTop = placedPlants.value.some(p => p.y < 1);
+      if (gridHeight.value > 1 && !hasPlantAtTop) {
+        gridHeight.value -= 1;
+        // Shift all plants up by 1
+        placedPlants.value.forEach(p => p.y -= 1);
+        // Trigger update
+        placedPlants.value = [...placedPlants.value];
+        undoRedo.addState([...placedPlants.value]);
+      }
+    },
+    addRowBottom: () => {
+      gridHeight.value += 1;
+    },
+    removeRowBottom: () => {
+      // Check if any plant is in the bottom row
+      // A plant at y occupies rows [y, y+height-1].
+      // We want to remove row index (gridHeight.value - 1).
+      // So if (y + height - 1) >= (gridHeight.value - 1), it blocks removal.
+      // simplified: y + height > gridHeight - 1
+      const limit = gridHeight.value - 1;
+      const hasPlantAtBottom = placedPlants.value.some(p => p.y + p.height > limit);
+
+      if (gridHeight.value > 1 && !hasPlantAtBottom) {
+        gridHeight.value -= 1;
+      }
+    },
+    addColumnLeft: () => {
+      gridWidth.value += 1;
+      // Shift all plants right by 1
+      placedPlants.value.forEach(p => p.x += 1);
+      // Trigger update
+      placedPlants.value = [...placedPlants.value];
+      undoRedo.addState([...placedPlants.value]);
+    },
+    removeColumnLeft: () => {
+      // Check if any plant is in the left column (x < 1)
+      const hasPlantAtLeft = placedPlants.value.some(p => p.x < 1);
+      if (gridWidth.value > 1 && !hasPlantAtLeft) {
+        gridWidth.value -= 1;
+        // Shift all plants left by 1
+        placedPlants.value.forEach(p => p.x -= 1);
+        // Trigger update
+        placedPlants.value = [...placedPlants.value];
+        undoRedo.addState([...placedPlants.value]);
+      }
+    },
+    addColumnRight: () => {
+      gridWidth.value += 1;
+    },
+    removeColumnRight: () => {
+      // Check if any plant is in the rightmost column
+      const limit = gridWidth.value - 1;
+      const hasPlantAtRight = placedPlants.value.some(p => p.x + p.width > limit);
+
+      if (gridWidth.value > 1 && !hasPlantAtRight) {
+        gridWidth.value -= 1;
+      }
+    },
   };
 }
 

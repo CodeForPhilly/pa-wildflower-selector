@@ -15,6 +15,8 @@ export interface DragState {
 export function usePointerDrag(
   gridRef: Ref<HTMLElement | null>,
   cellSize: Ref<number>,
+  gridWidth: Ref<number>,
+  gridHeight: Ref<number>,
   onDragEnd: (coords: GridCoords, dragType: 'place' | 'move', plantId: string) => void
 ) {
   const dragState = ref<DragState>({
@@ -36,10 +38,10 @@ export function usePointerDrag(
     const x = Math.floor((event.clientX - rect.left) / cellSize.value);
     const y = Math.floor((event.clientY - rect.top) / cellSize.value);
     
-    // Ensure coordinates are within 0-9 bounds for 10x10 grid
+    // Ensure coordinates are within grid bounds
     return {
-      x: Math.max(0, Math.min(9, x)),
-      y: Math.max(0, Math.min(9, y)),
+      x: Math.max(0, Math.min(gridWidth.value - 1, x)),
+      y: Math.max(0, Math.min(gridHeight.value - 1, y)),
     };
   };
 

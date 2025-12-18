@@ -1,15 +1,16 @@
 <template>
   <div class="grid-area" ref="gridAreaRef">
     <div class="grid-scroll">
-      <div
-        ref="gridRef"
-        class="grid"
-        :style="gridStyle"
-        @click="handleGridClick"
-        @pointerdown="handleGridPointerDown"
-        aria-label="Garden planner grid"
-        role="application"
-      >
+      <div class="grid-wrapper">
+        <div
+          ref="gridRef"
+          class="grid"
+          :style="gridStyle"
+          @click="handleGridClick"
+          @pointerdown="handleGridPointerDown"
+          aria-label="Garden planner grid"
+          role="application"
+        >
         <PlantCircle
           v-for="p in placedPlants"
           :key="p.id"
@@ -56,12 +57,92 @@
             </div>
           </div>
         </div>
+      </div>
 
+      <!-- Top Controls -->
+      <div class="resize-controls top">
+        <button
+          class="resize-button"
+          @click="addRowTop"
+          title="Add row to top"
+          aria-label="Add row to top"
+        >
+          <span class="resize-icon">+</span>
+        </button>
+        <button
+          class="resize-button"
+          @click="removeRowTop"
+          title="Remove row from top"
+          aria-label="Remove row from top"
+        >
+          <span class="resize-icon">−</span>
+        </button>
+      </div>
+
+      <!-- Left Controls -->
+      <div class="resize-controls left">
+        <button
+          class="resize-button"
+          @click="addColumnLeft"
+          title="Add column to left"
+          aria-label="Add column to left"
+        >
+          <span class="resize-icon">+</span>
+        </button>
+        <button
+          class="resize-button"
+          @click="removeColumnLeft"
+          title="Remove column from left"
+          aria-label="Remove column from left"
+        >
+          <span class="resize-icon">−</span>
+        </button>
+      </div>
+
+      <!-- Right Controls -->
+      <div class="resize-controls right">
+        <button
+          class="resize-button"
+          @click="addColumnRight"
+          title="Add column to right"
+          aria-label="Add column to right"
+        >
+          <span class="resize-icon">+</span>
+        </button>
+        <button
+          class="resize-button"
+          @click="removeColumnRight"
+          title="Remove column from right"
+          aria-label="Remove column from right"
+        >
+          <span class="resize-icon">−</span>
+        </button>
+      </div>
+
+      <!-- Bottom Controls -->
+      <div class="resize-controls bottom">
+        <button
+          class="resize-button"
+          @click="addRowBottom"
+          title="Add row to bottom"
+          aria-label="Add row to bottom"
+        >
+          <span class="resize-icon">+</span>
+        </button>
+        <button
+          class="resize-button"
+          @click="removeRowBottom"
+          title="Remove row from bottom"
+          aria-label="Remove row from bottom"
+        >
+          <span class="resize-icon">−</span>
+        </button>
       </div>
     </div>
 
-    <div class="overlap-hint" v-if="placedPlants.length && overlapIds.size">
-      Some plants overlap (outlined in red). Overlap is allowed, but may indicate crowding.
+      <div class="overlap-hint" v-if="placedPlants.length && overlapIds.size">
+        Some plants overlap (outlined in red). Overlap is allowed, but may indicate crowding.
+      </div>
     </div>
   </div>
 </template>
@@ -83,6 +164,16 @@ interface Props {
   placePlant: (plantId: string, x: number, y: number) => void;
   movePlant: (placedId: string, x: number, y: number) => void;
   removePlaced: (id: string) => void;
+  gridWidth: number;
+  gridHeight: number;
+  addRowTop: () => void;
+  removeRowTop: () => void;
+  addRowBottom: () => void;
+  removeRowBottom: () => void;
+  addColumnLeft: () => void;
+  removeColumnLeft: () => void;
+  addColumnRight: () => void;
+  removeColumnRight: () => void;
 }
 
 const props = defineProps<Props>();
@@ -106,22 +197,34 @@ const dynamicCellSize = computed(() => {
   const availableHeight = window.innerHeight - toolbarHeight - headerHeight - mainPadding * 2 - favoritesTrayHeight - gap;
   
   // Use width as primary constraint to fill screen width
-  const cellSize = availableWidth / 10;
+  const cellSize = availableWidth / props.gridWidth;
   
   // But don't exceed height constraint
-  const maxCellSizeFromHeight = availableHeight / 10;
+  const maxCellSizeFromHeight = availableHeight / props.gridHeight;
   
   return Math.max(20, Math.min(cellSize, maxCellSizeFromHeight, 80));
 });
 
 const gridStyle = computed(() => {
   const cellSize = dynamicCellSize.value;
-  const gridSize = 10 * cellSize;
+  const gridWidthPx = props.gridWidth * cellSize;
+  const gridHeightPx = props.gridHeight * cellSize;
   return {
     '--cell-size': `${cellSize}px`,
-    width: `${gridSize}px`,
-    height: `${gridSize}px`,
+    width: `${gridWidthPx}px`,
+    height: `${gridHeightPx}px`,
   };
+});
+
+// Check if plants would be clipped by decreasing width/height
+const canDecreaseWidth = computed(() => {
+  if (props.gridWidth <= 1) return false;
+  return !props.placedPlants.some(plant => plant.x + plant.width > props.gridWidth - 1);
+});
+
+const canDecreaseHeight = computed(() => {
+  if (props.gridHeight <= 1) return false;
+  return !props.placedPlants.some(plant => plant.y + plant.height > props.gridHeight - 1);
 });
 
 
@@ -136,8 +239,8 @@ const getGridCoords = (event: PointerEvent | MouseEvent): GridCoords | null => {
   const y = Math.floor((clientY - rect.top) / dynamicCellSize.value);
   
   return {
-    x: Math.max(0, Math.min(9, x)),
-    y: Math.max(0, Math.min(9, y)),
+    x: Math.max(0, Math.min(props.gridWidth - 1, x)),
+    y: Math.max(0, Math.min(props.gridHeight - 1, y)),
   };
 };
 
@@ -162,6 +265,8 @@ const handleDragEnd = (coords: GridCoords, dragType: 'place' | 'move', plantId: 
 const { dragState, handlePointerDown: handlePointerDragStart } = usePointerDrag(
   gridRef,
   dynamicCellSize,
+  computed(() => props.gridWidth),
+  computed(() => props.gridHeight),
   handleDragEnd
 );
 
@@ -193,7 +298,6 @@ const handleGridPointerDown = (event: PointerEvent) => {
     }
   }
 };
-
 
 const handlePlantDragStart = (event: PointerEvent, placedId: string) => {
   if (event.isPrimary) {
@@ -246,8 +350,8 @@ const dragPreviewWrapperStyle = computed(() => {
   const size = dragPreviewSize.value;
   
   // Use same positioning as grid highlight - centered on target cells
-  const adjustedX = Math.max(0, Math.min(coords.x, 10 - size));
-  const adjustedY = Math.max(0, Math.min(coords.y, 10 - size));
+  const adjustedX = Math.max(0, Math.min(coords.x, props.gridWidth - size));
+  const adjustedY = Math.max(0, Math.min(coords.y, props.gridHeight - size));
   
   return {
     left: `calc(${adjustedX} * var(--cell-size))`,
@@ -267,8 +371,8 @@ const gridHighlightStyle = computed(() => {
   const size = gridHighlightSize.value;
   
   // Ensure highlight fits within grid bounds
-  const adjustedX = Math.max(0, Math.min(coords.x, 10 - size));
-  const adjustedY = Math.max(0, Math.min(coords.y, 10 - size));
+  const adjustedX = Math.max(0, Math.min(coords.x, props.gridWidth - size));
+  const adjustedY = Math.max(0, Math.min(coords.y, props.gridHeight - size));
   
   return {
     left: `calc(${adjustedX} * var(--cell-size))`,
@@ -277,8 +381,6 @@ const gridHighlightStyle = computed(() => {
     height: `calc(${size} * var(--cell-size))`,
   };
 });
-
-
 </script>
 
 <style scoped>
@@ -305,7 +407,13 @@ const gridHighlightStyle = computed(() => {
   align-items: flex-start;
   justify-content: center;
   min-height: 400px;
-  padding: 8px;
+  padding: 48px;
+}
+
+.grid-wrapper {
+  position: relative;
+  display: inline-block;
+  margin: 0 auto;
 }
 
 @media screen and (max-width: 767px) {
@@ -481,5 +589,67 @@ button.primary-bar.small.danger {
   color: #fff;
   line-height: 1;
 }
-</style>
 
+.resize-controls {
+  position: absolute;
+  display: flex;
+  gap: 4px;
+  z-index: 10;
+}
+
+.resize-controls.top {
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  flex-direction: row;
+}
+
+.resize-controls.bottom {
+  bottom: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  flex-direction: row;
+}
+
+.resize-controls.left {
+  left: -40px;
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: column;
+}
+
+.resize-controls.right {
+  right: -40px;
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: column;
+}
+
+@media screen and (max-width: 767px) {
+  .grid-resize-controls-vertical {
+    right: -36px;
+  }
+
+  .grid-resize-controls-horizontal {
+    bottom: -36px;
+  }
+
+  .resize-button {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+  }
+
+  .grid-padding-controls-top,
+  .grid-padding-controls-bottom {
+    top: -40px;
+    bottom: -40px;
+  }
+
+  .grid-padding-controls-left,
+  .grid-padding-controls-right {
+    left: -40px;
+    right: -40px;
+  }
+}
+</style>

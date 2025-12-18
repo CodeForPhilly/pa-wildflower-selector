@@ -32,6 +32,12 @@ export interface GardenLayout {
 export interface StoragePayload {
   placedPlants: PlacedPlant[];
   selectedPlantId: string | null;
+  gridWidth?: number;
+  gridHeight?: number;
+  gridTopPadding?: number;
+  gridLeftPadding?: number;
+  gridBottomPadding?: number;
+  gridRightPadding?: number;
 }
 
 export interface GridCoords {

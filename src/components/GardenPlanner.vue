@@ -31,7 +31,7 @@
 
         <div class="toolbar-right">
           <div class="grid-readout">
-            Grid: <strong>10</strong>ft × <strong>10</strong>ft
+            Grid: <strong>{{ gridWidth }}</strong>ft × <strong>{{ gridHeight }}</strong>ft
           </div>
           <div class="tap-hint" v-if="isMobile">
             Tap a plant below, then tap the grid to place.
@@ -64,6 +64,16 @@
           :place-plant="placePlant"
           :move-plant="movePlant"
           :remove-placed="removePlaced"
+          :grid-width="gridWidth"
+          :grid-height="gridHeight"
+          :add-row-top="addRowTop"
+          :remove-row-top="removeRowTop"
+          :add-row-bottom="addRowBottom"
+          :remove-row-bottom="removeRowBottom"
+          :add-column-left="addColumnLeft"
+          :remove-column-left="removeColumnLeft"
+          :add-column-right="addColumnRight"
+          :remove-column-right="removeColumnRight"
         />
       </section>
     </main>
@@ -107,6 +117,16 @@ const {
   redo,
   canUndo,
   canRedo,
+  gridWidth,
+  gridHeight,
+  addRowTop,
+  removeRowTop,
+  addRowBottom,
+  removeRowBottom,
+  addColumnLeft,
+  removeColumnLeft,
+  addColumnRight,
+  removeColumnRight,
 } = useGardenPlanner();
 
 const handlePaletteDragStart = (event: PointerEvent, plantId: string) => {
