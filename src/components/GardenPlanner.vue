@@ -285,7 +285,9 @@ const summaryData = computed(() => {
       familyMap.set(plantFamily, { plants: new Map() });
     }
 
-    const family = familyMap.get(plantFamily)!;
+    const family = familyMap.get(plantFamily);
+    if (!family) continue;
+    
     if (!family.plants.has(placed.plantId)) {
       family.plants.set(placed.plantId, {
         plantId: placed.plantId,
@@ -296,7 +298,9 @@ const summaryData = computed(() => {
       });
     }
 
-    const plantEntry = family.plants.get(placed.plantId)!;
+    const plantEntry = family.plants.get(placed.plantId);
+    if (!plantEntry) continue;
+    
     plantEntry.count++;
     plantEntry.coordinates.push(centerCoord);
   }
