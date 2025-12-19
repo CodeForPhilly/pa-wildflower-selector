@@ -22,6 +22,7 @@
     "sync:up": "node scripts/sync-up.js",
     "sync:up:db": "node scripts/sync-up.js --skip-images",
     "sync:up:images": "node scripts/sync-up.js --images-only",
+    "scrape-wikimedia": "node scripts/scrape-wikimedia-images.js",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
     "predev:local": "node scripts/dev-setup.js",
