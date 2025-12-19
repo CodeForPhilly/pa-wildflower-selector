@@ -131,6 +131,20 @@ async function downloadMain() {
         clean.Superplant = sp;
         clean.Showy = clean.Showy === 'Yes';
 
+        // Convert height and spread to numbers
+        if (clean['Height (feet)']) {
+            const heightNum = parseFloat(clean['Height (feet)']);
+            if (!isNaN(heightNum)) {
+                clean['Height (feet)'] = heightNum;
+            }
+        }
+        if (clean['Spread (feet)']) {
+            const spreadNum = parseFloat(clean['Spread (feet)']);
+            if (!isNaN(spreadNum)) {
+                clean['Spread (feet)'] = spreadNum;
+            }
+        }
+
         // Process articles for this plant
         clean.Articles = [];
         for (const record of articleRecords) {
