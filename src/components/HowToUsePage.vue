@@ -242,10 +242,7 @@
       <p>
         If you choose to use the features of the site that allow you to identify
         your favorite plants, these will be tracked only in your browser's local
-        storage. A cookie is also used to enable Google Analytics so that we can
-        analyze how much traffic the site is receiving. No other session tracking
-        or cookies are used. By using these features you consent to the collection
-        of this information.
+        storage. No session tracking or cookies are used.
       </p>
       <p>© 2025 Choose Native Plants - USA</p>
     </article>
