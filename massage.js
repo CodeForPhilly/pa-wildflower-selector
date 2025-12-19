@@ -112,39 +112,34 @@ async function go() {
         'States': states
       }
     });
-    // Process height ranges into an array of flags (lazy querying, consider a better representation)
+    // Convert height to number (no ranges, just single values)
     const height = plant['Height (feet)'];
-    if (height) {
-      let matching = [];
-      if (height.includes('–')) {
-        let [from, to] = height.split('–').map(parseFloat);
-        if (!isNaN(from) && !isNaN(to)) {
-          from = Math.floor(from);
-          to = Math.floor(to);
-          for (let i = from; (i <= to); i++) {
-            matching.push(i);
+    if (height !== undefined && height !== null) {
+      const heightNum = typeof height === 'number' ? height : parseFloat(height);
+      if (!isNaN(heightNum)) {
+        await plants.updateOne({
+          _id: plant._id
+        }, {
+          $set: {
+            'Height (feet)': heightNum
           }
-        }
-      } else {
-        matching.push(Math.floor(parseFloat(height)));
+        });
       }
-      const average = matching.length > 1 ? matching[Math.floor(matching.length / 2)] : matching[0];
-      await plants.updateOne({
-        _id: plant._id
-      }, {
-        $set: {
-          'Height (feet) By Number': matching,
-          'Average Height': average
-        }
-      });
-    } else {
-      await plants.updateOne({
-        _id: plant._id
-      }, {
-        $unset: {
-          'Height (feet) By Number': 1
-        }
-      });
+    }
+    
+    // Convert spread to number for consistency
+    const spread = plant['Spread (feet)'];
+    if (spread !== undefined && spread !== null) {
+      const spreadNum = typeof spread === 'number' ? spread : parseFloat(spread);
+      if (!isNaN(spreadNum)) {
+        await plants.updateOne({
+          _id: plant._id
+        }, {
+          $set: {
+            'Spread (feet)': spreadNum
+          }
+        });
+      }
     }
 
 

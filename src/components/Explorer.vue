@@ -135,6 +135,9 @@
           <p v-if="selected['Height (feet)']">
             Height: {{ selected["Height (feet)"] }} feet
           </p>
+          <p v-if="selected['Spread (feet)']">
+            Spread: {{ selected["Spread (feet)"] }} feet
+          </p>
           <h3 v-if="localStoreLinks.length || onlineStoreLinks.length">
             Nurseries that carry this native plant:
           </h3>
@@ -481,11 +484,12 @@
               :key="extra.id"
               class="extra"
             ></article>
+            <!-- Infinite scroll sentinel: keep it anchored to the *results* column,
+                 not after <main> (desktop filters column can add large bottom space). -->
+            <div ref="next" class="infinite-scroll-sentinel" aria-hidden="true"></div>
           </article>
         </div>
     </main>
-    <!-- Useful if we go back to using an observer for infinite scroll -->
-    <div ref="next"></div>
   </div>
 </template>
 
@@ -656,6 +660,19 @@ export default {
         },
       },
       {
+        name: "Spread (feet)",
+        range: true,
+        double: true,
+        choices: [],
+        min: 0,
+        max: 0,
+        exponent: 3.0,
+        value: {
+          min: 0,
+          max: 0,
+        },
+      },
+      {
         name: "Showy",
         label: "Showy",
         choices: ["Showy"],
@@ -671,6 +688,10 @@ export default {
       "Sort by Common Name (Z-A)": "Common Name (Z-A)",
       "Sort by Scientific Name (A-Z)": "Scientific Name (A-Z)",
       "Sort by Scientific Name (Z-A)": "Scientific Name (Z-A)",
+      "Sort by Height (Tallest First)": "Height (Tallest First)",
+      "Sort by Height (Shortest First)": "Height (Shortest First)",
+      "Sort by Spread (Widest First)": "Spread (Widest First)",
+      "Sort by Spread (Thinnest First)": "Spread (Thinnest First)",
     }).map(([value, label]) => ({ value, label }));
 
     this.defaultFilterValues = getDefaultFilterValues(filters);
@@ -680,6 +701,20 @@ export default {
     return {
       results: [],
       total: 0,
+      page: 1,
+      loading: false,
+      loadedAll: false,
+      checkingLoadMore: false, // Guard flag to prevent concurrent "load next page" calls
+      fetchRequestId: 0,
+      activeFetchRequestId: 0,
+      infiniteObserver: null,
+      scrollFallbackHandler: null,
+      maybeLoadMoreRaf: null,
+      submitTimeout: null,
+      updatingCountsTimeout: null,
+      initializing: false,
+      determinedFilterCounts: false,
+      isLoadingLocation: false,
       q: "",
       activeSearch: "",
       sort: "Sort by Recommendation Score",
@@ -709,6 +744,7 @@ export default {
       autocompleteResults: { query: "", sections: [] },
       autocompleteTimeout: null,
       hasExtractedFilters: false,
+      suppressFilterWatcher: false, // Flag to prevent watcher from triggering submit during programmatic updates
     };
   },
   computed: {
@@ -818,6 +854,14 @@ export default {
     },
     favorites() {
       this.determineFilterCountsAndSubmit();
+      // Favorites view does not page; ensure infinite scroll is correctly enabled/disabled.
+      this.$nextTick(() => {
+        if (this.favorites) {
+          this.teardownInfiniteScroll();
+        } else {
+          this.setupInfiniteScroll();
+        }
+      });
     },
     sortIsOpen() {
       this.$store.commit("setSortIsOpen", this.sortIsOpen);
@@ -876,6 +920,15 @@ export default {
     },
     filterValues: {
       async handler() {
+        // Don't trigger submit if we're programmatically updating filter values
+        // (e.g., when adjusting height/spread ranges to match new bounds)
+        if (this.suppressFilterWatcher) {
+          return;
+        }
+        // Cancel any ongoing operations to ensure fresh submit with correct sort
+        this.checkingLoadMore = false;
+        // Wait for Vue to fully update the reactive state before submitting
+        await this.$nextTick();
         if (this.isDesktop()) {
           this.submit();
         } else {
@@ -890,8 +943,11 @@ export default {
   },
   // Server only
   async serverPrefetch() {
-    await this.determineFilterCountsAndSubmit();
-    await this.fetchPage();
+    await this.determineFilterCounts();
+    this.page = 1;
+    this.loadedAll = false;
+    this.total = 0;
+    await this.fetchPage(true);
   },
   async postData(url = "", data = {}) {
     // Default options are marked with *
@@ -998,11 +1054,70 @@ export default {
 
     await this.determineFilterCountsAndSubmit();
     await this.fetchSelectedIfNeeded();
+    this.setupInfiniteScroll();
   },
-  destroy() {
-    document.body.removeEventListener("click", this.bodyClick);
+  beforeUnmount() {
+    this.teardownInfiniteScroll();
+    if (this.submitTimeout) {
+      clearTimeout(this.submitTimeout);
+      this.submitTimeout = null;
+    }
+    if (this.updatingCountsTimeout) {
+      clearTimeout(this.updatingCountsTimeout);
+      this.updatingCountsTimeout = null;
+    }
+    if (this.autocompleteTimeout) {
+      clearTimeout(this.autocompleteTimeout);
+      this.autocompleteTimeout = null;
+    }
+    if (this.maybeLoadMoreRaf) {
+      cancelAnimationFrame(this.maybeLoadMoreRaf);
+      this.maybeLoadMoreRaf = null;
+    }
   },
   methods: {
+    /**
+     * Build query params for /api/v1/plants.
+     *
+     * Important: For range filters (Height/Spread/etc), the UI dynamically updates
+     * filter bounds (filter.min/filter.max) based on the currently filtered set.
+     * If the user is at the full current range, the filter should be considered
+     * "inactive" and MUST NOT be sent to the server, otherwise the backend will
+     * interpret it as an active constraint relative to the *global* range.
+     */
+    buildPlantsQueryParams(params) {
+      const cleanedParams = {};
+      for (const [key, value] of Object.entries(params || {})) {
+        if (value === undefined || value === null) {
+          continue;
+        }
+        // Filter out empty arrays to prevent serialization issues
+        if (Array.isArray(value)) {
+          if (value.length > 0) {
+            cleanedParams[key] = value;
+          }
+          continue;
+        }
+        // Omit range filters when at the current bounds (i.e., not active)
+        if (typeof value === "object" && "min" in value && "max" in value) {
+          const filter = this.filters?.find((f) => f.name === key);
+          if (
+            filter &&
+            filter.range &&
+            typeof filter.min === "number" &&
+            typeof filter.max === "number" &&
+            value.min === filter.min &&
+            value.max === filter.max
+          ) {
+            continue;
+          }
+          cleanedParams[key] = value;
+          continue;
+        }
+        cleanedParams[key] = value;
+      }
+      return cleanedParams;
+    },
     setDefaultZipCode() {
       // Set default zip code to 19355 (Malvern, PA)
       this.zipCode = "19355";
@@ -2021,9 +2136,11 @@ export default {
           }
         } else if (filter.range) {
           if (active) {
+            // Use "Height (feet)" icon for both Height and Spread filters
+            const svgName = filter.name === "Spread (feet)" ? "Height (feet)" : filter.name;
             chips.push({
               name: filter.name,
-              svg: filter.name,
+              svg: svgName,
               label: filter.label || filter.name,
               key: filter.name,
             });
@@ -2098,17 +2215,58 @@ export default {
         for (const filter of this.filters) {
           filter.choices = data.choices[filter.name];
         }
-        const height = this.filters.find(
-          (filter) => filter.name === "Height (feet)"
-        );
-        height.min = 0;
-        const heights = data.choices["Height (feet)"];
-        height.max = heights[heights.length - 1];
-        this.filterValues["Height (feet)"].max = height.max;
+        // Suppress filter watcher during initial filter setup
+        this.suppressFilterWatcher = true;
+        try {
+          const height = this.filters.find(
+            (filter) => filter.name === "Height (feet)"
+          );
+          if (height) {
+            height.min = 0;
+            const heights = data.choices["Height (feet)"];
+            if (heights && heights.length > 0) {
+              height.max = heights[heights.length - 1];
+              // Ensure choices array matches the min/max range
+              height.choices = [];
+              for (let i = height.min; i <= height.max; i++) {
+                height.choices.push(i);
+              }
+              // Set filter value to match the filter bounds (full range) so it doesn't appear active
+              this.filterValues["Height (feet)"] = {
+                min: height.min,
+                max: height.max
+              };
+            }
+          }
+          const spread = this.filters.find(
+            (filter) => filter.name === "Spread (feet)"
+          );
+          if (spread) {
+            spread.min = 0;
+            const spreads = data.choices["Spread (feet)"];
+            if (spreads && spreads.length > 0) {
+              spread.max = spreads[spreads.length - 1];
+              // Ensure choices array matches the min/max range
+              spread.choices = [];
+              for (let i = spread.min; i <= spread.max; i++) {
+                spread.choices.push(i);
+              }
+              // Set filter value to match the filter bounds (full range) so it doesn't appear active
+              this.filterValues["Spread (feet)"] = {
+                min: spread.min,
+                max: spread.max
+              };
+            }
+          }
+        } finally {
+          // Keep suppression through the next tick so the deep watcher doesn't
+          // fire after we've already re-enabled it.
+          await this.$nextTick();
+          this.suppressFilterWatcher = false;
+        }
         this.determinedFilterCounts = true;
       }
       this.initializing = false;
-      this.submit();
     },
     imageUrl(result, preview) {
       if (result.hasImage) {
@@ -2283,11 +2441,8 @@ export default {
       return { before, match, after };
     },
     submit() {
-      if (this.loading) {
-        // Prevent race condition
-        setTimeout(this.submit, 500);
-        return;
-      }
+      // Cancel any ongoing "load more" to ensure a clean reset.
+      this.checkingLoadMore = false;
       if (this.submitTimeout) {
         clearTimeout(this.submitTimeout);
         this.submitTimeout = null;
@@ -2296,15 +2451,13 @@ export default {
 
       function submit() {
         // Reset pagination values
-        this.page = 0;
+        this.page = 1; // Start at page 1 (server expects >= 1)
         this.loadedAll = false;
         this.total = 0; // Reset total as well
+        this.checkingLoadMore = false;
 
         // Fetch new data and replace results when it arrives
         this.fetchPage(true);
-        
-        // Restart infinite scroll monitoring
-        this.restartLoadMoreIfNeeded();
         
         // Close filters drawer
         this.filtersOpen = false;
@@ -2347,7 +2500,10 @@ export default {
               resolve();
               return;
             }
-            const response = await fetch("/api/v1/plants?" + qs.stringify(params));
+            const cleanedParams = this.buildPlantsQueryParams(params);
+            const response = await fetch(
+              "/api/v1/plants?" + qs.stringify(cleanedParams, { arrayFormat: "repeat" })
+            );
             const data = await response.json();
             this.filterCounts = data.counts;
           } finally {
@@ -2360,6 +2516,8 @@ export default {
       });
     },
     async fetchPage(replace = false) {
+      const requestId = ++this.fetchRequestId;
+      this.activeFetchRequestId = requestId;
       this.loading = true;
       if (this.favorites && ![...this.$store.state.favorites].length) {
         // Avoid a query that would result in seeing all of the plants
@@ -2369,134 +2527,319 @@ export default {
         }
         this.loadedAll = true;
         this.total = 0;
-        this.loading = false;
+        if (this.activeFetchRequestId === requestId) {
+          this.loading = false;
+        }
         return;
       }
-      const params = this.favorites
-        ? {
-            favorites: [...this.$store.state.favorites],
-            sort: this.sort,
-          }
-        : {
-            ...this.filterValues,
-            sort: this.sort,
-            page: this.page,
-          };
-      // Only include search query if there's an active search (explicitly submitted)
-      // Don't use this.q directly as it changes while typing
-      if (this.activeSearch && this.activeSearch.trim()) {
-        params.q = this.activeSearch;
-        params.semantic = 'true';
-      }
-      if (this.initializing) {
-        // Don't send a bogus query for min 0 max 0
-        delete params["Height (feet)"];
-      }
-      const response = await fetch("/api/v1/plants?" + qs.stringify(params));
-      const data = await response.json();
-      if (!this.favorites) {
-        this.filterCounts = data.counts;
-        for (const filter of this.filters) {
-          filter.choices = data.choices[filter.name];
+      try {
+        // Create a fresh copy of filterValues to ensure we have the latest state
+        const currentFilterValues = { ...this.filterValues };
+        // Ensure sort is always defined - fallback to default if somehow undefined
+        const currentSort = this.sort || "Sort by Recommendation Score";
+        const params = this.favorites
+          ? {
+              favorites: [...this.$store.state.favorites],
+              sort: currentSort,
+            }
+          : {
+              ...currentFilterValues,
+              sort: currentSort,
+              page: this.page,
+            };
+        // Only include search query if there's an active search (explicitly submitted)
+        // Don't use this.q directly as it changes while typing
+        if (this.activeSearch && this.activeSearch.trim()) {
+          params.q = this.activeSearch;
+          params.semantic = "true";
         }
-        // Update height filter min/max based on filtered plants
-        if (data.heightRange && data.heightRange.min !== undefined && data.heightRange.max !== undefined) {
-          const heightFilter = this.filters.find(f => f.name === "Height (feet)");
-          if (heightFilter) {
-            const oldMin = heightFilter.min;
-            const oldMax = heightFilter.max;
-            // Only update if we have a valid range (max >= min) and it's not the default 0-0 (no plants)
-            // Also update if we're initializing (oldMin === oldMax === 0)
-            const isInitializing = oldMin === 0 && oldMax === 0;
-            if (data.heightRange.max >= data.heightRange.min && (data.heightRange.max > 0 || isInitializing)) {
-              heightFilter.min = data.heightRange.min;
-              heightFilter.max = data.heightRange.max;
-              // Update choices to match the available range
-              if (heightFilter.choices && heightFilter.choices.length > 0) {
-                heightFilter.choices = heightFilter.choices.filter(
-                  choice => choice >= data.heightRange.min && choice <= data.heightRange.max
-                );
-              } else {
-                // Generate choices array if not present
+        if (this.initializing) {
+          // Don't send a bogus query for min 0 max 0
+          delete params["Height (feet)"];
+          delete params["Spread (feet)"];
+        }
+        const cleanedParams = this.buildPlantsQueryParams(params);
+        const response = await fetch(
+          "/api/v1/plants?" + qs.stringify(cleanedParams, { arrayFormat: "repeat" })
+        );
+        const data = await response.json();
+
+        // Ignore stale responses (e.g., filter/sort changed mid-flight).
+        if (this.activeFetchRequestId !== requestId) {
+          return;
+        }
+
+        if (!this.favorites) {
+          this.filterCounts = data.counts;
+          for (const filter of this.filters) {
+            filter.choices = data.choices[filter.name];
+          }
+          // Suppress filter watcher to prevent triggering submit() when programmatically updating filter values
+          this.suppressFilterWatcher = true;
+          try {
+          // Update height filter min/max based on filtered plants
+          if (data.heightRange && data.heightRange.min !== undefined && data.heightRange.max !== undefined) {
+            const heightFilter = this.filters.find(f => f.name === "Height (feet)");
+            if (heightFilter) {
+              const oldMin = heightFilter.min;
+              const oldMax = heightFilter.max;
+              // Only update if we have a valid range (max >= min) and it's not the default 0-0 (no plants)
+              // Also update if we're initializing (oldMin === oldMax === 0)
+              const isInitializing = oldMin === 0 && oldMax === 0;
+              if (data.heightRange.max >= data.heightRange.min && (data.heightRange.max > 0 || isInitializing)) {
+                heightFilter.min = data.heightRange.min;
+                heightFilter.max = data.heightRange.max;
+                // Regenerate choices array from min to max to ensure all values are present
                 heightFilter.choices = [];
                 for (let i = data.heightRange.min; i <= data.heightRange.max; i++) {
                   heightFilter.choices.push(i);
                 }
-              }
-              // Adjust filter value if it's outside the new range
-              const currentValue = this.filterValues[heightFilter.name];
-              if (currentValue) {
-                let needsUpdate = false;
-                const newValue = { ...currentValue };
-                if (currentValue.min < data.heightRange.min) {
-                  newValue.min = data.heightRange.min;
-                  needsUpdate = true;
+                // Adjust filter value if it's outside the new range
+                const currentValue = this.filterValues[heightFilter.name];
+                if (currentValue) {
+                  let needsUpdate = false;
+                  const newValue = { ...currentValue };
+                  // Only adjust if the current value is outside the new bounds
+                  if (currentValue.min < data.heightRange.min) {
+                    newValue.min = data.heightRange.min;
+                    needsUpdate = true;
+                  }
+                  if (currentValue.max > data.heightRange.max) {
+                    newValue.max = data.heightRange.max;
+                    needsUpdate = true;
+                  }
+                  // If the current value matches the old bounds (full range), update it to match new bounds
+                  // This ensures the filter stays at full range when bounds change due to other filters
+                  const wasAtFullRange = currentValue.min === oldMin && currentValue.max === oldMax;
+                  if (wasAtFullRange && !isInitializing) {
+                    newValue.min = data.heightRange.min;
+                    newValue.max = data.heightRange.max;
+                    needsUpdate = true;
+                  }
+                  // Only set to full range on true first initialization (oldMin === oldMax === 0)
+                  // AND the current value is at the default (0, 0) - meaning it was never set
+                  if (isInitializing && data.heightRange.max >= data.heightRange.min) {
+                    const isUninitialized = currentValue.min === 0 && currentValue.max === 0;
+                    if (isUninitialized) {
+                      newValue.min = data.heightRange.min;
+                      newValue.max = data.heightRange.max;
+                      needsUpdate = true;
+                    }
+                  }
+                  if (needsUpdate) {
+                    this.filterValues[heightFilter.name] = newValue;
+                  }
+                } else {
+                  // Initialize to full range if no value set (only on true first initialization)
+                  // But only if it's truly uninitialized - if it was set in determineFilterCounts, don't override
+                  if (isInitializing) {
+                    const existingValue = this.filterValues[heightFilter.name];
+                    // Only set if it's still at the default (0, 0) or doesn't exist
+                    if (!existingValue || (existingValue.min === 0 && existingValue.max === 0)) {
+                      this.filterValues[heightFilter.name] = {
+                        min: data.heightRange.min,
+                        max: data.heightRange.max
+                      };
+                    }
+                  }
                 }
-                if (currentValue.max > data.heightRange.max) {
-                  newValue.max = data.heightRange.max;
-                  needsUpdate = true;
-                }
-                // If range was reset (oldMin === oldMax === 0), set to full range
-                if (isInitializing && data.heightRange.max >= data.heightRange.min) {
-                  newValue.min = data.heightRange.min;
-                  newValue.max = data.heightRange.max;
-                  needsUpdate = true;
-                }
-                if (needsUpdate) {
-                  this.filterValues[heightFilter.name] = newValue;
-                }
-              } else {
-                // Initialize to full range if no value set
-                this.filterValues[heightFilter.name] = {
-                  min: data.heightRange.min,
-                  max: data.heightRange.max
-                };
               }
             }
           }
-        }
-      }
-      if (!data.results.length || this.favorites) {
-        this.loadedAll = true;
-      }
-      if (replace) {
-        this.results = data.results;
-      } else {
-        // Prevent duplicate plants by checking if they already exist in the results array
-        data.results.forEach((datum) => {
-          if (!this.results.some((existing) => existing._id === datum._id)) {
-            this.results.push(datum);
+          // Update spread filter min/max based on filtered plants
+          if (data.spreadRange && data.spreadRange.min !== undefined && data.spreadRange.max !== undefined) {
+            const spreadFilter = this.filters.find(f => f.name === "Spread (feet)");
+            if (spreadFilter) {
+              const oldMin = spreadFilter.min;
+              const oldMax = spreadFilter.max;
+              // Only update if we have a valid range (max >= min) and it's not the default 0-0 (no plants)
+              // Also update if we're initializing (oldMin === oldMax === 0)
+              const isInitializing = oldMin === 0 && oldMax === 0;
+              if (data.spreadRange.max >= data.spreadRange.min && (data.spreadRange.max > 0 || isInitializing)) {
+                spreadFilter.min = data.spreadRange.min;
+                spreadFilter.max = data.spreadRange.max;
+                // Regenerate choices array from 0 to max to ensure all values are present
+                // The Range component's labelListStyle uses the value directly, so we need all values from 0 to max
+                spreadFilter.choices = [];
+                for (let i = 0; i <= data.spreadRange.max; i++) {
+                  spreadFilter.choices.push(i);
+                }
+                // Ensure max matches the last choice in the array
+                if (spreadFilter.choices.length > 0) {
+                  spreadFilter.max = spreadFilter.choices[spreadFilter.choices.length - 1];
+                }
+                // Adjust filter value if it's outside the new range
+                const currentValue = this.filterValues[spreadFilter.name];
+                if (currentValue) {
+                  let needsUpdate = false;
+                  const newValue = { ...currentValue };
+                  // Only adjust if the current value is outside the new bounds
+                  if (currentValue.min < data.spreadRange.min) {
+                    newValue.min = data.spreadRange.min;
+                    needsUpdate = true;
+                  }
+                  if (currentValue.max > data.spreadRange.max) {
+                    newValue.max = data.spreadRange.max;
+                    needsUpdate = true;
+                  }
+                  // If the current value matches the old bounds (full range), update it to match new bounds
+                  // This ensures the filter stays at full range when bounds change due to other filters
+                  const wasAtFullRange = currentValue.min === oldMin && currentValue.max === oldMax;
+                  if (wasAtFullRange && !isInitializing) {
+                    newValue.min = data.spreadRange.min;
+                    newValue.max = data.spreadRange.max;
+                    needsUpdate = true;
+                  }
+                  // Only set to full range on true first initialization (oldMin === oldMax === 0)
+                  // AND the current value is at the default (0, 0) - meaning it was never set
+                  if (isInitializing && data.spreadRange.max >= data.spreadRange.min) {
+                    const isUninitialized = currentValue.min === 0 && currentValue.max === 0;
+                    if (isUninitialized) {
+                      newValue.min = data.spreadRange.min;
+                      newValue.max = data.spreadRange.max;
+                      needsUpdate = true;
+                    }
+                  }
+                  if (needsUpdate) {
+                    this.filterValues[spreadFilter.name] = newValue;
+                  }
+                } else {
+                  // Initialize to full range if no value set (only on true first initialization)
+                  // But only if it's truly uninitialized - if it was set in determineFilterCounts, don't override
+                  if (isInitializing) {
+                    const existingValue = this.filterValues[spreadFilter.name];
+                    // Only set if it's still at the default (0, 0) or doesn't exist
+                    if (!existingValue || (existingValue.min === 0 && existingValue.max === 0)) {
+                      this.filterValues[spreadFilter.name] = {
+                        min: data.spreadRange.min,
+                        max: data.spreadRange.max
+                      };
+                    }
+                  }
+                }
+              }
+            }
           }
-        });
+        } finally {
+          // Keep suppression through the next tick so the deep watcher doesn't
+          // fire after we've already re-enabled it.
+          await this.$nextTick();
+          this.suppressFilterWatcher = false;
+        }
       }
-      this.total = data.total;
-      this.loading = false;
+        if (!data.results.length || this.favorites) {
+          this.loadedAll = true;
+        }
+
+        if (replace) {
+          this.results = data.results;
+        } else {
+          // Prevent duplicate plants by checking if they already exist in the results array
+          const existingIds = new Set(this.results.map((r) => r._id));
+          for (const datum of data.results) {
+            if (!existingIds.has(datum._id)) {
+              this.results.push(datum);
+              existingIds.add(datum._id);
+            }
+          }
+        }
+
+        this.total = data.total;
+
+        // If the sentinel is already in/near view (short result sets, or user at bottom),
+        // keep loading additional pages.
+        this.scheduleMaybeLoadMore("post-fetch");
+      } catch (error) {
+        if (this.activeFetchRequestId === requestId) {
+          console.error("Error fetching plants:", error);
+        }
+      } finally {
+        if (this.activeFetchRequestId === requestId) {
+          this.loading = false;
+        }
+      }
     },
-    async restartLoadMoreIfNeeded() {
-      if (this.loadTimeout) {
-        clearTimeout(this.loadTimeout);
+
+    setupInfiniteScroll() {
+      if (typeof window === "undefined") return;
+      if (this.favorites) return;
+
+      this.teardownInfiniteScroll();
+
+      const sentinel = this.$refs.next;
+      if (!sentinel) return;
+
+      // Always attach a scroll/resize handler. In some layouts the observer can be
+      // delayed; this also covers browsers where IO is flaky.
+      this.scrollFallbackHandler = () => {
+        this.scheduleMaybeLoadMore("scroll");
+      };
+      window.addEventListener("scroll", this.scrollFallbackHandler, { passive: true });
+      window.addEventListener("resize", this.scrollFallbackHandler, { passive: true });
+
+      if ("IntersectionObserver" in window) {
+        this.infiniteObserver = new IntersectionObserver(
+          (entries) => {
+            if (entries.some((e) => e.isIntersecting)) {
+              this.maybeLoadMore("observer");
+            }
+          },
+          { root: null, rootMargin: "2000px 0px", threshold: 0 }
+        );
+        this.infiniteObserver.observe(sentinel);
       }
-      this.loadTimeout = setTimeout(loadMoreIfNeeded.bind(this), 500);
-      async function loadMoreIfNeeded() {
-        if (typeof window === "undefined") {
-          // server side, not appropriate
-          return;
+
+      // If we're already near the bottom (or results are short), kick off a load.
+      this.scheduleMaybeLoadMore("setup");
+    },
+
+    teardownInfiniteScroll() {
+      if (this.infiniteObserver) {
+        this.infiniteObserver.disconnect();
+        this.infiniteObserver = null;
+      }
+      if (this.scrollFallbackHandler && typeof window !== "undefined") {
+        window.removeEventListener("scroll", this.scrollFallbackHandler);
+        window.removeEventListener("resize", this.scrollFallbackHandler);
+        this.scrollFallbackHandler = null;
+      }
+    },
+
+    scheduleMaybeLoadMore() {
+      if (typeof window === "undefined") return;
+      if (this.favorites) return;
+      if (this.maybeLoadMoreRaf) {
+        cancelAnimationFrame(this.maybeLoadMoreRaf);
+      }
+      this.maybeLoadMoreRaf = requestAnimationFrame(() => {
+        this.maybeLoadMoreRaf = null;
+        if (this.isNextSentinelNearViewport()) {
+          this.maybeLoadMore("sentinel-near");
         }
-        if (!this.$el.closest("body")) {
-          // Component unmounted, don't waste energy
-          return;
-        }
-        // Stay a full screen ahead
-        if (
-          !this.loadedAll &&
-          !this.loading &&
-          window.scrollY + window.innerHeight * 3 > document.body.clientHeight
-        ) {
-          // this.$refs.afterTable.getBoundingClientRect().top)) {
-          this.page++;
-          await this.fetchPage();
-        }
-        this.loadTimeout = setTimeout(loadMoreIfNeeded.bind(this), 500);
+      });
+    },
+
+    isNextSentinelNearViewport(pixels = 2000) {
+      if (typeof window === "undefined") return false;
+      const sentinel = this.$refs.next;
+      if (!sentinel || typeof sentinel.getBoundingClientRect !== "function") return false;
+      const rect = sentinel.getBoundingClientRect();
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+      return rect.top <= viewportHeight + pixels;
+    },
+
+    async maybeLoadMore() {
+      if (typeof window === "undefined") return;
+      if (this.favorites) return;
+      if (this.loadedAll || this.loading) return;
+      if (this.checkingLoadMore) return;
+
+      this.checkingLoadMore = true;
+      try {
+        this.page += 1;
+        await this.fetchPage(false);
+      } finally {
+        this.checkingLoadMore = false;
       }
     },
     findKeywordForFilterValue(filterName, filterValue) {
@@ -2677,12 +3020,31 @@ export default {
           this.filterValues[chip.name] = currentValues.filter(
             (value) => value !== chip.label
           );
+        } else if (filter && filter.range) {
+          // For range filters, set to match the current filter bounds (full range)
+          // This ensures the filter is not active after removing the chip
+          this.filterValues[chip.name] = {
+            min: filter.min,
+            max: filter.max
+          };
         } else if (filter) {
           this.filterValues[chip.name] = filter.default;
         }
         
         // Don't clear activeSearch when removing filter chips
         // This allows semantic search to continue working with remaining filters
+        
+        // If activeSearch is empty or doesn't have meaningful content, and we're sorting by Search Relevance,
+        // switch back to the previous sort to ensure proper sorting when filters are removed
+        if ((!this.activeSearch || !this.activeSearch.trim() || !this.getRemainingQueryText(this.activeSearch).trim()) && 
+            this.sort === "Sort by Search Relevance") {
+          if (this.previousSort) {
+            this.sort = this.previousSort;
+          } else {
+            // Fallback to default sort if previousSort is not set
+            this.sort = "Sort by Recommendation Score";
+          }
+        }
         
         // The filterValues watcher will trigger, but ensure submit happens
         // Use $nextTick to ensure the watcher has processed the change
@@ -2694,11 +3056,29 @@ export default {
     },
     clearAll() {
       for (const filter of this.filters) {
-        this.filterValues[filter.name] = filter.default;
+        if (filter.range) {
+          // For range filters, set to match the current filter bounds (full range)
+          // This ensures the filter is not active after clearAll
+          this.filterValues[filter.name] = {
+            min: filter.min,
+            max: filter.max
+          };
+        } else {
+          this.filterValues[filter.name] = filter.default;
+        }
       }
       this.q = "";
       this.activeSearch = "";
       this.hasExtractedFilters = false;
+      // If we're sorting by Search Relevance but there's no active search, switch back to previous sort
+      if (this.sort === "Sort by Search Relevance") {
+        if (this.previousSort) {
+          this.sort = this.previousSort;
+        } else {
+          // Fallback to default sort if previousSort is not set
+          this.sort = "Sort by Recommendation Score";
+        }
+      }
       // Close sort dropdown if it's open
       if (this.sortIsOpen) {
         this.sortIsOpen = false;
@@ -3215,6 +3595,13 @@ th {
   grid-template-columns: repeat(auto-fit, minmax(248px, 1fr));
   gap: 8px;
   align-content: start;
+}
+
+.infinite-scroll-sentinel {
+  /* Keep sentinel at the end of the results grid without affecting layout */
+  grid-column: 1 / -1;
+  height: 1px;
+  width: 100%;
 }
 .plant-preview-wrapper {
   position: relative;
