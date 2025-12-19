@@ -18,12 +18,6 @@
                 <span v-else>Set Location</span>
               </button>
             </div>
-            <div class="helper-text" v-if="displayLocation">
-              Find native plants for your yard in <strong>{{ displayLocation }}</strong>. Filter by sun, soil, size, and maintenance.
-            </div>
-            <div class="helper-text" v-else>
-              Find native plants for your yard. Filter by sun, soil, size, and maintenance.
-            </div>
           </div>
         </div>
       </template>

@@ -1,27 +1,21 @@
 <template>
   <Page
     slug="/people-page"
-    title="People Page"
+    title="About"
     h1="About us and the project"
   >
     <p>
-      Many of us came together in April 2021, to join Zach Leahan in this
-      Code for Philly Project. Some of us joined on a little later on, but
-      whether here for a short time or a long time or somewhere in between, we
-      were all on fire to get this built in order to help gardeners from
-      novice to expert find native plants to put into their gardens. For many
-      of us, it is an app we had always wanted, for others, it was a chance to
-      learn a lot about native plants. The project’s original name was the
-      PA-Wildflower Selector. This initial idea that began with Zachary
-      creating a Tableau project to utilize a database he had found, morphed
-      over many months into the responsive web application you find here
-      today.
+      We came together in April 2021 to join Zach Leahan in this Code for Philly project, 
+      building a tool to help gardeners find native plants for their gardens. What began 
+      as a Tableau project using a discovered database evolved into the responsive web 
+      application you see today.
     </p>
     <menu>
       <li><a href="#the-team">The team</a></li>
-      <li><a href="#the-tools">The tools</a></li>
-      <li><a href="#the-method">The method</a></li>
-      <li><a href="#acknowledgements">Acknowledgements</a></li>
+      <li><a href="#the-purpose">The purpose</a></li>
+      <li><a href="#the-context">The context</a></li>
+      <li><a href="#the-directions">The directions</a></li>
+      <li><a href="#the-terms">The terms</a></li>
     </menu>
     <div class="tone">
       <div class="carrier-wave">
@@ -32,10 +26,8 @@
           <h3 id="the-team">The team</h3>
           <div>
             <p>
-              The team consisted of 3 UX Designers fresh from bootcamp/flex programs,
-              a seasoned developer, a new developer, a technical CPA, and a data
-              engineer. So many varied backgrounds and side interests in this bunch.
-              What a great team to work with.
+              Our diverse team includes UX designers, developers, and data specialists 
+              with varied backgrounds and shared passion for native plants.
             </p>
           </div>
         </div>
@@ -136,72 +128,98 @@
           </Person>
         </section>
       </article>
-      <article>
-        <h3 id="the-tools">The tools</h3>
-        <p>
-          Here is a short list of the tools used to keep us organized and get
-          things going.
-        </p>
-        <ul>
-          <li>Notion</li>
-          <li>Figma</li>
-          <li>Slack</li>
-          <li>Maze</li>
-          <li>Github</li>
-          <li>Javascript</li>
-          <li>Vue</li>
-          <li>Node.js</li>
-          <li>MongoDB</li>
-        </ul>
-      </article>
       <div class="carrier-wave">
         <img src="/assets/images/wave-bottom-dark.png" class="wave" />
       </div>
     </div>
-    <article>
-      <div>
-        <h3 id="the-method">The method</h3>
-        <ul>
-          <li>We began meeting April 12, 2021</li>
-          <li>Many discussions and sketches ensued</li>
-          <li>
-            A Survey was created and sent out to many Facebook groups an
-            subreddits to help define what functionality would be included in the
-            MVP
-          </li>
-          <li>
-            An analysis of the data was completed and functionality was determined
-          </li>
-          <li>Wireframes were crafted in Figma</li>
-          <li>
-            A competitive analysis was completed and existing plant finders were
-            analyzed
-          </li>
-          <li>The database was discussed and explained</li>
-          <li>A style guide was decided upon</li>
-          <li>A high fidelity prototype was completed</li>
-          <li>
-            A Maze test was completed by testers from the facebook groups and
-            subreddits
-          </li>
-          <li>Many iterations of hi-fi prototype design were completed</li>
-          <li>The responsive mobile-first website design was coded</li>
-          <li>
-            The project was launched on May 7th, 2022 in time for Spring planting
-            season in Pennsylvania.
-          </li>
-        </ul>
+    <div class="tone light">
+      <div class="carrier-wave">
+        <img src="/assets/images/wave-top-light.png" class="wave" />
       </div>
-    </article>
-    <article>
-      <div id="acknowledgements">
-        <h3>Acknowledgements</h3>
+      <article>
+        <div class="facing">
+          <h3 id="the-purpose">The purpose</h3>
+          <div>
+            <p>
+              This site helps gardeners of all experience levels find PA native plants 
+              for their gardens and discover which nurseries carry them or where to 
+              purchase them online.
+            </p>
+          </div>
+        </div>
+      </article>
+      <article>
+        <div class="facing">
+          <h3 id="the-context">The context</h3>
+          <p>
+            This is a <a href="https://codeforphilly.org/projects/pa_wildflower_selector" target="_blank">Code for Philly Project</a>, 
+            an open source application under a GPL license. Source code is available on 
+            <a href="https://github.com/CodeForPhilly/pa-wildflower-selector" target="_blank">GitHub</a>.
+          </p>
+          <p>
+            The database is based on Mark Skinner's USDA database: United States Department 
+            of Agriculture and US Federal Highway Administration. 2017. 
+            <a href="http://www.nativerevegetation.org/era/">National database</a> for 
+            pollinator-friendly revegetation and restoration. Compiled by Mark W. Skinner, 
+            Gretchen LeBuhn, David Inouye, Terry Griswold, and Jennifer Hopwood. Contact 
+            <a href="mailto:mwskinner55@gmail.com">Mark W. Skinner</a> for updates. 
+            Raw plant data is available in our 
+            <a href="https://docs.google.com/spreadsheets/d/1R_zhN3GUxhDEMlGFMhcPB_gAoaE9IoyWi10I_nM9f3o/edit?gid=1957761759" target="_blank">Google Sheets database</a>.
+          </p>
+        </div>
+      </article>
+      <article>
+        <h3 id="the-directions">The directions</h3>
+        <h4>Using filters</h4>
         <ul>
-          <li>Some icons by <a href="https://www.svgrepo.com">svgrepo</a></li>
-          <li>Some icons by <a href="https://www.freepik.com">Freepik</a></li>
-          <li>Some icons by <a href="https://www.flaticon.com">Flaticon</a></li>
+          <li>Tap the orange filter button to open the filter drawer</li>
+          <li>Browse filter options: life cycle, plant type, sun exposure, water needs, pollinator attractors, color, availability, height, and bloom month</li>
+          <li>"Super Plants" are popular and highly recommended in local gardening circles</li>
+          <li>Tap Apply to filter results, then use Sort By to organize by Common or Scientific Name</li>
+          <li>Hover (desktop) or long press (mobile) on "i" tooltips for term explanations</li>
         </ul>
+        <h4>Favoriting and viewing plants</h4>
+        <ul>
+          <li>Tap the heart icon on any plant to add it to favorites (filled heart = favorited, outlined = not favorited)</li>
+          <li>View your favorites page via the favorites button, where you can sort by height, color, or name</li>
+          <li>Tap "more info" on any plant card to see a larger image, description, and detailed characteristics</li>
+        </ul>
+        <h4>Finding plants</h4>
+        <ul>
+          <li>Visit the Nurseries page (hamburger menu) to find nurseries that carry native species</li>
+          <li>Contact information and websites are listed for each nursery; some offer online ordering</li>
+        </ul>
+        <h4>Contact us</h4>
+        <p>
+          <a href="mailto:contact@choosenativeplants.com">contact@choosenativeplants.com</a>
+        </p>
+      </article>
+      <div class="carrier-wave">
+        <img src="/assets/images/wave-bottom-light.png" class="wave" />
       </div>
+    </div>
+    <article>
+      <h3 id="the-terms">The terms</h3>
+      <p>
+        By using this website, you agree to the terms below. This site and its data 
+        are maintained by volunteers and offered "as is" with no warranty of completeness 
+        or accuracy. Data should not be cited in scholarly publications. We are not 
+        accountable for errors or omissions.
+      </p>
+      <p>
+        Do not rely on this site for edibility or medicinal information. Consult medical 
+        professionals before ingesting or applying any plants.
+      </p>
+      <p>
+        Bot scraping is not permitted. Contact us for the dataset. Source code is available 
+        on <a href="https://github.com/CodeForPhilly/pa-wildflower-selector">GitHub</a> under 
+        a GPL license, meaning any enhancements must also be open source.
+      </p>
+      <p>
+        Favorites are stored only in your browser's local storage. No session tracking or 
+        cookies are used. We are not responsible for offensive content that may appear.
+      </p>
+      <p>© 2025 Choose Native Plants - USA</p>
     </article>
     <Up />
     <div class="tone">

@@ -19,9 +19,8 @@
           <span class="regular-links">
             <router-link to="/">Home</router-link>
             <router-link to="/favorites">Favorites</router-link>
-            <router-link to="/people-page">People Page</router-link>
-            <router-link to="/how-to-use">How to Use</router-link>
             <router-link to="/map">Nurseries</router-link>
+            <router-link to="/people-page">About</router-link>
           </span>
           <div class="copyright">© 2025 Choose Native Plants - USA</div>
         </menu>
