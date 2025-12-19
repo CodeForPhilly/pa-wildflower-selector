@@ -645,7 +645,7 @@ export default {
       {
         name: "Height (feet)",
         range: true,
-        double: false,
+        double: true,
         choices: [],
         min: 0,
         max: 0,
@@ -2398,6 +2398,62 @@ export default {
         this.filterCounts = data.counts;
         for (const filter of this.filters) {
           filter.choices = data.choices[filter.name];
+        }
+        // Update height filter min/max based on filtered plants
+        if (data.heightRange && data.heightRange.min !== undefined && data.heightRange.max !== undefined) {
+          const heightFilter = this.filters.find(f => f.name === "Height (feet)");
+          if (heightFilter) {
+            const oldMin = heightFilter.min;
+            const oldMax = heightFilter.max;
+            // Only update if we have a valid range (max >= min) and it's not the default 0-0 (no plants)
+            // Also update if we're initializing (oldMin === oldMax === 0)
+            const isInitializing = oldMin === 0 && oldMax === 0;
+            if (data.heightRange.max >= data.heightRange.min && (data.heightRange.max > 0 || isInitializing)) {
+              heightFilter.min = data.heightRange.min;
+              heightFilter.max = data.heightRange.max;
+              // Update choices to match the available range
+              if (heightFilter.choices && heightFilter.choices.length > 0) {
+                heightFilter.choices = heightFilter.choices.filter(
+                  choice => choice >= data.heightRange.min && choice <= data.heightRange.max
+                );
+              } else {
+                // Generate choices array if not present
+                heightFilter.choices = [];
+                for (let i = data.heightRange.min; i <= data.heightRange.max; i++) {
+                  heightFilter.choices.push(i);
+                }
+              }
+              // Adjust filter value if it's outside the new range
+              const currentValue = this.filterValues[heightFilter.name];
+              if (currentValue) {
+                let needsUpdate = false;
+                const newValue = { ...currentValue };
+                if (currentValue.min < data.heightRange.min) {
+                  newValue.min = data.heightRange.min;
+                  needsUpdate = true;
+                }
+                if (currentValue.max > data.heightRange.max) {
+                  newValue.max = data.heightRange.max;
+                  needsUpdate = true;
+                }
+                // If range was reset (oldMin === oldMax === 0), set to full range
+                if (isInitializing && data.heightRange.max >= data.heightRange.min) {
+                  newValue.min = data.heightRange.min;
+                  newValue.max = data.heightRange.max;
+                  needsUpdate = true;
+                }
+                if (needsUpdate) {
+                  this.filterValues[heightFilter.name] = newValue;
+                }
+              } else {
+                // Initialize to full range if no value set
+                this.filterValues[heightFilter.name] = {
+                  min: data.heightRange.min,
+                  max: data.heightRange.max
+                };
+              }
+            }
+          }
         }
       }
       if (!data.results.length || this.favorites) {
