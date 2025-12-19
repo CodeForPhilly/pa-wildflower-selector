@@ -1,6 +1,5 @@
 import Explorer from "../components/Explorer.vue";
 import PeoplePage from "../components/PeoplePage.vue";
-import HowToUsePage from "../components/HowToUsePage.vue";
 import Map from "../components/Map.vue";
 import GardenPlanner from "../components/GardenPlanner.vue";
 import { createRouter } from "vue-router";
@@ -25,13 +24,8 @@ const routes = [
   },
   {
     path: "/people-page",
-    name: "People Page",
+    name: "About",
     component: PeoplePage
-  },
-  {
-    path: "/how-to-use",
-    name: "How to Use",
-    component: HowToUsePage
   },
   {
     path: "/map",
