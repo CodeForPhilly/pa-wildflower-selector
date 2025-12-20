@@ -244,9 +244,21 @@
                 :disabled="!favoritesAvailable"
                 v-if="!favorites"
                 @click="favoritesAvailable && $router.push('/favorites')"
+                :aria-label="
+                  favoritesCount > 0
+                    ? 'Favorites (' + displayFavoritesCount + ')'
+                    : 'Favorites'
+                "
               >
                 <span class="material-icons material-align">favorite</span
                 ><span class="favorites-label">&nbsp;Favorites</span>
+                <span
+                  v-if="favoritesCount > 0"
+                  class="favorites-count-badge"
+                  aria-hidden="true"
+                >
+                  {{ displayFavoritesCount }}
+                </span>
               </button>
               <div class="sort">
                 <button @click.stop="toggleSort" :class="sortButtonClasses">
@@ -902,7 +914,14 @@ export default {
       return this.selected["Online Stores"];
     },
     favoritesAvailable() {
-      return !![...this.$store.state.favorites].length;
+      return this.favoritesCount > 0;
+    },
+    favoritesCount() {
+      // Favorites are stored as a Set in Vuex; convert to an array for stable, reactive length tracking.
+      return [...this.$store.state.favorites].length;
+    },
+    displayFavoritesCount() {
+      return this.favoritesCount > 99 ? "99+" : String(this.favoritesCount);
     },
     currentMonthLabel() {
       const questionDetail = this.questionDetails.find(
@@ -3524,6 +3543,33 @@ button.favorites {
   flex-basis: 0;
   flex-grow: 0;
   margin-right: 24px;
+  position: relative;
+}
+
+button.favorites .favorites-count-badge {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  transform: none;
+  background: #B74D15;
+  color: #fff;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  font-family: Roboto, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  padding: 0 6px;
+  line-height: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  box-shadow:
+    0 0 0 2px #fcf9f4,
+    0 1px 2px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
 }
 
 button.favorites[disabled], button.copy-button[disabled] {
@@ -4254,6 +4300,11 @@ th {
   }
   button.favorites .favorites-label {
     display: inline;
+  }
+  button.favorites .favorites-count-badge {
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
   }
   .two-up.large-help {
     display: flex;
