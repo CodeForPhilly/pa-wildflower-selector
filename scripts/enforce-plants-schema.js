@@ -22,17 +22,22 @@ const {
   MONGODB_LOCAL_PORT,
   // Traditional environment variables
   DB_HOST,
-  DB_PORT = 27017,
+  DB_PORT,
   DB_NAME = "pa-wildflower-selector",
   DB_USER,
   DB_PASSWORD,
 } = process.env;
 
 const host = DB_HOST === "localhost" ? "localhost" : DB_HOST || "mongodb";
+function toPort(v) {
+  if (v === undefined || v === null || v === "") return null;
+  const n = parseInt(String(v), 10);
+  return Number.isFinite(n) ? n : null;
+}
 const port =
   host === "localhost"
-    ? (DB_PORT || MONGODB_LOCAL_PORT || 27017)
-    : (MONGODB_DOCKER_PORT || DB_PORT || 27017);
+    ? (toPort(DB_PORT) ?? toPort(MONGODB_LOCAL_PORT) ?? 27017)
+    : (toPort(MONGODB_DOCKER_PORT) ?? toPort(DB_PORT) ?? 27017);
 
 const dbName = MONGODB_DATABASE || DB_NAME;
 const user = MONGODB_USER || DB_USER;
