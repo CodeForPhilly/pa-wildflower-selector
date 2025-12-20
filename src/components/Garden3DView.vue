@@ -1,10 +1,5 @@
 <template>
   <div class="garden-3d" ref="rootRef">
-    <div class="debug-info" style="position: absolute; top: 60px; left: 20px; background: rgba(0,0,0,0.8); color: white; padding: 10px; z-index: 1002; font-family: monospace; font-size: 12px;">
-      3D View Loaded<br>
-      Plants: {{ placedPlants.length }}<br>
-      Grid: {{ gridWidth }}x{{ gridHeight }}
-    </div>
     <div class="overlay-top">
       <button class="overlay-button" type="button" @click="$emit('close')" aria-label="Close 3D view">
         Close
@@ -14,6 +9,15 @@
       </button>
       <div class="overlay-legend" aria-hidden="true">
         Footprint = spread, Height = "Height (feet)"
+      </div>
+      
+      <!-- Color Legend -->
+      <div class="color-legend" v-if="familyColors.length > 0">
+        <div class="legend-title">Plant Families:</div>
+        <div v-for="family in familyColors" :key="family.name" class="legend-item">
+          <div class="color-swatch" :style="{ backgroundColor: family.hexColor }"></div>
+          <span class="family-name">{{ family.name }}</span>
+        </div>
       </div>
     </div>
 
@@ -117,8 +121,42 @@ const selectedImageSrc = computed(() => {
 
 const instanceCount = computed(() => props.placedPlants.length);
 
+// Create a legend of plant family colors
+const familyColors = computed(() => {
+  const families = new Set<string>();
+  props.placedPlants.forEach(placed => {
+    const plant = props.plantById[placed.plantId];
+    const family = plant && typeof plant['Plant Family'] === 'string' ? plant['Plant Family'] : 'Unknown';
+    families.add(family);
+  });
+  
+  return Array.from(families).map(family => {
+    const color = hashToColor(family);
+    return {
+      name: family,
+      hexColor: `#${color.getHexString()}`
+    };
+  });
+});
+
 const parseFeet = (v: unknown): number | null => {
-  const n = parseFloat(String(v));
+  if (v === null || v === undefined) return null;
+  const str = String(v).trim();
+  if (str === '' || str === 'null' || str === 'undefined') return null;
+  
+  // Handle ranges like "2-4" -> take average
+  if (str.includes('-')) {
+    const parts = str.split('-');
+    if (parts.length === 2) {
+      const min = parseFloat(parts[0]);
+      const max = parseFloat(parts[1]);
+      if (Number.isFinite(min) && Number.isFinite(max)) {
+        return (min + max) / 2;
+      }
+    }
+  }
+  
+  const n = parseFloat(str);
   return Number.isFinite(n) && n >= 0 ? n : null;
 };
 
@@ -132,10 +170,24 @@ const initThreeJS = () => {
   scene = new THREE.Scene();
   scene.background = new THREE.Color('#87ceeb');
 
-  // Camera
+  // Camera - positioned based on garden size and plant heights
+  const maxHeight = Math.max(...props.placedPlants.map(placed => {
+    const plant = props.plantById[placed.plantId];
+    const heightFeetRaw = plant ? plant['Height (feet)'] : null;
+    return parseFeet(heightFeetRaw) ?? 1;
+  }));
+  
+  const avgHeight = maxHeight > 0 ? maxHeight : 3;
+  const cameraHeight = Math.max(15, avgHeight * 2 + 10); // Ensure camera is well above tallest plants
+  const cameraDistance = Math.max(props.gridWidth, props.gridHeight) * 0.8;
+  
   camera = new THREE.PerspectiveCamera(50, rect.width / rect.height, 0.1, 1000);
-  camera.position.set(20, 20, 20);
-  camera.lookAt(props.gridWidth / 2, 0, props.gridHeight / 2);
+  camera.position.set(
+    props.gridWidth / 2 + cameraDistance,
+    cameraHeight,
+    props.gridHeight / 2 + cameraDistance
+  );
+  camera.lookAt(props.gridWidth / 2, avgHeight / 2, props.gridHeight / 2);
 
   // Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -153,12 +205,6 @@ const initThreeJS = () => {
   directionalLight.castShadow = true;
   scene.add(directionalLight);
 
-  // Test red cube
-  const cubeGeometry = new THREE.BoxGeometry(2, 2, 2);
-  const cubeMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-  const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-  cube.position.set(0, 1, 0);
-  scene.add(cube);
 
   // Ground
   const groundGeometry = new THREE.PlaneGeometry(props.gridWidth, props.gridHeight);
@@ -195,14 +241,14 @@ const initThreeJS = () => {
 const addPlants = () => {
   if (!scene) return;
 
-  const cylinderGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 12);
+  const cylinderGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 12, 1, false);
   
   props.placedPlants.forEach((placed) => {
     const plant = props.plantById[placed.plantId];
     const spreadFeet = placed.width;
     const heightFeetRaw = plant ? plant['Height (feet)'] : null;
     const heightFeet = parseFeet(heightFeetRaw) ?? 1;
-    const cappedHeight = Math.min(Math.max(heightFeet, 0.1), 25);
+    const cappedHeight = Math.max(heightFeet, 0.1);
 
     // Center of footprint
     const x = placed.x + placed.width / 2;
@@ -210,16 +256,165 @@ const addPlants = () => {
     const y = cappedHeight / 2;
 
     const family = plant && typeof plant['Plant Family'] === 'string' ? plant['Plant Family'] : 'Unknown';
-    const color = hashToColor(String(family || 'Unknown'));
+    const fallbackColor = hashToColor(String(family || 'Unknown'));
     
-    const material = new THREE.MeshStandardMaterial({ color });
-    const mesh = new THREE.Mesh(cylinderGeometry, material);
+    // Create plant cylinder with image texture
+    if (plant && props.imageUrl) {
+      createPlantWithTexture(plant, cylinderGeometry, x, y, z, spreadFeet, cappedHeight, placed, fallbackColor);
+    } else {
+      // Fallback to colored cylinder
+      const material = new THREE.MeshStandardMaterial({ 
+        color: fallbackColor,
+        roughness: 0.7,
+        metalness: 0.1
+      });
+      const mesh = new THREE.Mesh(cylinderGeometry, material);
+      mesh.position.set(x, y, z);
+      mesh.scale.set(spreadFeet, cappedHeight, spreadFeet);
+      mesh.userData = { plantId: placed.plantId, placedId: placed.id };
+      scene!.add(mesh);
+    }
+
+    // Add text label above the plant
+    const commonName = (plant && plant['Common Name']) || placed.plantId;
+    const shortName = commonName.length > 20 ? commonName.substring(0, 17) + '...' : commonName;
     
-    mesh.position.set(x, y, z);
-    mesh.scale.set(spreadFeet, cappedHeight, spreadFeet);
-    
-    scene!.add(mesh);
+    addTextLabel(shortName, x, cappedHeight + 1, z);
   });
+};
+
+const createPlantWithTexture = (
+  plant: any, 
+  geometry: THREE.CylinderGeometry, 
+  x: number, 
+  y: number, 
+  z: number, 
+  spreadFeet: number, 
+  cappedHeight: number, 
+  placed: any, 
+  fallbackColor: THREE.Color
+) => {
+  if (!scene || !props.imageUrl) return;
+
+  const imageUrl = props.imageUrl(plant, false); // Get full-size image
+  
+  // Create texture loader with CORS support
+  const textureLoader = new THREE.TextureLoader();
+  
+  // Load the plant image with error handling
+  textureLoader.setCrossOrigin('anonymous');
+  textureLoader.load(
+    imageUrl,
+    (texture) => {
+      // Success: Create cylinder with plant image texture
+      console.log(`Loaded texture for ${plant['Common Name']}`);
+      
+      // Configure texture for better appearance
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.ClampToEdgeWrapping;
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      
+      // Calculate texture repeat based on plant size
+      const circumference = 2 * Math.PI * 0.5; // cylinder radius = 0.5
+      const repeatX = Math.max(2, Math.round(circumference * spreadFeet)); 
+      texture.repeat.set(repeatX, 1);
+      
+      // Create materials for different cylinder faces
+      const materials = [
+        // Cylinder sides - wrapped with plant image
+        new THREE.MeshStandardMaterial({
+          map: texture,
+          roughness: 0.5,
+          metalness: 0.0,
+          transparent: false,
+          side: THREE.FrontSide
+        }),
+        // Top cap - plant image viewed from above
+        new THREE.MeshStandardMaterial({
+          map: texture.clone(),
+          roughness: 0.5,
+          metalness: 0.0,
+          transparent: false
+        }),
+        // Bottom cap - solid family color
+        new THREE.MeshStandardMaterial({
+          color: fallbackColor,
+          roughness: 0.8,
+          metalness: 0.1
+        })
+      ];
+      
+      // Configure top texture to show full plant image
+      const topTexture = materials[1].map!;
+      topTexture.repeat.set(1.5, 1.5);
+      topTexture.center.set(0.5, 0.5);
+      topTexture.wrapS = THREE.ClampToEdgeWrapping;
+      topTexture.wrapT = THREE.ClampToEdgeWrapping;
+      
+      // Create the textured mesh
+      const mesh = new THREE.Mesh(geometry, materials);
+      mesh.position.set(x, y, z);
+      mesh.scale.set(spreadFeet, cappedHeight, spreadFeet);
+      mesh.userData = { plantId: placed.plantId, placedId: placed.id };
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      
+      scene!.add(mesh);
+    },
+    undefined,
+    (error) => {
+      // Error loading texture: fallback to solid color
+      console.warn(`Failed to load plant image for ${plant['Common Name']}:`, error);
+      
+      const material = new THREE.MeshStandardMaterial({ 
+        color: fallbackColor,
+        roughness: 0.7,
+        metalness: 0.1
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(x, y, z);
+      mesh.scale.set(spreadFeet, cappedHeight, spreadFeet);
+      mesh.userData = { plantId: placed.plantId, placedId: placed.id };
+      
+      scene!.add(mesh);
+    }
+  );
+};
+
+const addTextLabel = (text: string, x: number, y: number, z: number) => {
+  if (!scene) return;
+  
+  // Create canvas for text texture
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d')!;
+  canvas.width = 512;
+  canvas.height = 128;
+  
+  // Style the text
+  context.fillStyle = 'rgba(255, 255, 255, 0.9)';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  
+  context.fillStyle = '#333333';
+  context.font = 'bold 24px Arial';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText(text, canvas.width / 2, canvas.height / 2);
+  
+  // Create texture and material
+  const texture = new THREE.CanvasTexture(canvas);
+  const spriteMaterial = new THREE.SpriteMaterial({ 
+    map: texture,
+    transparent: true,
+    alphaTest: 0.1
+  });
+  
+  // Create sprite
+  const sprite = new THREE.Sprite(spriteMaterial);
+  sprite.position.set(x, y, z);
+  sprite.scale.set(4, 1, 1); // Make it readable but not too large
+  
+  scene!.add(sprite);
 };
 
 const animate = () => {
@@ -267,9 +462,24 @@ const hashToColor = (seed: string) => {
 
 const resetView = () => {
   if (camera && controls) {
-    camera.position.set(20, 20, 20);
-    camera.lookAt(props.gridWidth / 2, 0, props.gridHeight / 2);
-    controls.target.set(props.gridWidth / 2, 0, props.gridHeight / 2);
+    // Calculate optimal camera position based on current plants
+    const maxHeight = Math.max(...props.placedPlants.map(placed => {
+      const plant = props.plantById[placed.plantId];
+      const heightFeetRaw = plant ? plant['Height (feet)'] : null;
+      return parseFeet(heightFeetRaw) ?? 1;
+    }));
+    
+    const avgHeight = maxHeight > 0 ? maxHeight : 3;
+    const cameraHeight = Math.max(15, avgHeight * 2 + 10);
+    const cameraDistance = Math.max(props.gridWidth, props.gridHeight) * 0.8;
+    
+    camera.position.set(
+      props.gridWidth / 2 + cameraDistance,
+      cameraHeight,
+      props.gridHeight / 2 + cameraDistance
+    );
+    camera.lookAt(props.gridWidth / 2, avgHeight / 2, props.gridHeight / 2);
+    controls.target.set(props.gridWidth / 2, avgHeight / 2, props.gridHeight / 2);
     controls.update();
   }
 };
@@ -369,6 +579,49 @@ const resetView = () => {
   color: #374151;
   margin-top: 6px;
   font-size: 13px;
+}
+
+.color-legend {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px;
+  max-width: 200px;
+  z-index: 1001;
+  backdrop-filter: blur(6px);
+}
+
+.legend-title {
+  font-family: Roboto, sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-family: Roboto, sans-serif;
+  font-size: 11px;
+}
+
+.color-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid #ccc;
+  flex-shrink: 0;
+}
+
+.family-name {
+  color: #374151;
+  line-height: 1.2;
 }
 
 @media screen and (max-width: 767px) {
