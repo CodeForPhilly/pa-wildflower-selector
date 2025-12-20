@@ -4,6 +4,53 @@ const fs = require('fs');
 const path = require('path');
 const { match } = require('assert');
 
+function isFiniteNumber(n) {
+  return typeof n === 'number' && Number.isFinite(n);
+}
+
+function toNumberOrZero(v) {
+  if (isFiniteNumber(v)) return v;
+  const n = parseFloat(String(v ?? '').trim());
+  return Number.isFinite(n) ? n : 0;
+}
+
+function toIntOrZero(v) {
+  if (isFiniteNumber(v)) return Math.trunc(v);
+  const n = parseInt(String(v ?? '').trim(), 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function toBool(v) {
+  if (typeof v === 'boolean') return v;
+  const s = String(v ?? '').trim().toLowerCase();
+  if (s === 'yes' || s === 'true' || s === '1') return true;
+  return false;
+}
+
+function splitFlags(v, regex, mapper = capitalize) {
+  const s = String(v ?? '');
+  if (!s.trim()) return [];
+  return s.split(regex).map(mapper).map(x => x.trim()).filter(flag => flag.length > 0);
+}
+
+function computeFloweringMonthsByNumber(monthStr) {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const s = String(monthStr ?? '').trim();
+  if (!s) return [];
+  // Support en dash, em dash, and hyphen ranges (e.g. "May–Jun", "May-Jun", "May—Jun")
+  const parts = s.split(/[–—-]/).map(p => p.trim()).filter(Boolean);
+  if (parts.length === 1) {
+    const idx = months.indexOf(parts[0]);
+    return idx > -1 ? [idx] : [];
+  }
+  const from = months.indexOf(parts[0]);
+  const to = months.indexOf(parts[1]);
+  if (from === -1 || to === -1) return [];
+  const out = [];
+  for (let i = from; i <= to; i++) out.push(i);
+  return out;
+}
+
 // Work around lack of top level await while still reporting errors properly
 go().then(() => {
   // All done
@@ -15,6 +62,25 @@ go().then(() => {
 
 async function go() {
   const { plants, close } = await db();
+
+  // Helpful when schema validation is enabled: print details so failures are actionable.
+  const originalUpdateOne = plants.updateOne.bind(plants);
+  plants.updateOne = async (...args) => {
+    try {
+      return await originalUpdateOne(...args);
+    } catch (e) {
+      if (e && e.code === 121 && e.errInfo && e.errInfo.details) {
+        console.error('MongoDB schema validation failed during massage.updateOne');
+        try {
+          console.error(JSON.stringify(e.errInfo.details, null, 2));
+        } catch (jsonErr) {
+          console.error(e.errInfo.details);
+        }
+      }
+      throw e;
+    }
+  };
+
   let values = await plants.find().toArray();
 
   // Fix a small set of plants that already had duplicate records
@@ -32,6 +98,57 @@ async function go() {
 
   for (let i = 0; (i < values.length); i++) {
     let plant = values[i];
+
+    // Ensure required fields exist and have valid types BEFORE any other updates.
+    // This allows us to repair legacy/invalid documents even when validation is strict.
+    const scientificName = plant['Scientific Name'] || plant._id;
+    const genus = (String(scientificName ?? '').split(/\s+/)[0] || '').trim();
+    const family = plant['Plant Family'] || plant['Family'] || '';
+
+    // Build required flags (empty arrays are acceptable to the schema).
+    const plantType = plant['Plant Type'] || '';
+    let plantTypeFlags = [];
+    let lifeCycleFlags = [];
+    const matches = String(plantType).match(/^(.*?)(\(.*?\))?$/);
+    if (matches) {
+      plantTypeFlags = matches[1].split(/, /);
+      if (matches[2]) {
+        plantTypeFlags = [...plantTypeFlags, ...matches[2].split(/ or /)];
+      }
+      plantTypeFlags = plantTypeFlags.map(flag => flag.trim().replace('(', '').replace(')', '')).map(capitalize).filter(Boolean);
+      const lifeCycles = ['Annual', 'Biennial', 'Perennial'];
+      lifeCycleFlags = plantTypeFlags.filter(pt => lifeCycles.includes(pt));
+      plantTypeFlags = plantTypeFlags.filter(pt => !lifeCycles.includes(pt));
+    }
+
+    const sunExposureFlags = splitFlags(plant['Sun Exposure'], /,\s*/, capitalize);
+    const soilMoistureFlags = splitFlags(plant['Soil Moisture'], /,\s*/, capitalize);
+    const pollinatorFlags = splitFlags(plant['Pollinators'], /\s*(?:,|;)+\s*/, capitalize);
+    const flowerColorFlags = splitFlags(plant['Flower Color'], /\s*[-—–,]\s*/, capitalize);
+    const availabilityFlags = [];
+    if (String(plant['Online Flag'] ?? '') === '1') availabilityFlags.push('Online');
+    if (String(plant['Local Flag'] ?? '') === '1') availabilityFlags.push('Local');
+
+    const requiredFixes = {
+      'Height (feet)': toNumberOrZero(plant['Height (feet)']),
+      'Spread (feet)': toNumberOrZero(plant['Spread (feet)']),
+      'Recommendation Score': toIntOrZero(plant['Recommendation Score']),
+      'Showy': toBool(plant['Showy']),
+      'Superplant': toBool(plant['Superplant']),
+      'States': splitFlags(plant['Distribution in USA'], /,\s*/, s => String(s).trim()).filter(Boolean),
+      'Genus': genus,
+      'Family': String(family ?? ''),
+      'Sun Exposure Flags': sunExposureFlags,
+      'Soil Moisture Flags': soilMoistureFlags,
+      'Plant Type Flags': plantTypeFlags,
+      'Life Cycle Flags': lifeCycleFlags,
+      'Pollinator Flags': pollinatorFlags,
+      'Flower Color Flags': flowerColorFlags,
+      'Availability Flags': availabilityFlags,
+      'Flowering Months By Number': computeFloweringMonthsByNumber(plant['Flowering Months']),
+    };
+
+    await plants.updateOne({ _id: plant._id }, { $set: requiredFixes });
 
     // Check if image files exist and set hasImage and hasPreview flags
     const fullImagePath = `${__dirname}/images/${plant._id}.jpg`;
@@ -79,31 +196,9 @@ async function go() {
     }
 
     // Process Flowering Months into an array of flags
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    let [from, to] = plant['Flowering Months'].split('–');
-    from = months.indexOf(from);
-    to = months.indexOf(to);
-    if ((from > -1) && (to > -1)) {
-      const matching = [];
-      for (let i = from; (i <= to); i++) {
-        matching.push(i);
-      }
-      await plants.updateOne({
-        _id: plant._id
-      }, {
-        $set: {
-          'Flowering Months By Number': matching
-        }
-      });
-    } else {
-      await plants.updateOne({
-        _id: plant._id
-      }, {
-        $unset: {
-          'Flowering Months By Number': 1
-        }
-      });
-    }
+    // NOTE: This field is required by strict DB schema. Never $unset it.
+    const floweringMonthsByNumber = computeFloweringMonthsByNumber(plant['Flowering Months']);
+    await plants.updateOne({ _id: plant._id }, { $set: { 'Flowering Months By Number': floweringMonthsByNumber } });
     var states = plant['Distribution in USA'].split(', ')
     await plants.updateOne({
       _id: plant._id
@@ -148,12 +243,12 @@ async function go() {
     const score = plant['Recommendation Score'];
     if (typeof score === 'string' || score instanceof String) {
       const numScore = parseFloat(score);
-      if (numScore != NaN) {
+      if (!isNaN(numScore)) {
         await plants.updateOne({
           _id: plant._id
         }, {
           $set: {
-            'Recommendation Score': numScore
+            'Recommendation Score': Math.trunc(numScore)
           }
         });
       } else {
@@ -201,93 +296,8 @@ async function go() {
         });
       }
     }
-    let plantTypeFlags = [];
-    const plantType = plant['Plant Type'];
-    const matches = plantType.match(/^(.*?)(\(.*?\))?$/);
-    if (!matches) {
-      console.error(`Don't know how to handle ${plantType}`);
-    } else {
-      plantTypeFlags = matches[1].split(/, /);
-      if (matches[2]) {
-        plantTypeFlags = [...plantTypeFlags, ...matches[2].split(/ or /)];
-      }
-      plantTypeFlags = plantTypeFlags.map(flag => flag.trim().replace('(', '').replace(')', '')).map(capitalize);
-      const lifeCycles = ['Annual', 'Biennial', 'Perennial'];
-      const lifeCycleFlags = plantTypeFlags.filter(plantType => lifeCycles.includes(plantType));
-      plantTypeFlags = plantTypeFlags.filter(plantType => !lifeCycles.includes(plantType));
-      await plants.updateOne({
-        _id: plant._id
-      }, {
-        $set: {
-          'Plant Type Flags': plantTypeFlags,
-          'Life Cycle Flags': lifeCycleFlags
-        }
-      });
-    }
-    const sunExposureFlags = plant['Sun Exposure'].split(', ').map(capitalize).filter(flag => flag.length > 0);
-    await plants.updateOne({
-      _id: plant._id
-    }, {
-      $set: {
-        'Sun Exposure Flags': sunExposureFlags
-      }
-    });
-    const soilMoistureFlags = plant['Soil Moisture'].split(/,\s*/).map(capitalize).filter(flag => flag.length > 0);
-    if (soilMoistureFlags.length) {
-      await plants.updateOne({
-        _id: plant._id
-      }, {
-        $set: {
-          'Soil Moisture Flags': soilMoistureFlags
-        }
-      });
-    } else {
-      await plants.updateOne({
-        _id: plant._id
-      }, {
-        $unset: {
-          'Soil Moisture Flags': 1
-        }
-      });
-    }
-    const pollinatorFlags = plant['Pollinators'].split(/\s*(?:,|;)+\s*/).map(capitalize).filter(flag => flag.length > 0);
-    await plants.updateOne({
-      _id: plant._id
-    }, {
-      $set: {
-        'Pollinator Flags': pollinatorFlags
-      }
-    });
-    const propagationFlags = plant['Propagation'].split(/\s*(?:,|;)+\s*/).map(capitalize).filter(flag => flag.length > 0);
-    await plants.updateOne({
-      _id: plant._id
-    }, {
-      $set: {
-        'Propagation Flags': propagationFlags
-      }
-    });
-    const flowerColorFlags = (plant['Flower Color'] || '').split(/\s*[-—–,]\s*/).map(capitalize).filter(flag => flag.length > 0);
-    await plants.updateOne({
-      _id: plant._id
-    }, {
-      $set: {
-        'Flower Color Flags': flowerColorFlags
-      }
-    });
-    const availabilityFlags = [];
-    if (plant['Online Flag'] === '1') {
-      availabilityFlags.push('Online');
-    }
-    if (plant['Local Flag'] === '1') {
-      availabilityFlags.push('Local');
-    }
-    await plants.updateOne({
-      _id: plant._id
-    }, {
-      $set: {
-        'Availability Flags': availabilityFlags
-      }
-    });
+    // NOTE: "Flags" fields + required fields are computed and fixed at the top of the loop
+    // in a single `$set` to keep the document schema-valid under strict validation.
   }
 
   await close();
