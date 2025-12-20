@@ -41,6 +41,14 @@
               <Info :size="16" class="icon" />
               <span class="button-text">Summary</span>
             </button>
+            <button
+              class="toolbar-button icon-only"
+              @click="open3D"
+              title="View in 3D"
+            >
+              <Box :size="16" class="icon" />
+              <span class="button-text">View in 3D</span>
+            </button>
           </div>
 
           <div class="toolbar-right">
@@ -166,12 +174,23 @@
       @apply="handleGridSizeApply"
       @fit-to-plants="handleGridSizeFit"
     />
+
+    <!-- Client-only 3D viewer overlay -->
+    <Garden3DView
+      v-if="isClient && show3D"
+      :placed-plants="placedPlants"
+      :plant-by-id="plantById"
+      :grid-width="gridWidth"
+      :grid-height="gridHeight"
+      :image-url="imageUrl"
+      @close="show3D = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { Undo2, Redo2, Trash2, Info, ZoomIn, ZoomOut, RotateCcw } from 'lucide-vue-next';
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent, watch } from 'vue';
+import { Undo2, Redo2, Trash2, Info, ZoomIn, ZoomOut, RotateCcw, Box } from 'lucide-vue-next';
 import { useGardenPlanner } from '../composables/useGardenPlanner';
 import { useViewport } from '../composables/useViewport';
 import Header from './Header.vue';
@@ -180,6 +199,21 @@ import GardenCanvas from './GardenCanvas.vue';
 import GardenSummary from './GardenSummary.vue';
 import GridSizeEditor from './GridSizeEditor.vue';
 import type { PlacedPlant, Plant } from '../types/garden';
+
+const Garden3DView = defineAsyncComponent({
+  loader: () => {
+    console.log('Loading Garden3DView component');
+    return import('./Garden3DView.vue');
+  },
+  onError: (error, _retry, fail, attempts) => {
+    console.error('Garden3DView async load failed', {
+      name: (error as any)?.name,
+      message: (error as any)?.message,
+      attempts
+    });
+    fail(error);
+  },
+});
 
 interface Props {
   favorites?: boolean;
@@ -192,6 +226,8 @@ const canvasRef = ref<InstanceType<typeof GardenCanvas> | null>(null);
 const showSummary = ref(false);
 const showGridEditor = ref(false);
 const zoom = ref(1);
+const show3D = ref(false);
+const isClient = ref(false);
 
 const {
   loading,
@@ -248,6 +284,12 @@ const handleSummaryToggle = () => {
   showSummary.value = !showSummary.value;
 };
 
+const open3D = () => {
+  console.log('Opening 3D view', { isClient: isClient.value, show3D_before: show3D.value });
+  show3D.value = true;
+  console.log('3D view state updated', { isClient: isClient.value, show3D_after: show3D.value });
+};
+
 // Calculate center-point coordinates for a placed plant
 const getCenterCoordinates = (placed: PlacedPlant): string => {
   const centerX = Math.round(placed.x + (placed.width / 2));
@@ -278,7 +320,11 @@ const summaryData = computed(() => {
     const plant = plantById.value[placed.plantId];
     if (!plant) continue;
 
-    const plantFamily = (plant['Plant Family']) || 'Unspecified';
+    const rawFamily = plant['Plant Family'];
+    const plantFamily =
+      typeof rawFamily === 'string' && rawFamily.trim().length > 0
+        ? rawFamily
+        : 'Unspecified';
     const centerCoord = getCenterCoordinates(placed);
 
     if (!familyMap.has(plantFamily)) {
@@ -361,7 +407,17 @@ const handleKeyDown = (e: KeyboardEvent) => {
 };
 
 onMounted(() => {
+  isClient.value = typeof window !== 'undefined';
+  console.log('Garden planner mounted', { isClient: isClient.value });
   window.addEventListener('keydown', handleKeyDown);
+});
+
+watch([show3D, isClient], ([s3d, client]) => {
+  console.log('3D view gating state changed', {
+    show3D: s3d,
+    isClient: client,
+    shouldRender: !!(s3d && client)
+  });
 });
 
 onUnmounted(() => {
