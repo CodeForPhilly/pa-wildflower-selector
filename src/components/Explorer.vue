@@ -54,8 +54,8 @@
           >
             <div class="autocomplete-section-header">
               <img 
-                v-if="section.type === 'filter' && section.items.length > 0"
-                :src="`/assets/images/${section.items[0].svg}.svg`"
+                v-if="autocompleteSectionHeaderSvg(section)"
+                :src="`/assets/images/${autocompleteSectionHeaderSvg(section)}.svg`"
                 class="section-icon"
                 :alt="section.label"
               />
@@ -126,7 +126,29 @@
               }}</span>
             </button>
           </h1>
-          <h2>{{ selected["Scientific Name"] }}</h2>
+          <div class="scientific-name-line" v-if="plantGenus || plantSpecies">
+            <span class="scientific-name-text">
+              <button
+                v-if="plantGenus"
+                type="button"
+                class="taxon-link taxon-link--scientific"
+                @click="applyGenusFilter(plantGenus)"
+              >
+                {{ plantGenus }}
+              </button>
+              <span v-if="plantSpecies" class="species-text">{{ plantSpecies }}</span>
+            </span>
+          </div>
+          <div class="taxon-meta" v-if="plantFamily">
+            <span class="taxon-label">Family:</span>
+            <button
+              type="button"
+              class="taxon-link taxon-link--meta"
+              @click="applyFamilyFilter(plantFamily)"
+            >
+              {{ plantFamily }}
+            </button>
+          </div>
           <p v-if="selected['Blurb']">{{ selected["Blurb"] }}</p>
           <p v-if="selected['Flowering Months']">
             Flowering Months:
@@ -298,8 +320,8 @@
                   >
                     <div class="autocomplete-section-header">
                       <img 
-                        v-if="section.type === 'filter' && section.items.length > 0"
-                        :src="`/assets/images/${section.items[0].svg}.svg`"
+                        v-if="autocompleteSectionHeaderSvg(section)"
+                        :src="`/assets/images/${autocompleteSectionHeaderSvg(section)}.svg`"
                         class="section-icon"
                         :alt="section.label"
                       />
@@ -357,7 +379,7 @@
               </div>
             </div>
             <fieldset
-              v-for="filter in filters"
+              v-for="filter in filtersForPane"
               :key="filter.name"
               :class="filterClass(filter)"
             >
@@ -561,6 +583,30 @@ export default {
         showIcon: false,
       },
       {
+        name: "Genus",
+        label: "Genus",
+        choices: [],
+        value: [],
+        array: true,
+        counts: {},
+        initiallyOpen: false,
+        alwaysOpen: false,
+        showIcon: false,
+        hideInFilterPane: true,
+      },
+      {
+        name: "Family",
+        label: "Family",
+        choices: [],
+        value: [],
+        array: true,
+        counts: {},
+        initiallyOpen: false,
+        alwaysOpen: false,
+        showIcon: false,
+        hideInFilterPane: true,
+      },
+      {
         name: "Superplant",
         label: "Super Plant",
         choices: ["Super Plant"],
@@ -569,6 +615,7 @@ export default {
         counts: {},
         initiallyOpen: true,
         alwaysOpen: true,
+        hideInFilterPane: true,
       },
       {
         name: "Sun Exposure Flags",
@@ -750,6 +797,37 @@ export default {
   computed: {
     selectedName() {
       return this.$route.params.name;
+    },
+    filtersForPane() {
+      return (this.filters || []).filter((f) => !f.hideInFilterPane);
+    },
+    plantGenus() {
+      if (!this.selected) return null;
+      // Prefer Genus field, fallback to parsing Scientific Name
+      if (this.selected.Genus) {
+        return this.selected.Genus;
+      }
+      if (this.selected["Scientific Name"]) {
+        const parts = this.selected["Scientific Name"].trim().split(/\s+/);
+        return parts[0] || null;
+      }
+      return null;
+    },
+    plantSpecies() {
+      if (!this.selected) return null;
+      // Prefer Species field, fallback to parsing Scientific Name
+      if (this.selected.Species) {
+        return this.selected.Species;
+      }
+      if (this.selected["Scientific Name"]) {
+        const parts = this.selected["Scientific Name"].trim().split(/\s+/);
+        return parts.length > 1 ? parts.slice(1).join(" ") : null;
+      }
+      return null;
+    },
+    plantFamily() {
+      if (!this.selected) return null;
+      return this.selected.Family || this.selected["Plant Family"] || null;
     },
     extras() {
       if (typeof window === "undefined") {
@@ -1076,6 +1154,16 @@ export default {
     }
   },
   methods: {
+    autocompleteSectionHeaderSvg(section) {
+      if (!section || section.type !== "filter") return null;
+      const name = section.filterName || section.label;
+      if (name === "Family") return "Family";
+      if (name === "Genus") return "Genus";
+      if (section.items && section.items.length > 0 && section.items[0] && section.items[0].svg) {
+        return section.items[0].svg;
+      }
+      return null;
+    },
     /**
      * Build query params for /api/v1/plants.
      *
@@ -2082,6 +2170,11 @@ export default {
     getChips(active) {
       const chips = [];
       const previewChips = [];
+      const svgForArrayItem = (filterName, item) => {
+        if (filterName === "Family") return "Family";
+        if (filterName === "Genus") return "Genus";
+        return item;
+      };
       
       // Show search chip only when:
       // 1. There's an active search
@@ -2109,6 +2202,11 @@ export default {
           if (value === true) {
             value = [filter.label];
           }
+          // Some "array" filters can be scalar strings/booleans on the selected plant
+          // (e.g. Genus/Family or boolean flags). Normalize to an array so downstream .forEach works.
+          if (!Array.isArray(value)) {
+            value = [value];
+          }
           if (filter.name === "Flower Color Flags") {
             value.forEach((item) => {
               // Skip if this is already shown as a preview chip
@@ -2128,7 +2226,7 @@ export default {
                 chips.push({
                   name: filter.name,
                   label: item,
-                  svg: item,
+                  svg: svgForArrayItem(filter.name, item),
                   key: filter.name + ":" + item,
                 });
               }
@@ -2166,7 +2264,7 @@ export default {
               previewChips.push({
                 name: filter.name,
                 label: item,
-                svg: filter.name === "Flower Color Flags" ? null : item,
+                svg: filter.name === "Flower Color Flags" ? null : svgForArrayItem(filter.name, item),
                 color: filter.name === "Flower Color Flags" ? item : null,
                 key: `preview:${filter.name}:${item}`,
                 preview: true, // Mark as preview chip
@@ -2411,6 +2509,12 @@ export default {
             this.filterIsOpen[item.filterName] = true;
           }
         }
+        // If the user is explicitly choosing a Genus/Family from autocomplete,
+        // treat it like a real field filter (NOT semantic search).
+        if (item.filterName === "Genus" || item.filterName === "Family") {
+          this.activeSearch = "";
+          this.hasExtractedFilters = false;
+        }
         this.q = ""; // Clear search
         this.showAutocomplete = false;
         this.submit();
@@ -2419,6 +2523,51 @@ export default {
         this.$router.push(`/plants/${item.plantId}`);
         this.showAutocomplete = false;
       }
+    },
+    applyGenusFilter(genus) {
+      if (!genus) return;
+      // Ensure we do a real MongoDB field filter, not semantic search
+      this.activeSearch = "";
+      this.hasExtractedFilters = false;
+      this.q = "";
+      // Navigate to home if not already there
+      if (this.$route.path !== '/') {
+        this.$router.push('/').then(() => {
+          this.$nextTick(() => {
+            this.addFilterValue("Genus", genus);
+          });
+        });
+      } else {
+        this.addFilterValue("Genus", genus);
+      }
+    },
+    applyFamilyFilter(family) {
+      if (!family) return;
+      // Ensure we do a real MongoDB field filter, not semantic search
+      this.activeSearch = "";
+      this.hasExtractedFilters = false;
+      this.q = "";
+      // Navigate to home if not already there
+      if (this.$route.path !== '/') {
+        this.$router.push('/').then(() => {
+          this.$nextTick(() => {
+            this.addFilterValue("Family", family);
+          });
+        });
+      } else {
+        this.addFilterValue("Family", family);
+      }
+    },
+    addFilterValue(filterName, filterValue) {
+      const filter = this.filters.find(f => f.name === filterName);
+      if (filter && filter.array) {
+        const existing = this.filterValues[filterName] || [];
+        if (!existing.includes(filterValue)) {
+          this.filterValues[filterName] = [...existing, filterValue];
+          this.filterIsOpen[filterName] = true;
+        }
+      }
+      // Submit will be triggered by the filterValues watcher
     },
     handleSearchBlur() {
       // Delay hiding to allow click events to fire
@@ -3935,6 +4084,82 @@ th {
   line-height: 48px;
   margin: 0;
   padding: 0;
+}
+
+.scientific-name-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+
+.scientific-name-text {
+  font-style: italic;
+  font-size: 24px;
+  color: #1d2e26;
+  font-family: Arvo;
+}
+
+.scientific-name-line .species-text {
+  font-style: inherit;
+  font-size: inherit;
+  color: inherit;
+  font-family: inherit;
+}
+
+.taxon-meta {
+  margin: 8px 0;
+  font-size: 14px;
+  font-family: Roboto;
+  color: #1d2e26;
+}
+
+.taxon-label {
+  opacity: 0.75;
+  margin-right: 6px;
+}
+
+.taxon-link {
+  /* Override global button styling so this reads like inline text */
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  letter-spacing: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.taxon-link--scientific {
+  /* Keep scientific name readable, but communicate clickability */
+  text-decoration-color: rgba(29, 46, 38, 0.45);
+}
+
+.taxon-link--scientific + .species-text {
+  /* Make the genus/species separation visually obvious */
+  margin-left: 0.3ch;
+}
+
+.taxon-link--meta {
+  text-decoration-color: rgba(29, 46, 38, 0.35);
+}
+
+@media (hover: hover) {
+  .taxon-link:hover {
+    color: #b74d15;
+    text-decoration-color: rgba(183, 77, 21, 0.75);
+  }
+}
+
+.taxon-link:focus-visible {
+  outline: 2px solid rgba(183, 77, 21, 0.8);
+  outline-offset: 2px;
 }
 
 .two-up p {
