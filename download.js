@@ -131,19 +131,13 @@ async function downloadMain() {
         clean.Superplant = sp;
         clean.Showy = clean.Showy === 'Yes';
 
-        // Convert height and spread to numbers
-        if (clean['Height (feet)']) {
-            const heightNum = parseFloat(clean['Height (feet)']);
-            if (!isNaN(heightNum)) {
-                clean['Height (feet)'] = heightNum;
-            }
-        }
-        if (clean['Spread (feet)']) {
-            const spreadNum = parseFloat(clean['Spread (feet)']);
-            if (!isNaN(spreadNum)) {
-                clean['Spread (feet)'] = spreadNum;
-            }
-        }
+        // Convert height and spread to numbers and ALWAYS populate.
+        // DB schema requires these fields to exist and be numeric.
+        const heightNum = parseFloat(clean['Height (feet)']);
+        clean['Height (feet)'] = Number.isFinite(heightNum) ? heightNum : 0;
+
+        const spreadNum = parseFloat(clean['Spread (feet)']);
+        clean['Spread (feet)'] = Number.isFinite(spreadNum) ? spreadNum : 0;
 
         // Process articles for this plant
         clean.Articles = [];

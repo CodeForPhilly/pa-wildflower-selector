@@ -15,9 +15,10 @@ const {
   MONGODB_PASSWORD,
   MONGODB_DATABASE,
   MONGODB_DOCKER_PORT,
+  MONGODB_LOCAL_PORT,
   // Traditional environment variables
   DB_HOST,
-  DB_PORT = 27017,
+  DB_PORT,
   DB_NAME = 'pa-wildflower-selector',
   DB_USER,
   DB_PASSWORD
@@ -26,11 +27,16 @@ const {
 // Use Docker variables if available, fall back to traditional ones
 // Default to 'mongodb' (Docker mode) unless DB_HOST is explicitly 'localhost'
 const host = DB_HOST === 'localhost' ? 'localhost' : (DB_HOST || 'mongodb');
-// For localhost: prefer DB_PORT (local MongoDB), fall back to MONGODB_LOCAL_PORT (Docker port mapping)
-// For Docker service: use MONGODB_DOCKER_PORT or DB_PORT
-const port = host === 'localhost' 
-  ? (DB_PORT || MONGODB_LOCAL_PORT || 27017)
-  : (MONGODB_DOCKER_PORT || DB_PORT || 27017);
+function toPort(v) {
+  if (v === undefined || v === null || v === '') return null;
+  const n = parseInt(String(v), 10);
+  return Number.isFinite(n) ? n : null;
+}
+// For localhost: prefer explicitly-set DB_PORT; otherwise MONGODB_LOCAL_PORT; else 27017
+// For Docker service: prefer MONGODB_DOCKER_PORT; otherwise DB_PORT; else 27017
+const port = host === 'localhost'
+  ? (toPort(DB_PORT) ?? toPort(MONGODB_LOCAL_PORT) ?? 27017)
+  : (toPort(MONGODB_DOCKER_PORT) ?? toPort(DB_PORT) ?? 27017);
 const dbName = MONGODB_DATABASE || DB_NAME;
 const user = MONGODB_USER || DB_USER;
 const password = MONGODB_PASSWORD || DB_PASSWORD;
