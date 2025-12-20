@@ -1,53 +1,120 @@
 <template>
   <div class="garden-3d" ref="rootRef">
     <div class="overlay-top">
-      <button class="overlay-button" type="button" @click="$emit('close')" aria-label="Close 3D view">
-        Close
-      </button>
-      <button
-        class="overlay-button"
-        type="button"
-        :disabled="!canUndo"
-        @click="emit('undo')"
-        aria-label="Undo"
-        title="Undo"
-      >
-        Undo
-      </button>
-      <button
-        class="overlay-button"
-        type="button"
-        :disabled="!canRedo"
-        @click="emit('redo')"
-        aria-label="Redo"
-        title="Redo"
-      >
-        Redo
-      </button>
-      <button
-        class="overlay-button danger"
-        type="button"
-        :disabled="!canClear"
-        @click="emit('clear')"
-        aria-label="Clear layout"
-        title="Clear layout"
-      >
-        Clear
-      </button>
-      <button class="overlay-button" type="button" @click="resetView" aria-label="Reset camera view">
-        Reset view
-      </button>
-      <button class="overlay-button" type="button" @click="setViewPreset('top')" aria-label="Top-down view">
-        Top
-      </button>
-      <button class="overlay-button" type="button" @click="setViewPreset('iso')" aria-label="Isometric view">
-        Iso
-      </button>
-      <button class="overlay-button" type="button" @click="cycleLabelMode" aria-label="Toggle labels">
-        Labels: {{ labelModeLabel }}
-      </button>
-      <div class="overlay-legend" aria-hidden="true">
-        Footprint = spread, Height = "Height (feet)"
+      <div class="overlay-left">
+        <button class="overlay-button" type="button" @click="$emit('close')" aria-label="Close 3D view">
+          Close
+        </button>
+        <button
+          class="overlay-button"
+          type="button"
+          :disabled="!canUndo"
+          @click="emit('undo')"
+          aria-label="Undo"
+          title="Undo"
+        >
+          Undo
+        </button>
+        <button
+          class="overlay-button"
+          type="button"
+          :disabled="!canRedo"
+          @click="emit('redo')"
+          aria-label="Redo"
+          title="Redo"
+        >
+          Redo
+        </button>
+        <button
+          class="overlay-button danger"
+          type="button"
+          :disabled="!canClear"
+          @click="emit('clear')"
+          aria-label="Clear layout"
+          title="Clear layout"
+        >
+          Clear
+        </button>
+        <button class="overlay-button" type="button" @click="resetView" aria-label="Reset camera view">
+          Reset view
+        </button>
+        <button class="overlay-button" type="button" @click="setViewPreset('top')" aria-label="Top-down view">
+          Top
+        </button>
+        <button class="overlay-button" type="button" @click="setViewPreset('iso')" aria-label="Isometric view">
+          Iso
+        </button>
+        <button class="overlay-button" type="button" @click="cycleLabelMode" aria-label="Toggle labels">
+          Labels: {{ labelModeLabel }}
+        </button>
+      </div>
+
+      <!-- Match the 2D planner controls: zoom, grid size, and snap increment toggle -->
+      <div class="overlay-right" aria-label="3D view toolbar">
+        <div class="toolbar-zoom">
+          <button
+            class="toolbar-button icon-only"
+            type="button"
+            @click="zoomOut"
+            :disabled="!canZoomOut"
+            title="Zoom out"
+            aria-label="Zoom out"
+          >
+            <ZoomOut :size="16" class="icon" />
+          </button>
+          <span class="zoom-value">{{ zoomPercentLabel }}</span>
+          <button
+            class="toolbar-button icon-only"
+            type="button"
+            @click="zoomIn"
+            :disabled="!canZoomIn"
+            title="Zoom in"
+            aria-label="Zoom in"
+          >
+            <ZoomIn :size="16" class="icon" />
+          </button>
+          <button
+            class="toolbar-button icon-only"
+            type="button"
+            @click="resetZoom"
+            :disabled="!canResetZoom"
+            title="Reset zoom"
+            aria-label="Reset zoom"
+          >
+            <RotateCcw :size="16" class="icon" />
+          </button>
+        </div>
+        <button
+          class="toolbar-button grid-dimensions-button"
+          type="button"
+          @click="showGridEditor = true"
+          :title="`Current grid: ${gridWidth}ft × ${gridHeight}ft`"
+        >
+          Grid: <strong>{{ gridWidth }}</strong>ft × <strong>{{ gridHeight }}</strong>ft
+        </button>
+        <button
+          class="toolbar-button snap-toggle-button"
+          type="button"
+          @click="emit('toggle-snap-increment')"
+          :title="`Toggle grid snap size (currently ${snapIncrement}ft)`"
+        >
+          <svg
+            class="icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            style="width: 16px; height: 16px;"
+            aria-hidden="true"
+          >
+            <rect x="3" y="3" width="18" height="18" />
+            <line x1="12" y1="3" x2="12" y2="21" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+          </svg>
+          <span class="snap-value">{{ snapIncrement }}ft</span>
+        </button>
       </div>
       
       <!-- Plant Legend -->
@@ -113,15 +180,28 @@
 
     <div ref="threeContainer" class="canvas"></div>
   </div>
+
+  <GridSizeEditor
+    :is-open="showGridEditor"
+    :current-width="gridWidth"
+    :current-height="gridHeight"
+    :min-size="minGridSize"
+    :placed-plants-count="placedPlants.length"
+    @close="showGridEditor = false"
+    @apply="handleGridSizeApply"
+    @fit-to-plants="handleGridSizeFit"
+  />
 </template>
 
 <script setup lang="ts">
 import { computed, shallowRef, onMounted, onUnmounted, ref, watch } from 'vue';
+import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-vue-next';
 // @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
 import * as THREE from 'three';
 // @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
 import CameraControls from 'camera-controls';
 import type { Plant, PlacedPlant } from '../types/garden';
+import GridSizeEditor from './GridSizeEditor.vue';
 
 // THREE.js classes are now extended globally in main.js
 
@@ -134,13 +214,11 @@ if (typeof window !== 'undefined') {
   
   // Test WebGL context creation
   const canvas = document.createElement('canvas');
-  const gl =
-    canvas.getContext('webgl') ||
-    canvas.getContext('experimental-webgl');
+  const gl = (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
   console.log('Garden3DView: WebGL context test', {
     contextCreated: !!gl,
-    renderer: gl && /** @type {any} */ (gl).getParameter ? /** @type {any} */ (gl).getParameter((/** @type {any} */ (gl)).RENDERER) : null,
-    vendor: gl && /** @type {any} */ (gl).getParameter ? /** @type {any} */ (gl).getParameter((/** @type {any} */ (gl)).VENDOR) : null
+    renderer: gl ? gl.getParameter(gl.RENDERER) : null,
+    vendor: gl ? gl.getParameter(gl.VENDOR) : null
   });
 }
 
@@ -163,6 +241,9 @@ const emit = defineEmits<{
   (e: 'clear'): void;
   (e: 'move-placed', placedId: string, x: number, y: number): void;
   (e: 'remove-placed', placedId: string): void;
+  (e: 'set-grid-size', width: number, height: number): void;
+  (e: 'fit-grid-to-plants'): void;
+  (e: 'toggle-snap-increment'): void;
 }>();
 
 const instancesRef = shallowRef<any>(null);
@@ -179,6 +260,8 @@ let clock: THREE.Clock | null = null;
 let raycaster: THREE.Raycaster | null = null;
 let mouseNdc: THREE.Vector2 | null = null;
 let resizeObserver: ResizeObserver | null = null;
+let groundMesh: THREE.Mesh | null = null;
+let gridHelperObj: THREE.GridHelper | null = null;
 
 type PlantInstanceMeta = {
   placed: PlacedPlant;
@@ -238,6 +321,109 @@ const selectedImageSrc = computed(() => {
 });
 
 const instanceCount = computed(() => props.placedPlants.length);
+
+// 2D-like grid editor + snap controls
+const showGridEditor = ref(false);
+const minGridSize = computed(() => {
+  if (props.placedPlants.length === 0) return { width: 1, height: 1 };
+  const minX = Math.min(...props.placedPlants.map(p => p.x));
+  const maxX = Math.max(...props.placedPlants.map(p => p.x + p.width));
+  const minY = Math.min(...props.placedPlants.map(p => p.y));
+  const maxY = Math.max(...props.placedPlants.map(p => p.y + p.height));
+  return { width: maxX - minX, height: maxY - minY };
+});
+
+const handleGridSizeApply = (width: number, height: number) => {
+  emit('set-grid-size', width, height);
+};
+
+const handleGridSizeFit = () => {
+  emit('fit-grid-to-plants');
+};
+
+// 2D-like zoom controls for 3D camera (based on camera distance to target)
+const baseDistance = ref<number | null>(null);
+
+const getCameraDistance = (): number | null => {
+  if (!controls || !camera) return null;
+  try {
+    if (typeof controls.getDistance === 'function') {
+      const d = controls.getDistance();
+      return Number.isFinite(d) ? d : null;
+    }
+  } catch {
+    // ignore
+  }
+  const curTarget = new THREE.Vector3();
+  const curPos = new THREE.Vector3();
+  controls.getTarget?.(curTarget);
+  controls.getPosition?.(curPos);
+  const d = curPos.distanceTo(curTarget);
+  return Number.isFinite(d) ? d : null;
+};
+
+const setCameraDistance = (nextDistance: number, smooth = true) => {
+  if (!controls || !camera) return;
+  const curTarget = new THREE.Vector3();
+  const curPos = new THREE.Vector3();
+  controls.getTarget?.(curTarget);
+  controls.getPosition?.(curPos);
+
+  const dir = curPos.clone().sub(curTarget);
+  if (dir.lengthSq() < 1e-8) dir.set(1, 1, 1);
+  dir.normalize();
+
+  const d = clamp(nextDistance, minDistance.value, maxDistance.value);
+  const nextPos = curTarget.clone().add(dir.multiplyScalar(d));
+  controls.setLookAt(
+    nextPos.x,
+    nextPos.y,
+    nextPos.z,
+    curTarget.x,
+    curTarget.y,
+    curTarget.z,
+    smooth
+  );
+};
+
+const zoomPercent = computed(() => {
+  const d = getCameraDistance();
+  if (!baseDistance.value || !d) return null;
+  const pct = Math.round((baseDistance.value / d) * 100);
+  return Number.isFinite(pct) ? pct : null;
+});
+
+const zoomPercentLabel = computed(() => (zoomPercent.value ? `${zoomPercent.value}%` : '—'));
+const canZoomIn = computed(() => {
+  const d = getCameraDistance();
+  if (!d) return false;
+  return d > minDistance.value + 0.02;
+});
+const canZoomOut = computed(() => {
+  const d = getCameraDistance();
+  if (!d) return false;
+  return d < maxDistance.value - 0.02;
+});
+const canResetZoom = computed(() => {
+  const d = getCameraDistance();
+  if (!d || !baseDistance.value) return false;
+  return Math.abs(d - baseDistance.value) > 0.02;
+});
+
+const zoomIn = () => {
+  const d = getCameraDistance();
+  if (!d) return;
+  setCameraDistance(d * 0.9, true);
+};
+const zoomOut = () => {
+  const d = getCameraDistance();
+  if (!d) return;
+  setCameraDistance(d * 1.1, true);
+};
+const resetZoom = () => {
+  if (!baseDistance.value) return;
+  setCameraDistance(baseDistance.value, true);
+};
 
 const plantLegend = computed(() => {
   const map = new Map<string, { plantId: string; commonName: string; count: number }>();
@@ -394,18 +580,43 @@ const initThreeJS = () => {
   scene.add(directionalLight);
 
 
-  // Ground
-  const groundGeometry = new THREE.PlaneGeometry(props.gridWidth, props.gridHeight);
-  const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 1.0, metalness: 0.0 });
-  const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.set(props.gridWidth / 2, 0, props.gridHeight / 2);
-  scene.add(ground);
+  const rebuildGroundAndGrid = () => {
+    if (!scene) return;
 
-  // Grid
-  const gridHelper = new THREE.GridHelper(gridSize.value, gridDivisions.value, 0x94a3b8, 0xd1d5db);
-  gridHelper.position.set(props.gridWidth / 2, 0.001, props.gridHeight / 2);
-  scene.add(gridHelper);
+    if (groundMesh) {
+      scene.remove(groundMesh);
+      groundMesh.geometry?.dispose?.();
+      const matAny = /** @type {any} */ (groundMesh.material);
+      if (Array.isArray(matAny)) matAny.forEach((m: any) => m?.dispose?.());
+      else matAny?.dispose?.();
+      groundMesh = null;
+    }
+
+    if (gridHelperObj) {
+      scene.remove(gridHelperObj);
+      gridHelperObj.geometry?.dispose?.();
+      const matAny = /** @type {any} */ (gridHelperObj.material);
+      if (Array.isArray(matAny)) matAny.forEach((m: any) => m?.dispose?.());
+      else matAny?.dispose?.();
+      gridHelperObj = null;
+    }
+
+    // Ground
+    const groundGeometry = new THREE.PlaneGeometry(props.gridWidth, props.gridHeight);
+    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 1.0, metalness: 0.0 });
+    groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+    groundMesh.rotation.x = -Math.PI / 2;
+    groundMesh.position.set(props.gridWidth / 2, 0, props.gridHeight / 2);
+    scene.add(groundMesh);
+
+    // Grid
+    gridHelperObj = new THREE.GridHelper(gridSize.value, gridDivisions.value, 0x94a3b8, 0xd1d5db);
+    gridHelperObj.position.set(props.gridWidth / 2, 0.001, props.gridHeight / 2);
+    scene.add(gridHelperObj);
+  };
+
+  // Ground + Grid
+  rebuildGroundAndGrid();
 
   // Selection ring
   const ringGeo = new THREE.RingGeometry(0.45, 0.5, 48);
@@ -438,6 +649,7 @@ const initThreeJS = () => {
 
     // Seamless "2D -> 3D": start in Top view so it matches 2D immediately.
     applyViewPresetInstant('top');
+    baseDistance.value = getCameraDistance();
   }
 
   raycaster = new THREE.Raycaster();
@@ -463,6 +675,49 @@ const initThreeJS = () => {
 
   console.log('Garden3DView: Three.js initialized successfully');
 };
+
+// Keep ground/grid + controls bounds in sync when garden size changes (e.g. via GridSizeEditor in 3D)
+watch(
+  () => [props.gridWidth, props.gridHeight],
+  () => {
+    if (!scene) return;
+
+    // Rebuild ground + grid helper to match new dimensions
+    if (groundMesh) {
+      scene.remove(groundMesh);
+      groundMesh.geometry?.dispose?.();
+      const matAny = /** @type {any} */ (groundMesh.material);
+      if (Array.isArray(matAny)) matAny.forEach((m: any) => m?.dispose?.());
+      else matAny?.dispose?.();
+      groundMesh = null;
+    }
+    if (gridHelperObj) {
+      scene.remove(gridHelperObj);
+      gridHelperObj.geometry?.dispose?.();
+      const matAny = /** @type {any} */ (gridHelperObj.material);
+      if (Array.isArray(matAny)) matAny.forEach((m: any) => m?.dispose?.());
+      else matAny?.dispose?.();
+      gridHelperObj = null;
+    }
+    // Re-create using the latest computed values
+    const groundGeometry = new THREE.PlaneGeometry(props.gridWidth, props.gridHeight);
+    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 1.0, metalness: 0.0 });
+    groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+    groundMesh.rotation.x = -Math.PI / 2;
+    groundMesh.position.set(props.gridWidth / 2, 0, props.gridHeight / 2);
+    scene.add(groundMesh);
+
+    gridHelperObj = new THREE.GridHelper(gridSize.value, gridDivisions.value, 0x94a3b8, 0xd1d5db);
+    gridHelperObj.position.set(props.gridWidth / 2, 0.001, props.gridHeight / 2);
+    scene.add(gridHelperObj);
+
+    // Update zoom bounds to match new garden size
+    if (controls) {
+      controls.minDistance = minDistance.value;
+      controls.maxDistance = maxDistance.value;
+    }
+  }
+);
 
 const disposeMeshMaterials = (mesh: THREE.Mesh) => {
   const mat = /** @type {any} */ (mesh.material);
@@ -556,7 +811,8 @@ watch(
 );
 
 const addPlants = () => {
-  if (!scene) return;
+  const s = scene;
+  if (!s) return;
 
   // Rebuild: remove any existing plant meshes/labels before re-adding.
   clearPlantInstances();
@@ -590,7 +846,7 @@ const addPlants = () => {
       mesh.position.set(x, y, z);
       mesh.scale.set(spreadFeet, cappedHeight, spreadFeet);
       mesh.userData = { plantId: placed.plantId, placedId: placed.id };
-      scene.add(mesh);
+      s.add(mesh);
 
       registerInstance(mesh, placed, plant, x, y, z, spreadFeet, cappedHeight);
     }
@@ -667,8 +923,8 @@ const createPlantWithTexture = (
       const maxAniso = renderer?.capabilities.getMaxAnisotropy?.() ?? 1;
       texture.anisotropy = Math.min(8, Math.max(1, maxAniso));
 
-      const sideMat = /** @type {any} */ (materials[0]);
-      const topMat = /** @type {any} */ (materials[1]);
+      const sideMat = materials[0] as any;
+      const topMat = materials[1] as any;
 
       // Dispose any previous maps safely (avoid leaking GPU memory).
       // Note: since we set SIDE and TOP to the same `texture`, we only dispose
@@ -770,7 +1026,12 @@ onUnmounted(() => {
   }
   if (selectionRing) {
     selectionRing.geometry.dispose();
-    /** @type {any} */ (selectionRing.material)?.dispose?.();
+    const ringMat = selectionRing.material;
+    if (Array.isArray(ringMat)) {
+      ringMat.forEach((m) => (m as any)?.dispose?.());
+    } else {
+      (ringMat as any)?.dispose?.();
+    }
     selectionRing = null;
   }
   for (const meta of placedIdToInstance.values()) {
@@ -796,6 +1057,7 @@ const hashToColor = (seed: string) => {
 const resetView = () => {
   if (camera && controls) {
     fitCameraToGarden();
+    baseDistance.value = getCameraDistance();
   }
 };
 
@@ -852,6 +1114,7 @@ const setViewPreset = (preset: ViewPreset) => {
     nextTarget.z,
     true
   );
+  baseDistance.value = getCameraDistance();
 };
 
 const setSelectionRing = (meta: PlantInstanceMeta | null) => {
@@ -1288,6 +1551,25 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
   pointer-events: none;
 }
 
+.overlay-left {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  pointer-events: auto;
+}
+
+.overlay-right {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  pointer-events: auto;
+  text-align: right;
+  font-family: Roboto, sans-serif;
+}
+
 .overlay-button {
   pointer-events: auto;
   border: 1px solid #d1d5db;
@@ -1315,15 +1597,76 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
   border-color: rgba(185, 28, 28, 0.85);
 }
 
-.overlay-legend {
-  margin-left: auto;
-  padding: 8px 10px;
-  border: 1px solid #e5e7eb;
-  background: rgba(255, 255, 255, 0.85);
-  border-radius: 10px;
+/* 2D-like toolbar controls */
+.toolbar-zoom {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.zoom-value {
+  font-size: 14px;
+  font-weight: 500;
   font-family: Roboto, sans-serif;
-  font-size: 12px;
   color: #374151;
+  min-width: 3rem;
+  text-align: center;
+}
+
+.toolbar-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-family: Roboto, sans-serif;
+  font-weight: 500;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background-color: rgba(255, 255, 255, 0.92);
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.toolbar-button:hover:not(:disabled) {
+  background-color: rgba(249, 250, 251, 0.95);
+  border-color: #9ca3af;
+}
+
+.toolbar-button:active:not(:disabled) {
+  background-color: rgba(243, 244, 246, 0.95);
+}
+
+.toolbar-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.toolbar-button.icon-only {
+  padding: 8px;
+  min-width: 40px;
+  min-height: 40px;
+  justify-content: center;
+}
+
+.toolbar-button .icon {
+  flex-shrink: 0;
+  stroke-width: 2;
+}
+
+.snap-toggle-button {
+  font-family: 'Roboto Mono', monospace;
+}
+
+.snap-value {
+  font-weight: 600;
+}
+
+.grid-dimensions-button strong {
+  font-weight: 600;
 }
 
 .overlay-info {

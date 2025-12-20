@@ -191,6 +191,9 @@
       @undo="undo"
       @redo="redo"
       @clear="clearLayout"
+      @set-grid-size="handleGridSizeApply"
+      @fit-grid-to-plants="handleGridSizeFit"
+      @toggle-snap-increment="toggleSnapIncrement"
       @move-placed="movePlant"
       @remove-placed="removePlaced"
     />
