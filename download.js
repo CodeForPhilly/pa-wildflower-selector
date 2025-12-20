@@ -131,6 +131,12 @@ async function downloadMain() {
         clean.Superplant = sp;
         clean.Showy = clean.Showy === 'Yes';
 
+        // Convert Recommendation Score to an integer and ALWAYS populate.
+        // DB schema requires this field to exist and be an integer.
+        const scoreRaw = clean['Recommendation Score'];
+        const scoreNum = parseInt(scoreRaw, 10);
+        clean['Recommendation Score'] = Number.isFinite(scoreNum) ? scoreNum : 0;
+
         // Convert height and spread to numbers and ALWAYS populate.
         // DB schema requires these fields to exist and be numeric.
         const heightNum = parseFloat(clean['Height (feet)']);
@@ -154,8 +160,17 @@ async function downloadMain() {
             }
         }
 
+        // IMPORTANT:
+        // - `massage.js` / `optimize-plants-db` add computed fields that our DB schema requires
+        //   (e.g. Flags arrays, Flowering Months By Number, States, Genus, Family, etc).
+        // - If we blindly replace documents using only the CSV fields, we will both:
+        //   (a) fail schema validation, and (b) lose those computed fields.
+        //
+        // So when a record already exists, merge it and only overwrite with the latest CSV fields.
+        const merged = existing ? { ...existing, ...clean } : clean;
+
         // Update the plant in the database
-        await update(plants, clean);
+        await update(plants, merged);
     }
 
     // Update nurseries and online stores
@@ -225,11 +240,25 @@ async function updateOnlineStores() {
 }
 
 async function update(plants, clean) {
-    await plants.replaceOne({
-        _id: clean._id
-    }, clean, {
-        upsert: true
-    });
+    try {
+        await plants.replaceOne({
+            _id: clean._id
+        }, clean, {
+            upsert: true
+        });
+    } catch (e) {
+        // When MongoDB schema validation fails, expose details (paths/types) to help debug quickly.
+        // Example: e.errInfo.details.schemaRulesNotSatisfied
+        if (e && e.code === 121 && e.errInfo && e.errInfo.details) {
+            console.error('MongoDB schema validation failed for plant:', clean && clean._id);
+            try {
+                console.error(JSON.stringify(e.errInfo.details, null, 2));
+            } catch (jsonErr) {
+                console.error(e.errInfo.details);
+            }
+        }
+        throw e;
+    }
 }
 
 async function get(url, type = 'text', tries = 1) {

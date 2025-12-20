@@ -3,6 +3,13 @@ import App from './App.vue';
 import routerFactory from './router';
 import storeFactory from './store';
 import { createWebHistory } from "vue-router";
+// @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
+import Tres, { extend } from '@tresjs/core';
+// @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
+import * as THREE from 'three';
+
+// Register ALL Three.js classes with Tres globally
+extend(THREE);
 
 // Initialize with empty favorites for SSR consistency
 // This ensures the initial state matches what the server renders
@@ -14,7 +21,7 @@ const app = createSSRApp(App);
 const router = routerFactory({ history: createWebHistory() });
 
 // Mount the app first
-app.use(router).use(store).mount('#app');
+app.use(router).use(store).use(Tres).mount('#app');
 
 // After the app is mounted and hydration is complete, we can safely access localStorage
 // and update the state without causing hydration mismatches

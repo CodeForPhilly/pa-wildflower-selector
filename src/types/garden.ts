@@ -2,6 +2,7 @@ export interface Plant {
   _id: string;
   "Common Name": string;
   "Scientific Name"?: string;
+  "Height (feet)"?: string | number;
   "Spread (feet)": string | number;
   hasImage?: boolean;
   "Flowering Months"?: string;
