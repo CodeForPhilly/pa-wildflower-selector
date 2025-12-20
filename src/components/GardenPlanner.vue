@@ -187,6 +187,13 @@
       :can-redo="canRedo"
       :can-clear="placedPlants.length > 0"
       :image-url="imageUrl"
+      :favorite-plants="favoritePlants"
+      :selected-plant-id="selectedPlantId"
+      :is-mobile="isMobile"
+      :loading="loading"
+      :spread-feet-label="spreadFeetLabel"
+      :spread-cells="spreadCells"
+      :plant-counts="plantCounts"
       @close="show3D = false"
       @undo="undo"
       @redo="redo"
@@ -196,6 +203,8 @@
       @toggle-snap-increment="toggleSnapIncrement"
       @move-placed="movePlant"
       @remove-placed="removePlaced"
+      @select-plant="selectPlant"
+      @place-plant="placePlant"
     />
   </div>
 </template>

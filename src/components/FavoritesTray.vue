@@ -3,7 +3,8 @@
     <div class="palette-header">
       <h2>Favorites</h2>
         <div class="palette-subtitle" v-if="favoritePlants.length">
-          <span v-if="isMobile">Tap a plant below, then tap the grid to place</span>
+          <span v-if="interactionHintResolved === 'tap'">Tap a plant below, then tap the grid to place</span>
+          <span v-else-if="interactionHintResolved === 'click'">Click a plant below, then click the grid to place</span>
           <span v-else>Drag to grid to place</span>
         </div>
       <div class="palette-subtitle" v-else-if="!loading">
@@ -40,6 +41,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { Plant } from '../types/garden';
 
 interface Props {
@@ -51,6 +53,7 @@ interface Props {
   spreadFeetLabel: (plant: Plant | undefined) => string;
   spreadCells: (plant: Plant | undefined) => number;
   plantCounts?: Record<string, number>;
+  interactionHint?: 'drag' | 'tap' | 'click';
 }
 
 interface Emits {
@@ -61,14 +64,19 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
+const interactionHintResolved = computed(() => {
+  if (props.interactionHint) return props.interactionHint;
+  return props.isMobile ? 'tap' : 'drag';
+});
+
 const handleClick = (plantId: string) => {
-  if (props.isMobile) {
+  if (interactionHintResolved.value !== 'drag') {
     emit('select', props.selectedPlantId === plantId ? null : plantId);
   }
 };
 
 const handlePointerDown = (event: PointerEvent, plantId: string) => {
-  if (!props.isMobile && event.isPrimary) {
+  if (interactionHintResolved.value === 'drag' && event.isPrimary) {
     emit('drag-start', event, plantId);
   }
 };

@@ -117,22 +117,25 @@
         </button>
       </div>
       
-      <!-- Plant Legend -->
-      <div class="plant-legend" v-if="plantLegend.length > 0">
-        <div class="legend-title">Plants:</div>
-        <button
-          v-for="entry in plantLegend"
-          :key="entry.plantId"
-          class="legend-plant"
-          type="button"
-          @click="jumpToPlant(entry.plantId)"
-        >
-          <span class="legend-plant-name">{{ entry.commonName }}</span>
-          <span class="legend-plant-meta">
-            <span class="legend-plant-count">×{{ entry.count }}</span>
-            <span v-if="entry.count > 1" class="legend-plant-index">{{ legendCycleIndex(entry.plantId) }}</span>
-          </span>
-        </button>
+      <!-- Plant legend removed (Favorites tray now serves as the left-side plant list) -->
+    </div>
+
+    <div class="favorites-overlay" v-if="favoritePlants && favoritePlants.length">
+      <FavoritesTray
+        :favorite-plants="favoritePlants"
+        :selected-plant-id="selectedPlantId ?? null"
+        :is-mobile="isMobile ?? false"
+        :loading="loading ?? false"
+        :image-url="imageUrlResolved"
+        :spread-feet-label="spreadFeetLabelResolved"
+        :spread-cells="spreadCellsResolved"
+        :plant-counts="plantCounts"
+        :interaction-hint="(isMobile ?? false) ? 'tap' : 'click'"
+        @select="(id) => emit('select-plant', id)"
+      />
+
+      <div v-if="selectedPlantId && (isMobile ?? false) === false" class="place-hint" aria-live="polite">
+        Placement mode: click the ground to add another
       </div>
     </div>
 
@@ -202,6 +205,7 @@ import * as THREE from 'three';
 import CameraControls from 'camera-controls';
 import type { Plant, PlacedPlant } from '../types/garden';
 import GridSizeEditor from './GridSizeEditor.vue';
+import FavoritesTray from './FavoritesTray.vue';
 
 // THREE.js classes are now extended globally in main.js
 
@@ -214,7 +218,7 @@ if (typeof window !== 'undefined') {
   
   // Test WebGL context creation
   const canvas = document.createElement('canvas');
-  const gl = (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
+  const gl: any = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
   console.log('Garden3DView: WebGL context test', {
     contextCreated: !!gl,
     renderer: gl ? gl.getParameter(gl.RENDERER) : null,
@@ -232,6 +236,13 @@ const props = defineProps<{
   canRedo: boolean;
   canClear: boolean;
   imageUrl?: (plant: Plant | undefined, preview: boolean) => string;
+  favoritePlants?: Plant[];
+  selectedPlantId?: string | null;
+  isMobile?: boolean;
+  loading?: boolean;
+  spreadFeetLabel?: (plant: Plant | undefined) => string;
+  spreadCells?: (plant: Plant | undefined) => number;
+  plantCounts?: Record<string, number>;
 }>();
 
 const emit = defineEmits<{
@@ -244,7 +255,34 @@ const emit = defineEmits<{
   (e: 'set-grid-size', width: number, height: number): void;
   (e: 'fit-grid-to-plants'): void;
   (e: 'toggle-snap-increment'): void;
+  (e: 'select-plant', plantId: string | null): void;
+  (e: 'place-plant', plantId: string, x: number, y: number): void;
 }>();
+
+const favoritePlants = computed(() => props.favoritePlants ?? []);
+const selectedPlantId = computed(() => props.selectedPlantId ?? null);
+const plantCounts = computed(() => props.plantCounts ?? undefined);
+
+const imageUrlResolved = (plant: Plant | undefined, preview: boolean) => {
+  return props.imageUrl ? props.imageUrl(plant, preview) : '/assets/images/missing-image.png';
+};
+const spreadFeetLabelResolved = (plant: Plant | undefined) => {
+  if (props.spreadFeetLabel) return props.spreadFeetLabel(plant);
+  // fallback: best-effort
+  const plantAny = plant ? /** @type {any} */ (plant) : null;
+  const raw = plantAny ? plantAny['Spread (feet)'] : null;
+  const num = parseFloat(String(raw));
+  if (!Number.isFinite(num) || num <= 0) return '1';
+  return raw && typeof raw === 'string' ? raw : `${num}`;
+};
+const spreadCellsResolved = (plant: Plant | undefined) => {
+  if (props.spreadCells) return props.spreadCells(plant);
+  const plantAny = plant ? /** @type {any} */ (plant) : null;
+  const raw = plantAny ? plantAny['Spread (feet)'] : null;
+  const num = parseFloat(String(raw));
+  if (!Number.isFinite(num) || num <= 0) return 1;
+  return Math.max(1, Math.round(num));
+};
 
 const instancesRef = shallowRef<any>(null);
 const orbitRef = shallowRef<any>(null);
@@ -425,31 +463,7 @@ const resetZoom = () => {
   setCameraDistance(baseDistance.value, true);
 };
 
-const plantLegend = computed(() => {
-  const map = new Map<string, { plantId: string; commonName: string; count: number }>();
-  for (const placed of props.placedPlants) {
-    const plant = props.plantById[placed.plantId];
-    const plantAny = plant ? /** @type {any} */ (plant) : null;
-    const commonName = plantAny?.['Common Name'] || placed.plantId;
-    const existing = map.get(placed.plantId);
-    if (existing) {
-      existing.count += 1;
-    } else {
-      map.set(placed.plantId, { plantId: placed.plantId, commonName, count: 1 });
-    }
-  }
-
-  return Array.from(map.values()).sort((a, b) => a.commonName.localeCompare(b.commonName));
-});
-
-const plantIdToCycleIndex = ref<Record<string, number>>({});
-
-const legendCycleIndex = (plantId: string) => {
-  const ids = plantIdToPlacedIds.get(plantId) ?? [];
-  const idx = plantIdToCycleIndex.value[plantId] ?? 0;
-  if (ids.length <= 1) return '';
-  return `${(idx % ids.length) + 1}/${ids.length}`;
-};
+// Plant legend removed (Favorites tray now serves as the left-side plant list)
 
 type LabelMode = 'off' | 'selected' | 'all';
 const labelMode = ref<LabelMode>('selected');
@@ -679,7 +693,11 @@ const initThreeJS = () => {
 // Keep ground/grid + controls bounds in sync when garden size changes (e.g. via GridSizeEditor in 3D)
 watch(
   () => [props.gridWidth, props.gridHeight],
-  () => {
+  (nextVals, prevVals) => {
+    const nextW = nextVals[0];
+    const nextH = nextVals[1];
+    const prevW = prevVals[0];
+    const prevH = prevVals[1];
     if (!scene) return;
 
     // Rebuild ground + grid helper to match new dimensions
@@ -715,6 +733,31 @@ watch(
     if (controls) {
       controls.minDistance = minDistance.value;
       controls.maxDistance = maxDistance.value;
+    }
+
+    // Keep the camera centered on the grid after resize so the change is visually obvious.
+    // Shift current camera position + target by the change in grid center.
+    if (controls && camera && Number.isFinite(prevW) && Number.isFinite(prevH)) {
+      const dx = (nextW - prevW) / 2;
+      const dz = (nextH - prevH) / 2;
+      if (Math.abs(dx) > 1e-6 || Math.abs(dz) > 1e-6) {
+        const curTarget = new THREE.Vector3();
+        const curPos = new THREE.Vector3();
+        controls.getTarget?.(curTarget);
+        controls.getPosition?.(curPos);
+        const nextTarget = curTarget.clone().add(new THREE.Vector3(dx, 0, dz));
+        const nextPos = curPos.clone().add(new THREE.Vector3(dx, 0, dz));
+        controls.setLookAt(
+          nextPos.x,
+          nextPos.y,
+          nextPos.z,
+          nextTarget.x,
+          nextTarget.y,
+          nextTarget.z,
+          true
+        );
+        baseDistance.value = getCameraDistance();
+      }
     }
   }
 );
@@ -923,23 +966,23 @@ const createPlantWithTexture = (
       const maxAniso = renderer?.capabilities.getMaxAnisotropy?.() ?? 1;
       texture.anisotropy = Math.min(8, Math.max(1, maxAniso));
 
-      const sideMat = materials[0] as any;
-      const topMat = materials[1] as any;
+      const sideMatAny: any = materials[0];
+      const topMatAny: any = materials[1];
 
       // Dispose any previous maps safely (avoid leaking GPU memory).
       // Note: since we set SIDE and TOP to the same `texture`, we only dispose
       // old maps that are different from the new one.
       const oldMaps = new Set<any>();
-      const sideOld = sideMat.map;
-      const topOld = topMat.map;
+      const sideOld = sideMatAny.map;
+      const topOld = topMatAny.map;
       if (sideOld && sideOld !== texture) oldMaps.add(sideOld);
       if (topOld && topOld !== texture) oldMaps.add(topOld);
 
-      sideMat.map = texture;
-      sideMat.needsUpdate = true;
+      sideMatAny.map = texture;
+      sideMatAny.needsUpdate = true;
 
-      topMat.map = texture;
-      topMat.needsUpdate = true;
+      topMatAny.map = texture;
+      topMatAny.needsUpdate = true;
 
       for (const old of oldMaps) old.dispose();
     },
@@ -1028,9 +1071,13 @@ onUnmounted(() => {
     selectionRing.geometry.dispose();
     const ringMat = selectionRing.material;
     if (Array.isArray(ringMat)) {
-      ringMat.forEach((m) => (m as any)?.dispose?.());
+      ringMat.forEach((m) => {
+        const mAny = /** @type {any} */ (m);
+        mAny?.dispose?.();
+      });
     } else {
-      (ringMat as any)?.dispose?.();
+      const ringMatAny = /** @type {any} */ (ringMat);
+      ringMatAny?.dispose?.();
     }
     selectionRing = null;
   }
@@ -1193,14 +1240,7 @@ const selectPlacedId = (placedId: string) => {
   applyLabelMode();
 };
 
-const jumpToPlant = (plantId: string) => {
-  const ids = plantIdToPlacedIds.get(plantId) ?? [];
-  if (ids.length === 0) return;
-  const prev = plantIdToCycleIndex.value[plantId] ?? 0;
-  const next = (prev + 1) % ids.length;
-  plantIdToCycleIndex.value = { ...plantIdToCycleIndex.value, [plantId]: next };
-  selectPlacedId(ids[next]);
-};
+// jumpToPlant removed with plant legend
 
 const updateHover = (obj: THREE.Object3D | null) => {
   if (hoveredObject === obj) return;
@@ -1358,6 +1398,25 @@ const onPointerUp = (ev: PointerEvent) => {
     const placedIdRaw = /** @type {any} */ (obj)?.userData?.placedId;
     const placedId = typeof placedIdRaw === 'string' ? placedIdRaw : null;
     if (placedId) selectPlacedId(placedId);
+  } else if (selectedPlantId.value && raycaster && mouseNdc && camera && renderer) {
+    // Place from favorites: click ground to add another instance (mirrors 2D "tap then tap grid")
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouseNdc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    mouseNdc.y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
+    raycaster.setFromCamera(mouseNdc, camera);
+    const hit = new THREE.Vector3();
+    const ok = raycaster.ray.intersectPlane(groundPlane, hit);
+    if (ok) {
+      const plant = props.plantById[selectedPlantId.value];
+      const size = spreadCellsResolved(plant);
+      const snap = (v: number) => Math.round(v / props.snapIncrement) * props.snapIncrement;
+      // Center placement on click (matches drag-preview/drag-place behavior in 2D)
+      const desiredX = hit.x - size / 2;
+      const desiredY = hit.z - size / 2;
+      const finalX = Math.max(0, snap(desiredX));
+      const finalY = Math.max(0, snap(desiredY));
+      emit('place-plant', selectedPlantId.value, finalX, finalY);
+    }
   }
   pointerDownAt = null;
   pointerDragging = false;
@@ -1549,6 +1608,29 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
   align-items: center;
   z-index: 1001;
   pointer-events: none;
+}
+
+.favorites-overlay {
+  position: absolute;
+  top: 56px;
+  left: 12px;
+  right: 12px;
+  z-index: 1001;
+  pointer-events: auto;
+}
+
+.place-hint {
+  margin-top: 6px;
+  display: inline-block;
+  padding: 6px 10px;
+  border: 1px solid rgba(229, 231, 235, 0.95);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  font-family: Roboto, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  backdrop-filter: blur(6px);
 }
 
 .overlay-left {
@@ -1823,100 +1905,7 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
   backdrop-filter: blur(6px);
 }
 
-.plant-legend {
-  position: absolute;
-  /* Keep the legend in the same "top-left toolbar" region as the 2D planner */
-  top: 56px;
-  left: 12px;
-  right: auto;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 10px;
-  width: min(280px, 40vw);
-  max-height: min(60vh, 520px);
-  overflow: auto;
-  z-index: 1001;
-  backdrop-filter: blur(6px);
-}
-
-.legend-title {
-  font-family: Roboto, sans-serif;
-  font-weight: 600;
-  font-size: 12px;
-  color: #374151;
-  margin-bottom: 6px;
-}
-
-.legend-plant {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  font-family: Roboto, sans-serif;
-  color: #111827;
-}
-
-.legend-plant:hover {
-  background: rgba(17, 24, 39, 0.06);
-  border-color: rgba(17, 24, 39, 0.08);
-}
-
-.legend-plant-name {
-  font-size: 12px;
-  line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
-
-.legend-plant-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.legend-plant-count {
-  font-size: 12px;
-  color: #374151;
-}
-
-.legend-plant-index {
-  font-size: 11px;
-  color: #6b7280;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-  font-family: Roboto, sans-serif;
-  font-size: 11px;
-}
-
-.color-swatch {
-  width: 12px;
-  height: 12px;
-  border-radius: 2px;
-  border: 1px solid #ccc;
-  flex-shrink: 0;
-}
-
-.family-name {
-  color: #374151;
-  line-height: 1.2;
-}
+/* Plant legend removed */
 
 @media screen and (max-width: 767px) {
   .overlay-top {
@@ -1940,10 +1929,10 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
     width: min(240px, 70vw);
   }
 
-  .plant-legend {
+  .favorites-overlay {
     top: 58px;
     left: 10px;
-    width: min(280px, 70vw);
+    right: 10px;
   }
 }
 </style>
