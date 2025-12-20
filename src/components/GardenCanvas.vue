@@ -669,16 +669,24 @@ button.primary-bar.small.danger {
   font-family: Roboto;
   font-size: 13px;
   color: #fff;
-  padding: 12px 8px;
+  padding: 10px 8px;
   line-height: 1.4;
   text-align: center;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 10px rgba(0, 0, 0, 0.6);
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.35) 70%, rgba(0, 0, 0, 0.35) 100%);
   margin-top: 25%;
   word-wrap: break-word;
   overflow-wrap: break-word;
   hyphens: auto;
   box-sizing: border-box;
+
+  /* Match 2D label readability treatment */
+  background: rgba(17, 24, 39, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 12px;
+  backdrop-filter: blur(6px);
+  max-width: calc(100% - 12px);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .drag-preview-label .label-line {
@@ -688,12 +696,12 @@ button.primary-bar.small.danger {
 }
 
 .drag-preview-label .label-line.common {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .drag-preview-label .label-line.scientific {
-  font-size: 0.85em;
+  font-size: 12px;
   margin-top: 3px;
   opacity: 0.95;
   max-width: 100%;

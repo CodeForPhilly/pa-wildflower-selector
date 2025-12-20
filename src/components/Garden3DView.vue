@@ -118,10 +118,9 @@
 <script setup lang="ts">
 import { computed, shallowRef, onMounted, onUnmounted, ref, watch } from 'vue';
 // @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
-import { TresCanvas, extend } from '@tresjs/core';
-// @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
 import * as THREE from 'three';
-import TresOrbitControls from './TresOrbitControls.vue';
+// @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
+import CameraControls from 'camera-controls';
 import type { Plant, PlacedPlant } from '../types/garden';
 
 // THREE.js classes are now extended globally in main.js
@@ -136,12 +135,12 @@ if (typeof window !== 'undefined') {
   // Test WebGL context creation
   const canvas = document.createElement('canvas');
   const gl =
-    (canvas.getContext('webgl') as WebGLRenderingContext | null) ||
-    (canvas.getContext('experimental-webgl') as WebGLRenderingContext | null);
+    canvas.getContext('webgl') ||
+    canvas.getContext('experimental-webgl');
   console.log('Garden3DView: WebGL context test', {
     contextCreated: !!gl,
-    renderer: gl ? gl.getParameter(gl.RENDERER) : null,
-    vendor: gl ? gl.getParameter(gl.VENDOR) : null
+    renderer: gl && /** @type {any} */ (gl).getParameter ? /** @type {any} */ (gl).getParameter((/** @type {any} */ (gl)).RENDERER) : null,
+    vendor: gl && /** @type {any} */ (gl).getParameter ? /** @type {any} */ (gl).getParameter((/** @type {any} */ (gl)).VENDOR) : null
   });
 }
 
@@ -176,10 +175,10 @@ let scene: THREE.Scene | null = null;
 let camera: THREE.PerspectiveCamera | null = null;
 let renderer: THREE.WebGLRenderer | null = null;
 let controls: any = null;
+let clock: THREE.Clock | null = null;
 let raycaster: THREE.Raycaster | null = null;
 let mouseNdc: THREE.Vector2 | null = null;
 let resizeObserver: ResizeObserver | null = null;
-let openIsoTimeout: number | null = null;
 
 type PlantInstanceMeta = {
   placed: PlacedPlant;
@@ -203,15 +202,6 @@ let dragCandidatePlacedId: string | null = null;
 let dragPlacedId: string | null = null;
 let dragOffsetXZ: { dx: number; dz: number } | null = null;
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-
-let focusAnim: {
-  startAt: number;
-  durationMs: number;
-  fromTarget: THREE.Vector3;
-  toTarget: THREE.Vector3;
-  fromCam: THREE.Vector3;
-  toCam: THREE.Vector3;
-} | null = null;
 
 const gridSize = computed(() => Math.max(props.gridWidth, props.gridHeight));
 const gridDivisions = computed(() => Math.max(1, Math.round(gridSize.value)));
@@ -253,7 +243,8 @@ const plantLegend = computed(() => {
   const map = new Map<string, { plantId: string; commonName: string; count: number }>();
   for (const placed of props.placedPlants) {
     const plant = props.plantById[placed.plantId];
-    const commonName = (plant?.['Common Name'] as string) || placed.plantId;
+    const plantAny = plant ? /** @type {any} */ (plant) : null;
+    const commonName = plantAny?.['Common Name'] || placed.plantId;
     const existing = map.get(placed.plantId);
     if (existing) {
       existing.count += 1;
@@ -308,6 +299,41 @@ const parseFeet = (v: unknown): number | null => {
   return Number.isFinite(n) && n >= 0 ? n : null;
 };
 
+const formatCoord = (value: number, increment: number): string => {
+  if (increment === 0.5) {
+    // Show one decimal place for 0.5ft snap, but remove .0 for whole numbers
+    if (value % 1 === 0) return Math.round(value).toString();
+    return value.toFixed(1);
+  }
+  return Math.round(value).toString();
+};
+
+const centerPositionLabel = (placed: PlacedPlant): string => {
+  const centerX = placed.x + placed.width / 2;
+  const centerY = placed.y + placed.height / 2;
+  return `${formatCoord(centerX, props.snapIncrement)},${formatCoord(centerY, props.snapIncrement)}`;
+};
+
+const shortLabel = (s: string, maxLen: number) => (s.length > maxLen ? s.slice(0, Math.max(0, maxLen - 1)) + '…' : s);
+
+const drawRoundedRect = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) => {
+  const rr = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+};
+
 const initThreeJS = () => {
   if (!threeContainer.value) return;
 
@@ -349,6 +375,14 @@ const initThreeJS = () => {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   container.appendChild(renderer.domElement);
+  clock = new THREE.Clock();
+
+  // CameraControls (camera-controls) setup
+  try {
+    CameraControls.install({ THREE });
+  } catch {
+    // ignore (install is idempotent, but some bundlers can throw on repeat)
+  }
 
   // Lights
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
@@ -385,31 +419,26 @@ const initThreeJS = () => {
   addPlants();
 
   // Controls
-  import('three/examples/jsm/controls/OrbitControls.js').then(({ OrbitControls }) => {
-    controls = new OrbitControls(camera!, renderer!.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.enablePan = true;
-    controls.minPolarAngle = 0.15;
-    controls.maxPolarAngle = Math.PI / 2 - 0.05;
+  if (camera && renderer) {
+    controls = new CameraControls(camera, renderer.domElement);
+
+    // Smooth, modern feel (and avoids "twitchy" camera).
+    controls.smoothTime = 0.22;
+    controls.draggingSmoothTime = 0.14;
+
+    // Lock so the user cannot orbit under the scene (no "under plants" view).
+    // Camera-controls uses the same polar-angle concept as OrbitControls.
+    controls.minPolarAngle = 0.05; // allow nearly-top-down
+    controls.maxPolarAngle = Math.PI / 2 - 0.08; // stop at horizon (no below-ground)
+
+    // Dolly bounds
     controls.minDistance = minDistance.value;
     controls.maxDistance = maxDistance.value;
-    controls.target.set(props.gridWidth / 2, 0, props.gridHeight / 2);
-    controls.addEventListener('change', () => {
-      // Keep navigation oriented within the garden bounds.
-      if (!controls || !camera) return;
-      controls.target.x = clamp(controls.target.x, 0, props.gridWidth);
-      controls.target.z = clamp(controls.target.z, 0, props.gridHeight);
-    });
-    controls.update();
+    controls.dollyToCursor = true;
 
-    // Seamless "2D -> 3D": start in Top (matches 2D), then ease into Iso.
+    // Seamless "2D -> 3D": start in Top view so it matches 2D immediately.
     applyViewPresetInstant('top');
-    if (openIsoTimeout) window.clearTimeout(openIsoTimeout);
-    openIsoTimeout = window.setTimeout(() => {
-      setViewPreset('iso');
-    }, 450);
-  });
+  }
 
   raycaster = new THREE.Raycaster();
   mouseNdc = new THREE.Vector2();
@@ -436,7 +465,7 @@ const initThreeJS = () => {
 };
 
 const disposeMeshMaterials = (mesh: THREE.Mesh) => {
-  const mat = mesh.material as any;
+  const mat = /** @type {any} */ (mesh.material);
   const disposeMat = (m: any) => {
     if (!m) return;
     if (m.map && typeof m.map.dispose === 'function') m.map.dispose();
@@ -453,7 +482,7 @@ const clearPlantInstances = () => {
     disposeMeshMaterials(meta.mesh);
     if (meta.label) {
       scene.remove(meta.label);
-      const mat = meta.label.material as THREE.SpriteMaterial;
+    const mat = /** @type {any} */ (meta.label.material);
       if (mat.map) mat.map.dispose();
       mat.dispose();
     }
@@ -561,7 +590,7 @@ const addPlants = () => {
       mesh.position.set(x, y, z);
       mesh.scale.set(spreadFeet, cappedHeight, spreadFeet);
       mesh.userData = { plantId: placed.plantId, placedId: placed.id };
-      scene!.add(mesh);
+      scene.add(mesh);
 
       registerInstance(mesh, placed, plant, x, y, z, spreadFeet, cappedHeight);
     }
@@ -638,15 +667,15 @@ const createPlantWithTexture = (
       const maxAniso = renderer?.capabilities.getMaxAnisotropy?.() ?? 1;
       texture.anisotropy = Math.min(8, Math.max(1, maxAniso));
 
-      const sideMat = materials[0] as THREE.MeshStandardMaterial;
-      const topMat = materials[1] as THREE.MeshStandardMaterial;
+      const sideMat = /** @type {any} */ (materials[0]);
+      const topMat = /** @type {any} */ (materials[1]);
 
       // Dispose any previous maps safely (avoid leaking GPU memory).
       // Note: since we set SIDE and TOP to the same `texture`, we only dispose
       // old maps that are different from the new one.
-      const oldMaps = new Set<THREE.Texture>();
-      const sideOld = sideMat.map as THREE.Texture | null | undefined;
-      const topOld = topMat.map as THREE.Texture | null | undefined;
+      const oldMaps = new Set<any>();
+      const sideOld = sideMat.map;
+      const topOld = topMat.map;
       if (sideOld && sideOld !== texture) oldMaps.add(sideOld);
       if (topOld && topOld !== texture) oldMaps.add(topOld);
 
@@ -684,7 +713,7 @@ const registerInstance = (
 
   if (labelMode.value === 'all') {
     ensureLabel(meta);
-    meta.label!.visible = true;
+    if (meta.label) meta.label.visible = true;
   }
 };
 
@@ -693,30 +722,16 @@ const animate = () => {
   
   requestAnimationFrame(animate);
   
-  if (controls) {
-    controls.update();
-  }
+  const dt = clock?.getDelta?.() ?? 1 / 60;
+  if (controls?.update) controls.update(dt);
 
-  // Smooth focus animation
-  if (focusAnim && controls) {
-    const now = performance.now();
-    const t = Math.min(1, (now - focusAnim.startAt) / focusAnim.durationMs);
-    const k = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; // easeInOutQuad
-
-    const curTarget = focusAnim.fromTarget.clone().lerp(focusAnim.toTarget, k);
-    const curCam = focusAnim.fromCam.clone().lerp(focusAnim.toCam, k);
-    controls.target.copy(curTarget);
-    camera.position.copy(curCam);
-    if (t >= 1) focusAnim = null;
-  }
-
-  // Keep selected label readable
-  if (selected.value) {
-    const meta = placedIdToInstance.get(selected.value.placedId);
-    if (meta?.label && camera) {
+  // Keep labels readable (scale by distance; smaller than previous defaults).
+  if (camera) {
+    for (const meta of placedIdToInstance.values()) {
+      if (!meta.label || !meta.label.visible) continue;
       const d = camera.position.distanceTo(meta.center);
-      const s = clamp(d * 0.08, 2.5, 7.5);
-      meta.label.scale.set(s * 1.6, s * 0.45, 1);
+      const s = clamp(d * 0.045, 1.3, 3.6);
+      meta.label.scale.set(s * 1.55, s * 0.55, 1);
       meta.label.position.set(meta.center.x, meta.heightFeet + 1.1, meta.center.z);
     }
   }
@@ -735,10 +750,6 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  if (openIsoTimeout) {
-    window.clearTimeout(openIsoTimeout);
-    openIsoTimeout = null;
-  }
   // Clean up Three.js resources
   if (renderer) {
     renderer.domElement.removeEventListener('pointermove', onPointerMove);
@@ -747,7 +758,11 @@ onUnmounted(() => {
     renderer.dispose();
   }
   if (controls) {
-    controls.dispose();
+    try {
+      controls.dispose?.();
+    } catch {
+      // ignore
+    }
   }
   if (resizeObserver) {
     resizeObserver.disconnect();
@@ -755,12 +770,12 @@ onUnmounted(() => {
   }
   if (selectionRing) {
     selectionRing.geometry.dispose();
-    (selectionRing.material as THREE.Material).dispose();
+    /** @type {any} */ (selectionRing.material)?.dispose?.();
     selectionRing = null;
   }
   for (const meta of placedIdToInstance.values()) {
     if (meta.label) {
-      const mat = meta.label.material as THREE.SpriteMaterial;
+      const mat = /** @type {any} */ (meta.label.material);
       if (mat.map) mat.map.dispose();
       mat.dispose();
     }
@@ -787,7 +802,6 @@ const resetView = () => {
 type ViewPreset = 'top' | 'iso';
 const applyViewPresetInstant = (preset: ViewPreset) => {
   if (!camera || !controls) return;
-  focusAnim = null;
 
   const cx = props.gridWidth / 2;
   const cz = props.gridHeight / 2;
@@ -803,9 +817,15 @@ const applyViewPresetInstant = (preset: ViewPreset) => {
     nextCam = new THREE.Vector3(cx + dist, Math.max(18, dist * 0.75), cz + dist);
   }
 
-  controls.target.copy(nextTarget);
-  camera.position.copy(nextCam);
-  controls.update();
+  controls.setLookAt(
+    nextCam.x,
+    nextCam.y,
+    nextCam.z,
+    nextTarget.x,
+    nextTarget.y,
+    nextTarget.z,
+    false
+  );
 };
 const setViewPreset = (preset: ViewPreset) => {
   if (!camera || !controls) return;
@@ -823,14 +843,15 @@ const setViewPreset = (preset: ViewPreset) => {
     nextCam = new THREE.Vector3(cx + dist, Math.max(18, dist * 0.75), cz + dist);
   }
 
-  focusAnim = {
-    startAt: performance.now(),
-    durationMs: 550,
-    fromTarget: controls.target.clone(),
-    toTarget: nextTarget,
-    fromCam: camera.position.clone(),
-    toCam: nextCam
-  };
+  controls.setLookAt(
+    nextCam.x,
+    nextCam.y,
+    nextCam.z,
+    nextTarget.x,
+    nextTarget.y,
+    nextTarget.z,
+    true
+  );
 };
 
 const setSelectionRing = (meta: PlantInstanceMeta | null) => {
@@ -850,7 +871,14 @@ const setSelectionRing = (meta: PlantInstanceMeta | null) => {
 const focusOnInstance = (meta: PlantInstanceMeta) => {
   if (!camera || !controls) return;
   const nextTarget = new THREE.Vector3(meta.center.x, Math.min(meta.heightFeet / 2, 6), meta.center.z);
-  const offset = camera.position.clone().sub(controls.target);
+  const curTarget = new THREE.Vector3();
+  const curPos = new THREE.Vector3();
+  controls.getTarget?.(curTarget);
+  controls.getPosition?.(curPos);
+  const offset = (controls.getTarget && controls.getPosition)
+    ? curPos.clone().sub(curTarget)
+    : camera.position.clone().sub(new THREE.Vector3(props.gridWidth / 2, 0, props.gridHeight / 2));
+
   let nextCam = nextTarget.clone().add(offset);
   nextCam.y = Math.max(nextCam.y, 2.5);
 
@@ -862,14 +890,15 @@ const focusOnInstance = (meta: PlantInstanceMeta) => {
     nextCam = nextTarget.clone().add(dir.multiplyScalar(clampedDist));
   }
 
-  focusAnim = {
-    startAt: performance.now(),
-    durationMs: 550,
-    fromTarget: controls.target.clone(),
-    toTarget: nextTarget,
-    fromCam: camera.position.clone(),
-    toCam: nextCam
-  };
+  controls.setLookAt(
+    nextCam.x,
+    nextCam.y,
+    nextCam.z,
+    nextTarget.x,
+    nextTarget.y,
+    nextTarget.z,
+    true
+  );
 };
 
 const selectPlacedId = (placedId: string) => {
@@ -881,8 +910,9 @@ const selectPlacedId = (placedId: string) => {
   focusOnInstance(meta);
 
   const plant = props.plantById[meta.placed.plantId];
-  const commonName = (plant?.['Common Name'] as string) || meta.placed.plantId;
-  const scientificName = plant?.['Scientific Name'] as string | undefined;
+  const plantAny = plant ? /** @type {any} */ (plant) : null;
+  const commonName = plantAny?.['Common Name'] || meta.placed.plantId;
+  const scientificName = plantAny?.['Scientific Name'] || undefined;
   const heightFeetRaw = plant ? plant['Height (feet)'] : null;
   const heightFeet = parseFeet(heightFeetRaw) ?? meta.heightFeet;
   const spreadFeet = meta.placed.width;
@@ -943,10 +973,19 @@ const pickObjectUnderPointer = (ev: PointerEvent) => {
   const meshes: THREE.Object3D[] = [];
   for (const meta of placedIdToInstance.values()) meshes.push(meta.mesh);
   const hits = raycaster.intersectObjects(meshes, false);
-  return hits.length > 0 ? (hits[0].object as THREE.Mesh) : null;
+  return hits.length > 0 ? hits[0].object : null;
 };
 
 const onPointerMove = (ev: PointerEvent) => {
+  // Track "any drag" so orbit/pan drags don't accidentally select on pointerup.
+  if (pointerDownAt && !pointerDragging) {
+    const dx = ev.clientX - pointerDownAt.x;
+    const dy = ev.clientY - pointerDownAt.y;
+    if (dx * dx + dy * dy > 36) {
+      pointerDragging = true;
+    }
+  }
+
   // Dragging a plant: move it along the ground plane (X/Z), keep height data-driven.
   if (dragPlacedId && raycaster && mouseNdc && camera && renderer && dragOffsetXZ) {
     const rect = renderer.domElement.getBoundingClientRect();
@@ -989,7 +1028,7 @@ const onPointerMove = (ev: PointerEvent) => {
       dragPlacedId = dragCandidatePlacedId;
       dragCandidatePlacedId = null;
       pointerDragging = true;
-      if (controls) controls.enabled = false;
+      if (controls && 'enabled' in controls) controls.enabled = false;
     }
   }
   const obj = pickObjectUnderPointer(ev);
@@ -1038,7 +1077,7 @@ const onPointerUp = (ev: PointerEvent) => {
     dragOffsetXZ = null;
     pointerDownAt = null;
     pointerDragging = false;
-    if (controls) controls.enabled = true;
+    if (controls && 'enabled' in controls) controls.enabled = true;
     return;
   }
 
@@ -1048,7 +1087,7 @@ const onPointerUp = (ev: PointerEvent) => {
     pointerDragging = false;
     dragCandidatePlacedId = null;
     dragOffsetXZ = null;
-    if (controls) controls.enabled = true;
+    if (controls && 'enabled' in controls) controls.enabled = true;
     return;
   }
   const obj = pickObjectUnderPointer(ev);
@@ -1067,31 +1106,79 @@ const ensureLabel = (meta: PlantInstanceMeta) => {
   if (!scene) return;
   if (meta.label) return;
   const plant = props.plantById[meta.placed.plantId];
-  const commonName = (plant?.['Common Name'] as string) || meta.placed.plantId;
-  const shortName = commonName.length > 26 ? commonName.substring(0, 23) + '…' : commonName;
+  const plantAny = plant ? /** @type {any} */ (plant) : null;
+  const commonNameRaw = plantAny?.['Common Name'] || meta.placed.plantId;
+  const scientificNameRaw = plantAny?.['Scientific Name'] || '';
+  const commonName = shortLabel(commonNameRaw, 28);
+  const scientificName = shortLabel(scientificNameRaw, 34);
 
   const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d')!;
-  canvas.width = 768;
-  canvas.height = 192;
+  const context = canvas.getContext('2d');
+  if (!context) return;
+  canvas.width = 720;
+  canvas.height = 240;
 
-  // Background + border
-  context.fillStyle = 'rgba(255, 255, 255, 0.92)';
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.strokeStyle = 'rgba(17, 24, 39, 0.18)';
-  context.lineWidth = 6;
-  context.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
+  // Match 2D label feel: dark translucent rounded panel + white text
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.save();
+  context.shadowColor = 'rgba(0, 0, 0, 0.35)';
+  context.shadowBlur = 18;
+  context.shadowOffsetY = 6;
+  context.fillStyle = 'rgba(17, 24, 39, 0.45)';
+  drawRoundedRect(context, 16, 26, canvas.width - 32, canvas.height - 52, 26);
+  context.fill();
+  context.restore();
 
-  // Text
-  context.fillStyle = '#111827';
-  context.font = 'bold 44px Arial';
+  // Subtle border
+  context.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+  context.lineWidth = 3;
+  drawRoundedRect(context, 16, 26, canvas.width - 32, canvas.height - 52, 26);
+  context.stroke();
+
+  // Coordinate badge (like 2D)
+  const coord = centerPositionLabel(meta.placed);
+  context.font = '700 28px "Roboto Mono", monospace';
+  const badgePaddingX = 18;
+  const badgePaddingY = 10;
+  const badgeTextW = context.measureText(coord).width;
+  const badgeW = badgeTextW + badgePaddingX * 2;
+  const badgeH = 28 + badgePaddingY * 2;
+  const badgeX = (canvas.width - badgeW) / 2;
+  const badgeY = 34;
+  context.fillStyle = 'rgba(0, 0, 0, 0.72)';
+  drawRoundedRect(context, badgeX, badgeY, badgeW, badgeH, 14);
+  context.fill();
+  context.strokeStyle = 'rgba(255, 255, 255, 0.30)';
+  context.lineWidth = 2;
+  drawRoundedRect(context, badgeX, badgeY, badgeW, badgeH, 14);
+  context.stroke();
+  context.fillStyle = '#ffffff';
   context.textAlign = 'center';
   context.textBaseline = 'middle';
-  context.fillText(shortName, canvas.width / 2, canvas.height / 2);
+  context.fillText(coord, canvas.width / 2, badgeY + badgeH / 2);
+
+  // Common name
+  context.font = '700 44px Roboto, Arial, sans-serif';
+  context.fillStyle = '#ffffff';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.shadowColor = 'rgba(0, 0, 0, 0.45)';
+  context.shadowBlur = 8;
+  context.shadowOffsetY = 2;
+  context.fillText(commonName, canvas.width / 2, canvas.height / 2 + 10);
+
+  // Scientific name (optional)
+  if (scientificName) {
+    context.shadowBlur = 0;
+    context.font = 'italic 30px Roboto, Arial, sans-serif';
+    context.fillStyle = 'rgba(255, 255, 255, 0.95)';
+    context.fillText(scientificName, canvas.width / 2, canvas.height / 2 + 60);
+  }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
+  texture.colorSpace = THREE.SRGBColorSpace;
 
   const spriteMaterial = new THREE.SpriteMaterial({
     map: texture,
@@ -1100,7 +1187,8 @@ const ensureLabel = (meta: PlantInstanceMeta) => {
   });
   const sprite = new THREE.Sprite(spriteMaterial);
   sprite.position.set(meta.center.x, meta.heightFeet + 1.1, meta.center.z);
-  sprite.scale.set(6.4, 1.8, 1);
+  // Smaller baseline; we scale dynamically based on camera distance
+  sprite.scale.set(3.8, 1.35, 1);
   sprite.visible = false;
   scene.add(sprite);
   meta.label = sprite;
@@ -1159,14 +1247,15 @@ const fitCameraToGarden = () => {
   const nextTarget = new THREE.Vector3(center.x, 0, center.z);
   const nextCam = nextTarget.clone().add(dir.multiplyScalar(dist));
 
-  focusAnim = {
-    startAt: performance.now(),
-    durationMs: 650,
-    fromTarget: controls.target.clone(),
-    toTarget: nextTarget,
-    fromCam: camera.position.clone(),
-    toCam: nextCam
-  };
+  controls.setLookAt(
+    nextCam.x,
+    nextCam.y,
+    nextCam.z,
+    nextTarget.x,
+    nextTarget.y,
+    nextTarget.z,
+    true
+  );
 };
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
