@@ -4,6 +4,36 @@
       <button class="overlay-button" type="button" @click="$emit('close')" aria-label="Close 3D view">
         Close
       </button>
+      <button
+        class="overlay-button"
+        type="button"
+        :disabled="!canUndo"
+        @click="emit('undo')"
+        aria-label="Undo"
+        title="Undo"
+      >
+        Undo
+      </button>
+      <button
+        class="overlay-button"
+        type="button"
+        :disabled="!canRedo"
+        @click="emit('redo')"
+        aria-label="Redo"
+        title="Redo"
+      >
+        Redo
+      </button>
+      <button
+        class="overlay-button danger"
+        type="button"
+        :disabled="!canClear"
+        @click="emit('clear')"
+        aria-label="Clear layout"
+        title="Clear layout"
+      >
+        Clear
+      </button>
       <button class="overlay-button" type="button" @click="resetView" aria-label="Reset camera view">
         Reset view
       </button>
@@ -68,6 +98,17 @@
       <div v-if="selected.scientificName" class="info-subtitle"><i>{{ selected.scientificName }}</i></div>
       <div class="info-row">Height: {{ selected.heightFeet ?? '—' }} ft</div>
       <div class="info-row">Spread: {{ selected.spreadFeet ?? '—' }} ft</div>
+      <div class="info-actions">
+        <button
+          class="overlay-button danger"
+          type="button"
+          @click="emit('remove-placed', selected.placedId)"
+          aria-label="Remove plant from layout"
+          title="Remove from layout"
+        >
+          Remove
+        </button>
+      </div>
     </div>
 
     <div ref="threeContainer" class="canvas"></div>
@@ -75,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, shallowRef, onMounted, onUnmounted, ref } from 'vue';
+import { computed, shallowRef, onMounted, onUnmounted, ref, watch } from 'vue';
 // @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
 import { TresCanvas, extend } from '@tresjs/core';
 // @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
@@ -86,9 +127,10 @@ import type { Plant, PlacedPlant } from '../types/garden';
 // THREE.js classes are now extended globally in main.js
 
 if (typeof window !== 'undefined') {
+  const wAny = /** @type {any} */ (window);
   console.log('Garden3DView: WebGL support detected', {
-    webgl: !!(window as any).WebGLRenderingContext,
-    webgl2: !!(window as any).WebGL2RenderingContext
+    webgl: !!wAny.WebGLRenderingContext,
+    webgl2: !!wAny.WebGL2RenderingContext
   });
   
   // Test WebGL context creation
@@ -108,11 +150,20 @@ const props = defineProps<{
   plantById: Record<string, Plant>;
   gridWidth: number;
   gridHeight: number;
+  snapIncrement: number;
+  canUndo: boolean;
+  canRedo: boolean;
+  canClear: boolean;
   imageUrl?: (plant: Plant | undefined, preview: boolean) => string;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'close'): void;
+  (e: 'undo'): void;
+  (e: 'redo'): void;
+  (e: 'clear'): void;
+  (e: 'move-placed', placedId: string, x: number, y: number): void;
+  (e: 'remove-placed', placedId: string): void;
 }>();
 
 const instancesRef = shallowRef<any>(null);
@@ -128,11 +179,12 @@ let controls: any = null;
 let raycaster: THREE.Raycaster | null = null;
 let mouseNdc: THREE.Vector2 | null = null;
 let resizeObserver: ResizeObserver | null = null;
+let openIsoTimeout: number | null = null;
 
 type PlantInstanceMeta = {
   placed: PlacedPlant;
   plant: Plant | undefined;
-  mesh: THREE.Object3D;
+  mesh: THREE.Mesh;
   label?: THREE.Sprite;
   center: THREE.Vector3;
   heightFeet: number;
@@ -144,9 +196,13 @@ const plantIdToPlacedIds = new Map<string, string[]>();
 
 let selectionRing: THREE.Mesh | null = null;
 let hoveredObject: THREE.Object3D | null = null;
-let selectedObject: THREE.Object3D | null = null;
+let selectedObject: THREE.Mesh | null = null;
 let pointerDownAt: { x: number; y: number } | null = null;
 let pointerDragging = false;
+let dragCandidatePlacedId: string | null = null;
+let dragPlacedId: string | null = null;
+let dragOffsetXZ: { dx: number; dz: number } | null = null;
+const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
 let focusAnim: {
   startAt: number;
@@ -260,7 +316,8 @@ const initThreeJS = () => {
   
   // Scene
   scene = new THREE.Scene();
-  scene.background = new THREE.Color('#87ceeb');
+  // Match the planner's neutral canvas so this feels like a true "3D mode"
+  scene.background = new THREE.Color('#f8fafc');
 
   // Camera - positioned based on garden size and plant heights
   const maxHeight = Math.max(...props.placedPlants.map(placed => {
@@ -284,6 +341,11 @@ const initThreeJS = () => {
   // Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(rect.width, rect.height);
+  // Color management for correct texture appearance
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  // Gentle filmic tone mapping helps photos look less flat / washed out
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   container.appendChild(renderer.domElement);
@@ -340,6 +402,13 @@ const initThreeJS = () => {
       controls.target.z = clamp(controls.target.z, 0, props.gridHeight);
     });
     controls.update();
+
+    // Seamless "2D -> 3D": start in Top (matches 2D), then ease into Iso.
+    applyViewPresetInstant('top');
+    if (openIsoTimeout) window.clearTimeout(openIsoTimeout);
+    openIsoTimeout = window.setTimeout(() => {
+      setViewPreset('iso');
+    }, 450);
   });
 
   raycaster = new THREE.Raycaster();
@@ -366,13 +435,102 @@ const initThreeJS = () => {
   console.log('Garden3DView: Three.js initialized successfully');
 };
 
+const disposeMeshMaterials = (mesh: THREE.Mesh) => {
+  const mat = mesh.material as any;
+  const disposeMat = (m: any) => {
+    if (!m) return;
+    if (m.map && typeof m.map.dispose === 'function') m.map.dispose();
+    if (typeof m.dispose === 'function') m.dispose();
+  };
+  if (Array.isArray(mat)) mat.forEach(disposeMat);
+  else disposeMat(mat);
+};
+
+const clearPlantInstances = () => {
+  if (!scene) return;
+  for (const meta of placedIdToInstance.values()) {
+    scene.remove(meta.mesh);
+    disposeMeshMaterials(meta.mesh);
+    if (meta.label) {
+      scene.remove(meta.label);
+      const mat = meta.label.material as THREE.SpriteMaterial;
+      if (mat.map) mat.map.dispose();
+      mat.dispose();
+    }
+  }
+  placedIdToInstance.clear();
+  plantIdToPlacedIds.clear();
+
+  hoveredObject = null;
+  selectedObject = null;
+  selected.value = null;
+  setSelectionRing(null);
+};
+
+// Keep meshes in sync when parent state changes (undo/redo/clear, etc.)
+const syncFromProps = () => {
+  if (!scene) return;
+
+  const nextIds = new Set(props.placedPlants.map(p => p.id));
+  // Remove any instances that no longer exist
+  for (const [placedId, meta] of placedIdToInstance.entries()) {
+    if (nextIds.has(placedId)) continue;
+    scene.remove(meta.mesh);
+    disposeMeshMaterials(meta.mesh);
+    placedIdToInstance.delete(placedId);
+  }
+
+  // Add or update
+  for (const placed of props.placedPlants) {
+    const plant = props.plantById[placed.plantId];
+    const plantAny = /** @type {any} */ (plant);
+    const heightFeetRaw = plant ? plantAny['Height (feet)'] : null;
+    const heightFeet = parseFeet(heightFeetRaw) ?? 1;
+    const cappedHeight = Math.max(heightFeet, 0.1);
+    const spreadFeet = placed.width;
+
+    // Center of footprint
+    const x = placed.x + placed.width / 2;
+    const z = placed.y + placed.height / 2;
+    const y = cappedHeight / 2;
+
+    const existing = placedIdToInstance.get(placed.id);
+    if (!existing) {
+      // Structural change (new item) -> easiest: rebuild all once
+      // (keeps logic centralized, avoids partial texture state edge cases)
+      addPlants();
+      return;
+    }
+
+    // Update meta + mesh transform
+    existing.placed = placed;
+    existing.plant = plant;
+    existing.heightFeet = cappedHeight;
+    existing.spreadFeet = spreadFeet;
+    existing.center.set(x, y, z);
+
+    existing.mesh.position.set(x, y, z);
+    existing.mesh.scale.set(spreadFeet, cappedHeight, spreadFeet);
+  }
+
+  // Keep selection ring aligned if selection is active
+  if (selected.value) {
+    const meta = placedIdToInstance.get(selected.value.placedId);
+    if (meta) setSelectionRing(meta);
+  }
+};
+
+watch(
+  () => props.placedPlants,
+  () => syncFromProps(),
+  { deep: true }
+);
+
 const addPlants = () => {
   if (!scene) return;
 
-  const cylinderGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 12, 1, false);
-  
-  placedIdToInstance.clear();
-  plantIdToPlacedIds.clear();
+  // Rebuild: remove any existing plant meshes/labels before re-adding.
+  clearPlantInstances();
 
   props.placedPlants.forEach((placed) => {
     const plant = props.plantById[placed.plantId];
@@ -428,7 +586,7 @@ const createPlantWithTexture = (
   const imageUrl = props.imageUrl(plant, false); // Get full-size image
   
   // Create a mesh immediately (so legend jump/selection works without waiting for image load).
-  // Later, if the photo loads, we swap the TOP material map only.
+  // Later, if the photo loads, we swap the SIDE + TOP material maps.
   const materials: THREE.Material[] = [
     new THREE.MeshStandardMaterial({
       color: fallbackColor,
@@ -466,14 +624,39 @@ const createPlantWithTexture = (
     imageUrl,
     (texture) => {
       console.log(`Loaded texture for ${plant['Common Name']}`);
+      // Correct color for photo textures
+      texture.colorSpace = THREE.SRGBColorSpace;
+
+      // Reduce shimmering/blurriness at grazing angles while orbiting
+      texture.generateMipmaps = true;
+      texture.minFilter = THREE.LinearMipmapLinearFilter;
+      texture.magFilter = THREE.LinearFilter;
       texture.wrapS = THREE.ClampToEdgeWrapping;
       texture.wrapT = THREE.ClampToEdgeWrapping;
-      texture.minFilter = THREE.LinearMipMapLinearFilter;
-      texture.magFilter = THREE.LinearFilter;
 
+      // Anisotropy depends on the renderer caps
+      const maxAniso = renderer?.capabilities.getMaxAnisotropy?.() ?? 1;
+      texture.anisotropy = Math.min(8, Math.max(1, maxAniso));
+
+      const sideMat = materials[0] as THREE.MeshStandardMaterial;
       const topMat = materials[1] as THREE.MeshStandardMaterial;
+
+      // Dispose any previous maps safely (avoid leaking GPU memory).
+      // Note: since we set SIDE and TOP to the same `texture`, we only dispose
+      // old maps that are different from the new one.
+      const oldMaps = new Set<THREE.Texture>();
+      const sideOld = sideMat.map as THREE.Texture | null | undefined;
+      const topOld = topMat.map as THREE.Texture | null | undefined;
+      if (sideOld && sideOld !== texture) oldMaps.add(sideOld);
+      if (topOld && topOld !== texture) oldMaps.add(topOld);
+
+      sideMat.map = texture;
+      sideMat.needsUpdate = true;
+
       topMat.map = texture;
       topMat.needsUpdate = true;
+
+      for (const old of oldMaps) old.dispose();
     },
     undefined,
     (error) => {
@@ -483,7 +666,7 @@ const createPlantWithTexture = (
 };
 
 const registerInstance = (
-  mesh: THREE.Object3D,
+  mesh: THREE.Mesh,
   placed: PlacedPlant,
   plant: Plant | undefined,
   x: number,
@@ -552,11 +735,15 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  if (openIsoTimeout) {
+    window.clearTimeout(openIsoTimeout);
+    openIsoTimeout = null;
+  }
   // Clean up Three.js resources
   if (renderer) {
-    renderer.domElement.removeEventListener('pointermove', onPointerMove as any);
-    renderer.domElement.removeEventListener('pointerdown', onPointerDown as any);
-    renderer.domElement.removeEventListener('pointerup', onPointerUp as any);
+    renderer.domElement.removeEventListener('pointermove', onPointerMove);
+    renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+    renderer.domElement.removeEventListener('pointerup', onPointerUp);
     renderer.dispose();
   }
   if (controls) {
@@ -598,6 +785,28 @@ const resetView = () => {
 };
 
 type ViewPreset = 'top' | 'iso';
+const applyViewPresetInstant = (preset: ViewPreset) => {
+  if (!camera || !controls) return;
+  focusAnim = null;
+
+  const cx = props.gridWidth / 2;
+  const cz = props.gridHeight / 2;
+  const d = Math.max(props.gridWidth, props.gridHeight);
+
+  const nextTarget = new THREE.Vector3(cx, 0, cz);
+  let nextCam: THREE.Vector3;
+  if (preset === 'top') {
+    const h = Math.max(18, d * 1.25);
+    nextCam = new THREE.Vector3(cx, h, cz + Math.max(0.5, d * 0.06));
+  } else {
+    const dist = Math.max(18, d * 0.95);
+    nextCam = new THREE.Vector3(cx + dist, Math.max(18, dist * 0.75), cz + dist);
+  }
+
+  controls.target.copy(nextTarget);
+  camera.position.copy(nextCam);
+  controls.update();
+};
 const setViewPreset = (preset: ViewPreset) => {
   if (!camera || !controls) return;
   const cx = props.gridWidth / 2;
@@ -702,14 +911,14 @@ const jumpToPlant = (plantId: string) => {
 
 const updateHover = (obj: THREE.Object3D | null) => {
   if (hoveredObject === obj) return;
-  const setEmissive = (o: THREE.Object3D | null, on: boolean) => {
+  const setEmissive = (o: any, on: boolean) => {
     if (!o) return;
-    const mat = (o as any).material;
+    const mat = o.material;
     if (Array.isArray(mat)) {
       for (const m of mat) {
         if (m && 'emissive' in m) {
-          (m as any).emissive = new THREE.Color(on ? 0x111827 : 0x000000);
-          (m as any).emissiveIntensity = on ? 0.25 : 0.0;
+          m.emissive = new THREE.Color(on ? 0x111827 : 0x000000);
+          m.emissiveIntensity = on ? 0.25 : 0.0;
         }
       }
     } else if (mat && 'emissive' in mat) {
@@ -734,14 +943,54 @@ const pickObjectUnderPointer = (ev: PointerEvent) => {
   const meshes: THREE.Object3D[] = [];
   for (const meta of placedIdToInstance.values()) meshes.push(meta.mesh);
   const hits = raycaster.intersectObjects(meshes, false);
-  return hits.length > 0 ? hits[0].object : null;
+  return hits.length > 0 ? (hits[0].object as THREE.Mesh) : null;
 };
 
 const onPointerMove = (ev: PointerEvent) => {
-  if (pointerDownAt) {
+  // Dragging a plant: move it along the ground plane (X/Z), keep height data-driven.
+  if (dragPlacedId && raycaster && mouseNdc && camera && renderer && dragOffsetXZ) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouseNdc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    mouseNdc.y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
+    raycaster.setFromCamera(mouseNdc, camera);
+
+    const hit = new THREE.Vector3();
+    const ok = raycaster.ray.intersectPlane(groundPlane, hit);
+    if (ok) {
+      const meta = placedIdToInstance.get(dragPlacedId);
+      if (meta) {
+        const centerX = hit.x + dragOffsetXZ.dx;
+        const centerZ = hit.z + dragOffsetXZ.dz;
+
+        const topLeftX = centerX - meta.placed.width / 2;
+        const topLeftY = centerZ - meta.placed.height / 2;
+
+        const snap = (v: number) => Math.round(v / props.snapIncrement) * props.snapIncrement;
+        const clampedX = clamp(snap(topLeftX), 0, Math.max(0, props.gridWidth - meta.placed.width));
+        const clampedY = clamp(snap(topLeftY), 0, Math.max(0, props.gridHeight - meta.placed.height));
+
+        const newCenterX = clampedX + meta.placed.width / 2;
+        const newCenterZ = clampedY + meta.placed.height / 2;
+        meta.center.set(newCenterX, meta.center.y, newCenterZ);
+
+        meta.mesh.position.set(newCenterX, meta.center.y, newCenterZ);
+
+        if (selected.value?.placedId === meta.placed.id) setSelectionRing(meta);
+      }
+    }
+    return;
+  }
+
+  if (pointerDownAt && dragCandidatePlacedId) {
     const dx = ev.clientX - pointerDownAt.x;
     const dy = ev.clientY - pointerDownAt.y;
-    if (dx * dx + dy * dy > 36) pointerDragging = true; // 6px threshold
+    if (dx * dx + dy * dy > 36) {
+      // Begin plant drag after small threshold
+      dragPlacedId = dragCandidatePlacedId;
+      dragCandidatePlacedId = null;
+      pointerDragging = true;
+      if (controls) controls.enabled = false;
+    }
   }
   const obj = pickObjectUnderPointer(ev);
   updateHover(obj);
@@ -750,22 +999,68 @@ const onPointerMove = (ev: PointerEvent) => {
 const onPointerDown = (ev: PointerEvent) => {
   pointerDownAt = { x: ev.clientX, y: ev.clientY };
   pointerDragging = false;
+
+  // If pointer is down on a plant, prepare for ground-plane drag
+  const obj = pickObjectUnderPointer(ev);
+  const placedIdRaw = /** @type {any} */ (obj)?.userData?.placedId;
+  const placedId = typeof placedIdRaw === 'string' ? placedIdRaw : null;
+  if (placedId && raycaster && mouseNdc && camera && renderer) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouseNdc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    mouseNdc.y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
+    raycaster.setFromCamera(mouseNdc, camera);
+    const hit = new THREE.Vector3();
+    const ok = raycaster.ray.intersectPlane(groundPlane, hit);
+    if (ok) {
+      const meta = placedIdToInstance.get(placedId);
+      if (meta) {
+        dragCandidatePlacedId = placedId;
+        dragOffsetXZ = { dx: meta.center.x - hit.x, dz: meta.center.z - hit.z };
+      }
+    }
+  } else {
+    dragCandidatePlacedId = null;
+    dragOffsetXZ = null;
+  }
 };
 
 const onPointerUp = (ev: PointerEvent) => {
+  // Finish plant drag: commit to planner state (single history entry)
+  if (dragPlacedId) {
+    const meta = placedIdToInstance.get(dragPlacedId);
+    if (meta) {
+      const finalX = meta.center.x - meta.placed.width / 2;
+      const finalY = meta.center.z - meta.placed.height / 2;
+      emit('move-placed', meta.placed.id, finalX, finalY);
+    }
+    dragPlacedId = null;
+    dragCandidatePlacedId = null;
+    dragOffsetXZ = null;
+    pointerDownAt = null;
+    pointerDragging = false;
+    if (controls) controls.enabled = true;
+    return;
+  }
+
   // If user dragged to orbit/pan, don't treat it as a selection click.
   if (pointerDragging) {
     pointerDownAt = null;
     pointerDragging = false;
+    dragCandidatePlacedId = null;
+    dragOffsetXZ = null;
+    if (controls) controls.enabled = true;
     return;
   }
   const obj = pickObjectUnderPointer(ev);
   if (obj) {
-    const placedId = (obj as any).userData?.placedId as string | undefined;
+    const placedIdRaw = /** @type {any} */ (obj)?.userData?.placedId;
+    const placedId = typeof placedIdRaw === 'string' ? placedIdRaw : null;
     if (placedId) selectPlacedId(placedId);
   }
   pointerDownAt = null;
   pointerDragging = false;
+  dragCandidatePlacedId = null;
+  dragOffsetXZ = null;
 };
 
 const ensureLabel = (meta: PlantInstanceMeta) => {
@@ -916,6 +1211,21 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
   font-size: 13px;
 }
 
+.overlay-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.overlay-button.danger {
+  border-color: rgba(220, 38, 38, 0.7);
+  color: #b91c1c;
+}
+
+.overlay-button.danger:hover:not(:disabled) {
+  background: rgba(254, 242, 242, 0.92);
+  border-color: rgba(185, 28, 28, 0.85);
+}
+
 .overlay-legend {
   margin-left: auto;
   padding: 8px 10px;
@@ -1061,6 +1371,13 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
   font-size: 13px;
 }
 
+.info-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .color-legend {
   position: absolute;
   top: 12px;
@@ -1076,8 +1393,10 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
 
 .plant-legend {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  /* Keep the legend in the same "top-left toolbar" region as the 2D planner */
+  top: 56px;
+  left: 12px;
+  right: auto;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid #e5e7eb;
   border-radius: 10px;
@@ -1187,6 +1506,12 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
     right: 10px;
     bottom: 10px;
     width: min(240px, 70vw);
+  }
+
+  .plant-legend {
+    top: 58px;
+    left: 10px;
+    width: min(280px, 70vw);
   }
 }
 </style>

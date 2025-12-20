@@ -42,7 +42,7 @@ const applyOptions = () => {
 };
 
 const reset = () => {
-  const cam = ctx.camera.value as any;
+  const cam = /** @type {any} */ (ctx.camera.value);
   if (!cam) return;
 
   // props.cameraPosition is expected to be a THREE.Vector3-like
@@ -61,8 +61,8 @@ defineExpose({ reset });
 watch(
   () => [ctx.camera.value, ctx.renderer.value, props.cameraPosition, props.target],
   () => {
-    const cam = ctx.camera.value as any;
-    const renderer = ctx.renderer.value as any;
+    const cam = /** @type {any} */ (ctx.camera.value);
+    const renderer = /** @type {any} */ (ctx.renderer.value);
     if (!cam || !renderer || controls.value) return;
 
     const c = new OrbitControls(cam, renderer.domElement);

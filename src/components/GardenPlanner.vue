@@ -182,8 +182,17 @@
       :plant-by-id="plantById"
       :grid-width="gridWidth"
       :grid-height="gridHeight"
+      :snap-increment="snapIncrement"
+      :can-undo="canUndo"
+      :can-redo="canRedo"
+      :can-clear="placedPlants.length > 0"
       :image-url="imageUrl"
       @close="show3D = false"
+      @undo="undo"
+      @redo="redo"
+      @clear="clearLayout"
+      @move-placed="movePlant"
+      @remove-placed="removePlaced"
     />
   </div>
 </template>
@@ -206,9 +215,10 @@ const Garden3DView = defineAsyncComponent({
     return import('./Garden3DView.vue');
   },
   onError: (error, _retry, fail, attempts) => {
+    const errAny = /** @type {any} */ (error);
     console.error('Garden3DView async load failed', {
-      name: (error as any)?.name,
-      message: (error as any)?.message,
+      name: errAny?.name,
+      message: errAny?.message,
       attempts
     });
     fail(error);
