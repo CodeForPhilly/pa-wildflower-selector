@@ -59,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, shallowRef, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, shallowRef, onMounted, onUnmounted, ref, watch, nextTick } from 'vue';
 // @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
 import * as THREE from 'three';
 // @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
@@ -448,6 +448,7 @@ const instanceCount = computed(() => props.placedPlants.length);
 
 // 2D-like zoom controls for 3D camera (based on camera distance to target)
 const baseDistance = ref<number | null>(null);
+const isInitializing = ref(false); // Flag to prevent watch from interfering during initialization
 type ViewMode = 'top' | 'side';
 const viewMode = ref<ViewMode>('top');
 const sideIndex = ref(0);
@@ -471,10 +472,18 @@ const getCameraDistance = (): number | null => {
 };
 
 // When shared zoom changes (2D zoom scale), convert to camera distance (3D dolly)
+let isFirstZoomUpdate = true;
 watch(
   () => props.zoom,
   (z) => {
-    if (!controls) return;
+    if (!controls || isInitializing.value) return; // Don't interfere during initialization
+    
+    // Skip the first update since we handle it during initialization
+    if (isFirstZoomUpdate) {
+      isFirstZoomUpdate = false;
+      return;
+    }
+    
     const current = getCameraDistance();
     if (!baseDistance.value && current) baseDistance.value = current;
     const base = baseDistance.value;
@@ -733,8 +742,38 @@ const initThreeJS = () => {
     controls.dollyToCursor = true;
 
     // Seamless "2D -> 3D": start in Top view so it matches 2D immediately.
+    isInitializing.value = true; // Prevent watch and animate loop from interfering
+    
+    // Get current zoom level from 2D view
+    const zoomVal = typeof props.zoom === 'number' ? props.zoom : 1;
+    
+    // Set initial camera position (this is the "100% zoom" position)
     applyViewPresetInstant('top');
-    baseDistance.value = getCameraDistance();
+    
+    // Get the distance at this default position
+    const defaultDistance = getCameraDistance();
+    if (defaultDistance) {
+      // Calculate what the camera distance should be for the current zoom level
+      const targetDistance = defaultDistance / clamp(zoomVal, 0.5, 2);
+      
+      // Set the camera to the target distance immediately (no animation)
+      setCameraDistance(targetDistance, false);
+      
+      // Now set baseDistance to the default "100% zoom" distance
+      // This ensures future zoom changes work correctly
+      baseDistance.value = defaultDistance;
+      
+      // Wait for camera to settle before allowing sync
+      setTimeout(() => {
+        isInitializing.value = false;
+        isFirstZoomUpdate = false; // Allow future zoom updates
+      }, 200); // Longer delay to ensure everything is stable
+    } else {
+      // Fallback if distance couldn't be calculated
+      nextTick(() => {
+        isInitializing.value = false;
+      });
+    }
   }
 
   raycaster = new THREE.Raycaster();
@@ -1141,7 +1180,8 @@ const animate = () => {
   if (controls?.update) controls.update(dt);
 
   // Sync 3D zoom back to shared toolbar (2D uses zoom scale, 3D uses camera distance)
-  if (controls && baseDistance.value && typeof emit === 'function') {
+  // Skip sync during initialization to prevent feedback loop
+  if (controls && baseDistance.value && typeof emit === 'function' && !isInitializing.value) {
     const d = getCameraDistance();
     if (d && d > 0) {
       const z = clamp(baseDistance.value / d, 0.5, 2);
@@ -1343,7 +1383,8 @@ const applyViewPresetInstant = (preset: ViewPreset) => {
   const d = Math.max(props.gridWidth, props.gridHeight);
 
   const nextTarget = new THREE.Vector3(cx, 0, cz);
-  const h = Math.max(18, d * 1.25);
+  // Adjust camera height to better match 2D view scale - use a smaller multiplier for closer view
+  const h = Math.max(15, d * 0.9); // Reduced from 1.25 to 0.9 for closer initial view
   const nextCam = new THREE.Vector3(cx, h, cz + Math.max(0.5, d * 0.06));
 
   controls.setLookAt(
