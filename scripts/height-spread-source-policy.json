@@ -1,0 +1,102 @@
+{
+    "require_allowed_source": true,
+    "preferred_domains": [
+      "plants.usda.gov",
+      "research.fs.usda.gov",
+      "fs.usda.gov",
+  
+      "wildflower.org",
+      "missouribotanicalgarden.org",
+      "mtcubacenter.org",
+  
+      "plants.ces.ncsu.edu",
+      "hort.ifas.ufl.edu",
+      "edis.ifas.ufl.edu",
+      "vt.edu",
+  
+      "ucjeps.berkeley.edu",
+      "floranorthamerica.org",
+      "powo.science.kew.org",
+  
+      "calflora.org",
+      "calscape.org",
+  
+      "natureserve.org",
+      "itis.gov",
+      "bonap.org",
+      "gbif.org",
+  
+      "nps.gov",
+      "usgs.gov",
+      "blm.gov",
+  
+      "ucanr.edu",
+      "tamu.edu",
+      "extension.umn.edu",
+      "extension.wisc.edu",
+      "extension.psu.edu",
+      "extension.iastate.edu",
+      "extension.colostate.edu",
+      "extension.oregonstate.edu",
+      "extension.okstate.edu",
+      "extension.missouri.edu",
+  
+      "mortonnarb.org",
+      "chicagobotanic.org",
+      "nybg.org",
+      "brooklynbotanic.org"
+    ],
+    "block_domains": [
+      "arborday.org",
+      "gardeningknowhow.com",
+      "thespruce.com",
+      "bhg.com",
+  
+      "inaturalist.org",
+      "plantnet.org",
+      "picturethisai.com",
+      "garden.org",
+  
+      "pinterest.com",
+      "pinimg.com",
+  
+      "medium.com",
+      "blogspot.com",
+      "wordpress.com",
+  
+      "wikipedia.org"
+    ],
+    "block_url_patterns": [
+      "/shop",
+      "/product",
+      "/products",
+      "/store",
+      "/cart",
+      "/checkout",
+      "/collections",
+      "/category",
+      "/buy",
+      "/order",
+  
+      "amazon.",
+      "etsy.",
+      "ebay.",
+      "homedepot.",
+      "lowes.",
+      "walmart.",
+  
+      "utm_",
+      "gclid=",
+      "fbclid=",
+      "ref=",
+      "tag=",
+      "affiliate",
+      "shareasale",
+      "impact.com",
+      "cj.com",
+      "rakuten",
+      "awin"
+    ]
+  }
+  
+

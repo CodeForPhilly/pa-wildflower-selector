@@ -11,6 +11,7 @@
  *   node scripts/tmp-build-height-spread-batch.js --out db_backups/height-spread-batch.jsonl --web=1
  *   node scripts/tmp-build-height-spread-batch.js --ids-file db_backups/tmp-height-spread-nulls.txt --limit 200
  *   node scripts/tmp-build-height-spread-batch.js --start-after "Aconitum columbianum" --limit 500
+ *   node scripts/tmp-build-height-spread-batch.js --policy scripts/height-spread-source-policy.json
  *
  * Notes:
  * - Batch is asynchronous and cheaper; you upload the JSONL to OpenAI, create a batch, then download the output JSONL.
@@ -29,6 +30,7 @@ const DEFAULT_MAP = "db_backups/tmp-height-spread-batch-map.json";
 const DEFAULT_META = "db_backups/tmp-height-spread-batch-meta.json";
 const DEFAULT_CHECKPOINT = "db_backups/tmp-height-spread-checkpoint.json";
 const DEFAULT_STATE = "db_backups/tmp-height-spread-state.json";
+const DEFAULT_POLICY = "scripts/height-spread-source-policy.json";
 
 function parseArgs(argv) {
   const args = {};
@@ -102,12 +104,105 @@ function makeCustomId(scientificName) {
   return `plant-${short}-${sha1_8(scientificName)}`; // <= ~64 chars typical
 }
 
-function buildCompactPrompt({ scientificName, commonName }) {
+function parseDomainList(v) {
+  if (!v) return [];
+  return String(v)
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function parsePatternList(v) {
+  if (!v) return [];
+  return String(v)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function normalizeDomains(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) {
+    return v.map((s) => String(s).trim().toLowerCase()).filter(Boolean);
+  }
+  return parseDomainList(v);
+}
+
+function normalizePatterns(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) {
+    return v.map((s) => String(s).trim()).filter(Boolean);
+  }
+  return parsePatternList(v);
+}
+
+function loadPolicy(policyPath) {
+  if (!policyPath) return null;
+  const abs = path.resolve(String(policyPath));
+  if (!fs.existsSync(abs)) return null;
+  const raw = fs.readFileSync(abs, "utf8");
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    throw new Error(`Failed to parse policy JSON at ${policyPath}: ${e && e.message ? e.message : e}`);
+  }
+}
+
+function formatDomainList(domains) {
+  if (!domains || !domains.length) return "(none)";
+  return domains.join(", ");
+}
+
+function buildCompactPrompt({
+  scientificName,
+  commonName,
+  useWeb,
+  allowDomains,
+  blockDomains,
+  preferredDomains,
+  blockUrlPatterns,
+  requireAllowedSource,
+}) {
+  const sourcesRule = (() => {
+    if (!useWeb) {
+      return (
+        "Do NOT invent or guess URLs. " +
+        "Since web search is disabled, set sources to an empty array and set height_feet and spread_feet to null."
+      );
+    }
+
+    const allow = allowDomains && allowDomains.length ? `Allowed domains: ${formatDomainList(allowDomains)}. ` : "";
+    const block = blockDomains && blockDomains.length ? `Blocked domains: ${formatDomainList(blockDomains)}. ` : "";
+    const prefer =
+      preferredDomains && preferredDomains.length
+        ? `Prefer sources in this order (highest authority first): ${formatDomainList(preferredDomains)}. `
+        : "";
+    const blockPatterns =
+      blockUrlPatterns && blockUrlPatterns.length
+        ? `Avoid URLs matching these substrings (retail/SEO patterns): ${blockUrlPatterns.join(", ")}. `
+        : "";
+    const requireAllowed = requireAllowedSource
+      ? "If you cannot find an allowed-domain URL that clearly supports BOTH values, set height_feet and spread_feet to null and sources to an empty array."
+      : "If you cannot find a good URL, you may return nulls with an empty sources array.";
+
+    return (
+      "Include AT MOST one http(s) URL in sources. " +
+      allow +
+      block +
+      prefer +
+      blockPatterns +
+      "Never cite blocked domains. " +
+      "Do not use general gardening blogs, content farms, retailer product pages, or community Q&A as sources for numeric mature size. " +
+      requireAllowed
+    );
+  })();
+
   const system =
     "Return ONLY JSON matching the schema. " +
     "Goal: typical mature HEIGHT and SPREAD in FEET for residential landscape cultivation (not max wild size). " +
     "No ranges; pick ONE typical value (midpoint ok). Convert metric to feet. " +
-    "If <=5 ft, use 0.5-ft steps. Include exactly one http(s) source URL if numbers are non-null; otherwise set both to null.";
+    "If <=5 ft, use 0.5-ft steps. " +
+    sourcesRule;
 
   const user =
     `Plant: ${scientificName}` +
@@ -120,7 +215,8 @@ function buildCompactPrompt({ scientificName, commonName }) {
     properties: {
       height_feet: { type: ["number", "null"] },
       spread_feet: { type: ["number", "null"] },
-      sources: { type: "array", minItems: 1, maxItems: 1, items: { type: "string" } },
+      // Allow empty array so we can enforce allow/deny lists without forcing hallucinated URLs.
+      sources: { type: "array", minItems: 0, maxItems: 1, items: { type: "string" } },
     },
     required: ["height_feet", "spread_feet", "sources"],
   };
@@ -162,25 +258,25 @@ async function main() {
   const skipCheckpointDone = toBool(args["skip-checkpoint-done"], false);
   const checkpoint = skipCheckpointDone ? loadCheckpoint(checkpointPath) : { done: {}, errors: {} };
 
+  // Source policy: load from JSON (default) and allow CLI overrides
+  const policyPath = args.policy || process.env.HEIGHT_SPREAD_SOURCE_POLICY || DEFAULT_POLICY;
+  const policy = loadPolicy(policyPath) || {};
+
+  const hasCli = (k) => Object.prototype.hasOwnProperty.call(args, k);
+  const allowDomains = hasCli("allow-domains") ? parseDomainList(args["allow-domains"]) : normalizeDomains(policy.allow_domains);
+  const blockDomains = hasCli("block-domains") ? parseDomainList(args["block-domains"]) : normalizeDomains(policy.block_domains);
+  const preferredDomains = hasCli("preferred-domains")
+    ? parseDomainList(args["preferred-domains"])
+    : normalizeDomains(policy.preferred_domains);
+  const blockUrlPatterns = hasCli("block-url-patterns")
+    ? parsePatternList(args["block-url-patterns"])
+    : normalizePatterns(policy.block_url_patterns);
+  const requireAllowedSource = hasCli("require-allowed-source")
+    ? toBool(args["require-allowed-source"], true)
+    : toBool(policy.require_allowed_source, true);
+
   const { plants, close } = await db();
   try {
-    const query = {};
-    if (idsList && idsList.length) query._id = { $in: idsList };
-    if (startAfter) {
-      query._id = query._id || {};
-      query._id.$gt = startAfter;
-    }
-
-    const cursor = plants
-      .find(query, {
-        projection: {
-          _id: 1,
-          "Scientific Name": 1,
-          "Common Name": 1,
-        },
-      })
-      .sort({ _id: 1 });
-
     safeMkdirp(outPath);
     safeMkdirp(mapPath);
     safeMkdirp(metaPath);
@@ -191,23 +287,26 @@ async function main() {
     let count = 0;
     let skipped = 0;
 
-    while (await cursor.hasNext()) {
-      const plant = await cursor.next();
-      const id = plant._id;
-      const scientificName = plant["Scientific Name"] || id;
-      const commonName = plant["Common Name"] || "";
-
+    async function writeOne({ id, scientificName, commonName }) {
       if (skipCheckpointDone && checkpoint.done[id]) {
         skipped++;
-        continue;
+        return;
       }
-
-      if (limit && count >= limit) break;
+      if (limit && count >= limit) return;
 
       const customId = makeCustomId(scientificName);
       map[customId] = { id, scientificName, commonName };
 
-      const { system, user, schema } = buildCompactPrompt({ scientificName, commonName });
+      const { system, user, schema } = buildCompactPrompt({
+        scientificName,
+        commonName,
+        useWeb,
+        allowDomains,
+        blockDomains,
+        preferredDomains,
+        blockUrlPatterns,
+        requireAllowedSource,
+      });
 
       const body = {
         model,
@@ -246,6 +345,52 @@ async function main() {
       count++;
     }
 
+    if (idsList && idsList.length) {
+      // Deterministic order, exactly matching the provided list (minus optional startAfter filtering)
+      let effectiveIds = idsList;
+      if (startAfter) {
+        effectiveIds = idsList.filter((id) => String(id).localeCompare(String(startAfter)) > 0);
+      }
+      for (const id of effectiveIds) {
+        if (limit && count >= limit) break;
+        // Try to enrich from DB, but still emit a request even if missing
+        const plant = await plants.findOne(
+          { _id: id },
+          { projection: { _id: 1, "Scientific Name": 1, "Common Name": 1 } }
+        );
+        const scientificName = (plant && plant["Scientific Name"]) || id;
+        const commonName = (plant && plant["Common Name"]) || "";
+        // eslint-disable-next-line no-await-in-loop
+        await writeOne({ id, scientificName, commonName });
+      }
+    } else {
+      const query = {};
+      if (startAfter) {
+        query._id = query._id || {};
+        query._id.$gt = startAfter;
+      }
+
+      const cursor = plants
+        .find(query, {
+          projection: {
+            _id: 1,
+            "Scientific Name": 1,
+            "Common Name": 1,
+          },
+        })
+        .sort({ _id: 1 });
+
+      while (await cursor.hasNext()) {
+        const plant = await cursor.next();
+        const id = plant._id;
+        const scientificName = plant["Scientific Name"] || id;
+        const commonName = plant["Common Name"] || "";
+        // eslint-disable-next-line no-await-in-loop
+        await writeOne({ id, scientificName, commonName });
+        if (limit && count >= limit) break;
+      }
+    }
+
     out.end();
     fs.writeFileSync(mapPath, JSON.stringify(map, null, 2));
     fs.writeFileSync(
@@ -257,6 +402,12 @@ async function main() {
           mapPath,
           model,
           useWeb,
+          policyPath: fs.existsSync(path.resolve(String(policyPath))) ? policyPath : null,
+          allowDomains,
+          blockDomains,
+          preferredDomains,
+          blockUrlPatterns,
+          requireAllowedSource,
           limit,
           startAfter,
           statePath: resume ? statePath : null,
