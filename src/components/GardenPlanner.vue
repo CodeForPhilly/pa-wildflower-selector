@@ -191,8 +191,8 @@ const show3D = ref(false);
 const isClient = ref(false);
 const showDesignExport = ref(false);
 const showDesignImport = ref(false);
-type LabelMode = 'off' | 'selected' | 'all';
-const labelMode = ref<LabelMode>('selected');
+type LabelMode = 'off' | 'all';
+const labelMode = ref<LabelMode>('off');
 const lastNonSummary3D = ref(false);
 
 const {
@@ -282,7 +282,7 @@ const toggle3D = () => {
 };
 
 const cycleLabelMode = () => {
-  labelMode.value = labelMode.value === 'selected' ? 'off' : labelMode.value === 'off' ? 'all' : 'selected';
+  labelMode.value = labelMode.value === 'off' ? 'all' : 'off';
 };
 
 // Calculate center-point coordinates for a placed plant

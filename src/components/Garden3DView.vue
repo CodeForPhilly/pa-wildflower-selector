@@ -99,7 +99,7 @@ const props = defineProps<{
   spreadFeetLabel?: (plant: Plant | undefined) => string;
   spreadCells?: (plant: Plant | undefined) => number;
   plantCounts?: Record<string, number>;
-  labelMode?: 'off' | 'selected' | 'all';
+  labelMode?: 'off' | 'all';
   zoom?: number;
   addRowTop: () => void;
   removeRowTop: () => void;
@@ -495,12 +495,11 @@ const setCameraDistance = (nextDistance: number, smooth = true) => {
 
 // Plant legend removed (Favorites tray now serves as the left-side plant list)
 
-type LabelMode = 'off' | 'selected' | 'all';
-const labelMode = computed<LabelMode>(() => props.labelMode ?? 'selected');
+type LabelMode = 'off' | 'all';
+const labelMode = computed<LabelMode>(() => props.labelMode ?? 'off');
 const labelModeLabel = computed(() => {
   if (labelMode.value === 'off') return 'Off';
-  if (labelMode.value === 'all') return 'All';
-  return 'Selected';
+  return 'On';
 });
 
 watch(() => props.labelMode, () => applyLabelMode());
@@ -1726,24 +1725,13 @@ const ensureLabel = (meta: PlantInstanceMeta) => {
 };
 
 const applyLabelMode = () => {
-  // Hide/show labels based on mode. Default is selected-only for declutter.
+  // Hide/show labels based on mode.
   const mode = labelMode.value;
-  const selectedPlacedId = selected.value?.placedId ?? null;
 
   for (const meta of placedIdToInstance.values()) {
     if (mode === 'all') {
       ensureLabel(meta);
       if (meta.label) meta.label.visible = true;
-      continue;
-    }
-
-    if (mode === 'selected') {
-      if (selectedPlacedId === meta.placed.id) {
-        ensureLabel(meta);
-        if (meta.label) meta.label.visible = true;
-      } else if (meta.label) {
-        meta.label.visible = false;
-      }
       continue;
     }
 

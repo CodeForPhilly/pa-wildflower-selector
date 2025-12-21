@@ -138,7 +138,7 @@ import {
   Tag,
 } from 'lucide-vue-next';
 
-type LabelMode = 'off' | 'selected' | 'all';
+type LabelMode = 'off' | 'all';
 
 const props = defineProps<{
   is3D: boolean;
@@ -171,8 +171,7 @@ defineEmits<{
 
 const labelsLabel = computed(() => {
   if (props.labelMode === 'off') return 'Off';
-  if (props.labelMode === 'all') return 'All';
-  return 'Selected';
+  return 'On';
 });
 </script>
 

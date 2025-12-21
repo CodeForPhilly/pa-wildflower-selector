@@ -31,10 +31,7 @@
           :is-overlapping="overlapIds.has(p.id)"
           :is-dragging="dragState.isDragging && dragState.plantId === p.id && dragState.dragType === 'move'"
           :is-selected="selectedPlacedPlantId === p.id"
-          :show-label="
-            (labelModeResolved !== 'off') &&
-            (labelModeResolved === 'all' || (labelModeResolved === 'selected' && selectedPlacedPlantId === p.id))
-          "
+          :show-label="labelModeResolved === 'all'"
           :cell-size="dynamicCellSize"
           :image-url="imageUrl"
           :is-mobile="isMobile"
@@ -196,7 +193,7 @@ interface Props {
   gridHeight: number;
   snapIncrement: number;
   zoom?: number;
-  labelMode?: 'off' | 'selected' | 'all';
+  labelMode?: 'off' | 'all';
   addRowTop: () => void;
   removeRowTop: () => void;
   addRowBottom: () => void;
@@ -223,7 +220,7 @@ const isPanning = ref(false);
 const panStart = ref<{ x: number; y: number } | null>(null);
 const panOffset = ref({ x: 0, y: 0 });
 
-const labelModeResolved = computed(() => props.labelMode ?? 'selected');
+const labelModeResolved = computed(() => props.labelMode ?? 'off');
 
 const dynamicCellSize = computed(() => {
   if (typeof window === 'undefined') return 36;
