@@ -1385,9 +1385,12 @@ const applySideView = (idx: number, smooth = true) => {
   const dist = clamp(Math.max(18, d * 0.95), minDistance.value, maxDistance.value);
   // Height: enough to see plants clearly but still feels "side-on".
   const maxH = estimateMaxPlantHeightFeet();
-  const y = Math.max(10, Math.min(dist * 0.85, maxH * 1.6 + 8));
+  // Center the camera height around the middle of the plants for better vertical centering
+  const y = Math.max(8, Math.min(dist * 0.6, maxH * 0.8 + 6));
 
-  const nextTarget = new THREE.Vector3(cx, 0, cz);
+  // Target at roughly the middle of plant heights to center the view vertically
+  const targetY = Math.max(0, maxH * 0.4);
+  const nextTarget = new THREE.Vector3(cx, targetY, cz);
   let nextCam: THREE.Vector3;
   // 0..3 cycles around grid, 90° each.
   if (idx === 0) nextCam = new THREE.Vector3(cx, y, cz + dist); // front (bottom edge)
