@@ -2,9 +2,6 @@
   <div class="garden-3d" ref="rootRef">
     <div class="overlay-top">
       <div class="overlay-left">
-        <button class="overlay-button" type="button" @click="$emit('close')" aria-label="Close 3D view">
-          Close
-        </button>
         <button
           class="overlay-button"
           type="button"
@@ -13,6 +10,7 @@
           aria-label="Undo"
           title="Undo"
         >
+          <Undo2 :size="16" class="icon" />
           Undo
         </button>
         <button
@@ -23,6 +21,7 @@
           aria-label="Redo"
           title="Redo"
         >
+          <Redo2 :size="16" class="icon" />
           Redo
         </button>
         <button
@@ -33,6 +32,7 @@
           aria-label="Clear layout"
           title="Clear layout"
         >
+          <Trash2 :size="16" class="icon" />
           Clear
         </button>
         <button class="overlay-button" type="button" @click="resetView" aria-label="Reset camera view">
@@ -41,49 +41,20 @@
         <button class="overlay-button" type="button" @click="setViewPreset('top')" aria-label="Top-down view">
           Top
         </button>
-        <button class="overlay-button" type="button" @click="setViewPreset('iso')" aria-label="Isometric view">
-          Iso
+        <button class="overlay-button" type="button" @click="cycleSideView" aria-label="Side view (cycle)">
+          Side
         </button>
         <button class="overlay-button" type="button" @click="cycleLabelMode" aria-label="Toggle labels">
           Labels: {{ labelModeLabel }}
         </button>
+        <button class="overlay-button" type="button" @click="$emit('close')" aria-label="Back to 2D view">
+          <Grid3x3 :size="16" class="icon" />
+          Back to 2D
+        </button>
       </div>
 
-      <!-- Match the 2D planner controls: zoom, grid size, and snap increment toggle -->
+      <!-- Match the 2D planner controls: grid size and snap increment toggle -->
       <div class="overlay-right" aria-label="3D view toolbar">
-        <div class="toolbar-zoom">
-          <button
-            class="toolbar-button icon-only"
-            type="button"
-            @click="zoomOut"
-            :disabled="!canZoomOut"
-            title="Zoom out"
-            aria-label="Zoom out"
-          >
-            <ZoomOut :size="16" class="icon" />
-          </button>
-          <span class="zoom-value">{{ zoomPercentLabel }}</span>
-          <button
-            class="toolbar-button icon-only"
-            type="button"
-            @click="zoomIn"
-            :disabled="!canZoomIn"
-            title="Zoom in"
-            aria-label="Zoom in"
-          >
-            <ZoomIn :size="16" class="icon" />
-          </button>
-          <button
-            class="toolbar-button icon-only"
-            type="button"
-            @click="resetZoom"
-            :disabled="!canResetZoom"
-            title="Reset zoom"
-            aria-label="Reset zoom"
-          >
-            <RotateCcw :size="16" class="icon" />
-          </button>
-        </div>
         <button
           class="toolbar-button grid-dimensions-button"
           type="button"
@@ -198,11 +169,11 @@
 
 <script setup lang="ts">
 import { computed, shallowRef, onMounted, onUnmounted, ref, watch } from 'vue';
-import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-vue-next';
 // @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
 import * as THREE from 'three';
 // @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
 import CameraControls from 'camera-controls';
+import { Undo2, Redo2, Trash2, Grid3x3 } from 'lucide-vue-next';
 import type { Plant, PlacedPlant } from '../types/garden';
 import GridSizeEditor from './GridSizeEditor.vue';
 import FavoritesTray from './FavoritesTray.vue';
@@ -381,6 +352,9 @@ const handleGridSizeFit = () => {
 
 // 2D-like zoom controls for 3D camera (based on camera distance to target)
 const baseDistance = ref<number | null>(null);
+type ViewMode = 'top' | 'side';
+const viewMode = ref<ViewMode>('top');
+const sideIndex = ref(0);
 
 const getCameraDistance = (): number | null => {
   if (!controls || !camera) return null;
@@ -424,44 +398,7 @@ const setCameraDistance = (nextDistance: number, smooth = true) => {
   );
 };
 
-const zoomPercent = computed(() => {
-  const d = getCameraDistance();
-  if (!baseDistance.value || !d) return null;
-  const pct = Math.round((baseDistance.value / d) * 100);
-  return Number.isFinite(pct) ? pct : null;
-});
-
-const zoomPercentLabel = computed(() => (zoomPercent.value ? `${zoomPercent.value}%` : '—'));
-const canZoomIn = computed(() => {
-  const d = getCameraDistance();
-  if (!d) return false;
-  return d > minDistance.value + 0.02;
-});
-const canZoomOut = computed(() => {
-  const d = getCameraDistance();
-  if (!d) return false;
-  return d < maxDistance.value - 0.02;
-});
-const canResetZoom = computed(() => {
-  const d = getCameraDistance();
-  if (!d || !baseDistance.value) return false;
-  return Math.abs(d - baseDistance.value) > 0.02;
-});
-
-const zoomIn = () => {
-  const d = getCameraDistance();
-  if (!d) return;
-  setCameraDistance(d * 0.9, true);
-};
-const zoomOut = () => {
-  const d = getCameraDistance();
-  if (!d) return;
-  setCameraDistance(d * 1.1, true);
-};
-const resetZoom = () => {
-  if (!baseDistance.value) return;
-  setCameraDistance(baseDistance.value, true);
-};
+// Note: zoom UI removed; zoom is still possible via mouse/trackpad via CameraControls.
 
 // Plant legend removed (Favorites tray now serves as the left-side plant list)
 
@@ -1105,10 +1042,11 @@ const resetView = () => {
   if (camera && controls) {
     fitCameraToGarden();
     baseDistance.value = getCameraDistance();
+    viewMode.value = 'top';
   }
 };
 
-type ViewPreset = 'top' | 'iso';
+type ViewPreset = 'top';
 const applyViewPresetInstant = (preset: ViewPreset) => {
   if (!camera || !controls) return;
 
@@ -1117,14 +1055,8 @@ const applyViewPresetInstant = (preset: ViewPreset) => {
   const d = Math.max(props.gridWidth, props.gridHeight);
 
   const nextTarget = new THREE.Vector3(cx, 0, cz);
-  let nextCam: THREE.Vector3;
-  if (preset === 'top') {
-    const h = Math.max(18, d * 1.25);
-    nextCam = new THREE.Vector3(cx, h, cz + Math.max(0.5, d * 0.06));
-  } else {
-    const dist = Math.max(18, d * 0.95);
-    nextCam = new THREE.Vector3(cx + dist, Math.max(18, dist * 0.75), cz + dist);
-  }
+  const h = Math.max(18, d * 1.25);
+  const nextCam = new THREE.Vector3(cx, h, cz + Math.max(0.5, d * 0.06));
 
   controls.setLookAt(
     nextCam.x,
@@ -1143,14 +1075,8 @@ const setViewPreset = (preset: ViewPreset) => {
   const d = Math.max(props.gridWidth, props.gridHeight);
 
   const nextTarget = new THREE.Vector3(cx, 0, cz);
-  let nextCam: THREE.Vector3;
-  if (preset === 'top') {
-    const h = Math.max(18, d * 1.25);
-    nextCam = new THREE.Vector3(cx, h, cz + Math.max(0.5, d * 0.06));
-  } else {
-    const dist = Math.max(18, d * 0.95);
-    nextCam = new THREE.Vector3(cx + dist, Math.max(18, dist * 0.75), cz + dist);
-  }
+  const h = Math.max(18, d * 1.25);
+  const nextCam = new THREE.Vector3(cx, h, cz + Math.max(0.5, d * 0.06));
 
   controls.setLookAt(
     nextCam.x,
@@ -1162,6 +1088,63 @@ const setViewPreset = (preset: ViewPreset) => {
     true
   );
   baseDistance.value = getCameraDistance();
+  viewMode.value = preset;
+};
+
+const estimateMaxPlantHeightFeet = (): number => {
+  if (!props.placedPlants || props.placedPlants.length === 0) return 3;
+  let maxH = 0;
+  for (const placed of props.placedPlants) {
+    const plant = props.plantById[placed.plantId];
+    const plantAny = plant ? /** @type {any} */ (plant) : null;
+    const heightFeetRaw = plantAny ? plantAny['Height (feet)'] : null;
+    const h = parseFeet(heightFeetRaw) ?? 1;
+    maxH = Math.max(maxH, h);
+  }
+  return Math.max(1, maxH);
+};
+
+const applySideView = (idx: number, smooth = true) => {
+  if (!camera || !controls) return;
+  const cx = props.gridWidth / 2;
+  const cz = props.gridHeight / 2;
+  const d = Math.max(props.gridWidth, props.gridHeight);
+
+  // Keep distance stable-ish and within bounds.
+  const dist = clamp(Math.max(18, d * 0.95), minDistance.value, maxDistance.value);
+  // Height: enough to see plants clearly but still feels "side-on".
+  const maxH = estimateMaxPlantHeightFeet();
+  const y = Math.max(10, Math.min(dist * 0.85, maxH * 1.6 + 8));
+
+  const nextTarget = new THREE.Vector3(cx, 0, cz);
+  let nextCam: THREE.Vector3;
+  // 0..3 cycles around grid, 90° each.
+  if (idx === 0) nextCam = new THREE.Vector3(cx, y, cz + dist); // front (bottom edge)
+  else if (idx === 1) nextCam = new THREE.Vector3(cx + dist, y, cz); // right
+  else if (idx === 2) nextCam = new THREE.Vector3(cx, y, cz - dist); // back (top edge)
+  else nextCam = new THREE.Vector3(cx - dist, y, cz); // left
+
+  controls.setLookAt(
+    nextCam.x,
+    nextCam.y,
+    nextCam.z,
+    nextTarget.x,
+    nextTarget.y,
+    nextTarget.z,
+    smooth
+  );
+  baseDistance.value = getCameraDistance();
+};
+
+const cycleSideView = () => {
+  // First click always goes to the default-facing side; subsequent clicks rotate 90°.
+  if (viewMode.value !== 'side') {
+    sideIndex.value = 0;
+  } else {
+    sideIndex.value = (sideIndex.value + 1) % 4;
+  }
+  viewMode.value = 'side';
+  applySideView(sideIndex.value, true);
 };
 
 const setSelectionRing = (meta: PlantInstanceMeta | null) => {
@@ -1586,9 +1569,19 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
 <style scoped>
 .garden-3d {
   position: fixed;
-  inset: 0;
+  top: 80px; /* Start below header - mobile header height (nav with padding/margin, since large-h1=false) */
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: #f8fafc;
   z-index: 1000;
+}
+
+/* Desktop: header nav is 120px (since large-h1=false, no h1 is shown) */
+@media all and (min-width: 1280px) {
+  .garden-3d {
+    top: 120px; /* Desktop header height (nav only) */
+  }
 }
 
 .canvas {
@@ -1662,6 +1655,14 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
   font-family: Roboto, sans-serif;
   font-weight: 600;
   font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.overlay-button .icon {
+  flex-shrink: 0;
+  stroke-width: 2;
 }
 
 .overlay-button:disabled {

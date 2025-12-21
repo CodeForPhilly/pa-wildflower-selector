@@ -1,6 +1,6 @@
 <template>
   <div class="grid-area" ref="gridAreaRef">
-      <div class="grid-scroll">
+      <div class="grid-scroll" @wheel.prevent="handleWheel">
         <div class="grid-scroll-inner">
           <div class="grid-wrapper" :style="gridWrapperStyle">
           <div
@@ -193,6 +193,10 @@ interface Props {
 
 const props = defineProps<Props>();
 
+const emit = defineEmits<{
+  (e: 'update:zoom', value: number): void;
+}>();
+
 const gridRef = ref<HTMLElement | null>(null);
 const gridAreaRef = ref<HTMLElement | null>(null);
 const activeDrag = ref<{ type: 'place' | 'move'; plantId: string } | null>(null);
@@ -208,7 +212,8 @@ const dynamicCellSize = computed(() => {
   // Estimate favorites tray height - compact on all sizes
   const favoritesTrayHeight = 120;
   
-  const availableWidth = window.innerWidth - mainPadding * 2 - padding * 2;
+  // For full-width layout, use the full window width minus minimal padding
+  const availableWidth = window.innerWidth - padding * 2;
   const availableHeight = window.innerHeight - toolbarHeight - headerHeight - mainPadding * 2 - favoritesTrayHeight - gap;
   
   // Use width as primary constraint to fill screen width
@@ -425,6 +430,19 @@ const handleDuplicate = (placedId: string) => {
   }
 };
 
+const handleWheel = (event: WheelEvent) => {
+  // Prevent default scrolling behavior
+  event.preventDefault();
+  
+  // Calculate zoom delta (similar to 3D view behavior)
+  const zoomDelta = -event.deltaY * 0.001; // Negative to make scroll up zoom in
+  const currentZoom = props.zoom ?? 1;
+  const newZoom = Math.max(0.5, Math.min(2, currentZoom + zoomDelta));
+  
+  // Emit zoom update
+  emit('update:zoom', newZoom);
+};
+
 // Drag preview - transparent plant image following cursor
 const dragPreviewPlant = computed(() => {
   if (!dragState.value.isDragging || !dragState.value.plantId) return null;
@@ -529,9 +547,10 @@ const gridHighlightStyle = computed(() => {
 }
 
 .grid-scroll {
-  overflow: auto;
-  border-radius: 16px;
-  border: 1px solid #e5e5e5;
+  overflow: hidden; /* Changed from auto to prevent scrolling */
+  border-radius: 0;
+  border: none;
+  border-top: 1px solid #e5e5e5;
   background: #f5f5f5;
   position: relative;
   width: 100%;
@@ -541,27 +560,30 @@ const gridHighlightStyle = computed(() => {
   align-items: center;
   justify-content: center;
   min-height: 400px;
-  padding: 48px;
+  padding: 12px;
 }
 
 .grid-scroll-inner {
   position: relative;
-  margin: 0 auto;
-  min-width: fit-content;
-  min-height: fit-content;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .grid-wrapper {
   transition: transform 0.1s ease-out;
   position: relative;
   display: inline-block;
-  margin: 0 auto;
+  margin: 0;
 }
 
 @media screen and (max-width: 767px) {
   .grid-scroll {
-    border-radius: 12px;
-    padding: 32px 4px 4px 40px;
+    border-radius: 0;
+    padding: 8px;
     min-height: 200px;
   }
 }

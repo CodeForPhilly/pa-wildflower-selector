@@ -32,6 +32,22 @@
               <Trash2 :size="16" class="icon" />
               <span class="button-text">Clear</span>
             </button>
+            <button
+              class="toolbar-button icon-only"
+              @click="showDesignExport = true"
+              title="Export Design"
+            >
+              <Download :size="16" class="icon" />
+              <span class="button-text">Export</span>
+            </button>
+            <button
+              class="toolbar-button icon-only"
+              @click="showDesignImport = true"
+              title="Import Design"
+            >
+              <Upload :size="16" class="icon" />
+              <span class="button-text">Import</span>
+            </button>
             <button 
               class="toolbar-button summary-button icon-only" 
               :class="{ 'active': showSummary }"
@@ -144,6 +160,7 @@
             :grid-height="gridHeight"
             :snap-increment="snapIncrement"
             :zoom="zoom"
+            @update:zoom="zoom = $event"
             :add-row-top="addRowTop"
             :remove-row-top="removeRowTop"
             :add-row-bottom="addRowBottom"
@@ -159,6 +176,8 @@
             :summary-data="summaryData"
             :grid-width="gridWidth"
             :grid-height="gridHeight"
+            :favorite-plants="favoritePlants"
+            :favorite-ids="favoriteIds"
           />
         </template>
       </section>
@@ -206,12 +225,27 @@
       @select-plant="selectPlant"
       @place-plant="placePlant"
     />
+
+    <DesignIOEditor
+      :is-open="showDesignExport"
+      mode="export"
+      :initial-text="exportDesignText"
+      @close="showDesignExport = false"
+    />
+    <DesignIOEditor
+      :is-open="showDesignImport"
+      mode="import"
+      initial-text=""
+      :ask-chat-gpt-prompt="optimizedLayoutPrompt"
+      @close="showDesignImport = false"
+      @import="handleImportDesign"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, defineAsyncComponent, watch } from 'vue';
-import { Undo2, Redo2, Trash2, Info, ZoomIn, ZoomOut, RotateCcw, Box } from 'lucide-vue-next';
+import { Undo2, Redo2, Trash2, Info, ZoomIn, ZoomOut, RotateCcw, Box, Download, Upload } from 'lucide-vue-next';
 import { useGardenPlanner } from '../composables/useGardenPlanner';
 import { useViewport } from '../composables/useViewport';
 import Header from './Header.vue';
@@ -219,7 +253,9 @@ import FavoritesTray from './FavoritesTray.vue';
 import GardenCanvas from './GardenCanvas.vue';
 import GardenSummary from './GardenSummary.vue';
 import GridSizeEditor from './GridSizeEditor.vue';
+import DesignIOEditor from './DesignIOEditor.vue';
 import type { PlacedPlant, Plant } from '../types/garden';
+import { GARDEN_DESIGN_SCHEMA, GARDEN_DESIGN_VERSION } from '../lib/gardenDesign';
 
 const Garden3DView = defineAsyncComponent({
   loader: () => {
@@ -250,6 +286,8 @@ const showGridEditor = ref(false);
 const zoom = ref(1);
 const show3D = ref(false);
 const isClient = ref(false);
+const showDesignExport = ref(false);
+const showDesignImport = ref(false);
 
 const {
   loading,
@@ -276,6 +314,7 @@ const {
   gridWidth,
   gridHeight,
   snapIncrement,
+  favoriteIds,
   addRowTop,
   removeRowTop,
   addRowBottom,
@@ -288,7 +327,68 @@ const {
   setGridSize,
   fitGridToPlants,
   toggleSnapIncrement,
+  getExportDesignText,
+  importDesignFromText,
 } = useGardenPlanner();
+
+const exportDesignText = computed(() => getExportDesignText());
+
+const optimizedLayoutPrompt = computed(() => {
+  const lines: string[] = [];
+  lines.push('You are optimizing a native plant garden layout for a grid-based planner.');
+  lines.push('');
+  lines.push('Goal: return an optimized layout as IMPORTABLE JSON for the planner.');
+  lines.push('');
+  lines.push('IMPORTANT OUTPUT RULES:');
+  lines.push('- Return ONLY valid JSON (raw text).');
+  lines.push('- Do NOT use Markdown.');
+  lines.push('- Do NOT wrap the JSON in triple backticks (```), even if you label it as json.');
+  lines.push('- The first character must be "{" and the last character must be "}".');
+  lines.push(`- JSON must match schema "${GARDEN_DESIGN_SCHEMA}" version ${GARDEN_DESIGN_VERSION}.`);
+  lines.push('');
+  lines.push('Grid:');
+  lines.push(`- widthFt: ${gridWidth.value}`);
+  lines.push(`- heightFt: ${gridHeight.value}`);
+  lines.push(`- snapIncrementFt: ${snapIncrement.value}`);
+  lines.push('');
+  lines.push('Coordinate system:');
+  lines.push('- Use CENTER coordinates in feet from the TOP-LEFT corner.');
+  lines.push('- All coordinates must align to snapIncrementFt.');
+  lines.push('- Keep all plants fully inside the grid.');
+  lines.push('- Avoid overlaps (treat spread as circle diameter).');
+  lines.push('');
+  lines.push('Allowed plants (favorites):');
+  if (favoritePlants.value.length) {
+    for (const p of favoritePlants.value) {
+      const spreadNum = parseFloat(String(p['Spread (feet)']));
+      const spread = Number.isFinite(spreadNum) && spreadNum > 0 ? spreadNum : 1;
+      const common = p['Common Name'] ? String(p['Common Name']) : p._id;
+      lines.push(`- ${p._id}: ${common}; spreadFt=${spread}`);
+    }
+  } else if (favoriteIds.value.length) {
+    for (const id of favoriteIds.value) lines.push(`- ${id}`);
+  } else {
+    lines.push('- (none)');
+  }
+  lines.push('');
+  lines.push('You may choose ANY quantity per species (including zero).');
+  lines.push('');
+  lines.push('Current design JSON (optional reference):');
+  lines.push(exportDesignText.value);
+  lines.push('');
+  lines.push('Return the final JSON now.');
+  return lines.join('\n');
+});
+
+const handleImportDesign = (text: string) => {
+  const result = importDesignFromText(text);
+  if (!result.success) {
+    window.alert(result.error || 'Import failed.');
+    return;
+  }
+  showDesignImport.value = false;
+  showSummary.value = false;
+};
 
 const handlePaletteDragStart = (event: PointerEvent, plantId: string) => {
   // Forward the drag start to the canvas component
@@ -449,9 +549,8 @@ onUnmounted(() => {
 
 <style scoped>
 .planner-main {
-  padding: 0 16px 24px;
-  max-width: 1400px;
-  margin: 0 auto;
+  padding: 0 0 24px 0;
+  width: 100%;
   height: calc(100vh - 80px);
   display: flex;
   flex-direction: column;
@@ -464,6 +563,8 @@ onUnmounted(() => {
   align-items: flex-start;
   justify-content: flex-start;
   margin-bottom: 16px;
+  margin-left: 16px;
+  margin-right: 16px;
   flex-wrap: wrap;
 }
 
@@ -601,6 +702,8 @@ onUnmounted(() => {
   min-height: 0;
   overflow: hidden;
   height: 100%;
+  margin-left: 16px;
+  margin-right: 16px;
 }
 
 /* Only apply flex to GardenSummary when shown, not to FavoritesTray */
@@ -613,13 +716,20 @@ onUnmounted(() => {
 
 @media screen and (max-width: 767px) {
   .planner-main {
-    padding: 0 12px 8px;
+    padding: 0 0 8px 0;
   }
 
   .toolbar {
     gap: 8px;
     margin-bottom: 8px;
+    margin-left: 12px;
+    margin-right: 12px;
     align-items: center;
+  }
+  
+  .workspace {
+    margin-left: 12px;
+    margin-right: 12px;
   }
 
   .toolbar-container {
