@@ -32,25 +32,26 @@
       </div>
     </div>
 
-    <div v-if="selected" class="overlay-info" role="status" aria-live="polite">
-      <div v-if="selectedImageSrc" class="info-image">
-        <img :src="selectedImageSrc" :alt="`${selected.commonName} photo`" loading="lazy" />
-      </div>
-      <div class="info-title">{{ selected.commonName }}</div>
-      <div v-if="selected.scientificName" class="info-subtitle"><i>{{ selected.scientificName }}</i></div>
-      <div class="info-row">Height: {{ selected.heightFeet ?? '—' }} ft</div>
-      <div class="info-row">Spread: {{ selected.spreadFeet ?? '—' }} ft</div>
-      <div class="info-actions">
-        <button
-          class="overlay-button danger"
-          type="button"
-          @click="emit('remove-placed', selected.placedId)"
-          aria-label="Remove plant from layout"
-          title="Remove from layout"
-        >
-          Remove
-        </button>
-      </div>
+    <!-- Action buttons overlay for selected plant (similar to 2D mode) -->
+    <div v-if="selected && actionButtonsPosition" class="plant-actions-3d" :style="actionButtonsStyle">
+      <button
+        class="action-button-3d duplicate-button"
+        type="button"
+        @click.stop="handleDuplicate"
+        title="Duplicate plant"
+        aria-label="Duplicate plant"
+      >
+        <Copy :size="18" />
+      </button>
+      <button
+        class="action-button-3d delete-button"
+        type="button"
+        @click.stop="handleDelete"
+        title="Delete plant"
+        aria-label="Delete plant"
+      >
+        <Trash2 :size="18" />
+      </button>
     </div>
 
     <div ref="threeContainer" class="canvas"></div>
@@ -63,6 +64,7 @@ import { computed, shallowRef, onMounted, onUnmounted, ref, watch } from 'vue';
 import * as THREE from 'three';
 // @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
 import CameraControls from 'camera-controls';
+import { Copy, Trash2 } from 'lucide-vue-next';
 import type { Plant, PlacedPlant } from '../types/garden';
 import FavoritesTray from './FavoritesTray.vue';
 
@@ -424,6 +426,22 @@ const selectedImageSrc = computed(() => {
   const plant = props.plantById[selected.value.plantId];
   if (!plant) return null;
   return props.imageUrl(plant, true);
+});
+
+// Position for action buttons overlay (screen coordinates)
+const actionButtonsPosition = ref<{ x: number; y: number } | null>(null);
+
+// Compute style for action buttons overlay
+const actionButtonsStyle = computed(() => {
+  if (!actionButtonsPosition.value) {
+    return { display: 'none' as const };
+  }
+  return {
+    position: 'absolute' as const,
+    left: `${actionButtonsPosition.value.x}px`,
+    top: `${actionButtonsPosition.value.y}px`,
+    transform: 'translate(-50%, -50%)',
+  };
 });
 
 const instanceCount = computed(() => props.placedPlants.length);
@@ -868,6 +886,7 @@ const clearPlantInstances = () => {
   hoveredObject = null;
   selectedObject = null;
   selected.value = null;
+  actionButtonsPosition.value = null;
   setSelectionRing(null);
 };
 
@@ -920,7 +939,10 @@ const syncFromProps = () => {
   // Keep selection ring aligned if selection is active
   if (selected.value) {
     const meta = placedIdToInstance.get(selected.value.placedId);
-    if (meta) setSelectionRing(meta);
+    if (meta) {
+      setSelectionRing(meta);
+      updateActionButtonsPosition(meta);
+    }
   }
 };
 
@@ -1120,6 +1142,14 @@ const animate = () => {
       const s = clamp(d * 0.045, 1.3, 3.6);
       meta.label.scale.set(s * 1.55, s * 0.55, 1);
       meta.label.position.set(meta.center.x, meta.heightFeet + 1.1, meta.center.z);
+    }
+  }
+  
+  // Update action buttons position if a plant is selected
+  if (selected.value) {
+    const meta = placedIdToInstance.get(selected.value.placedId);
+    if (meta) {
+      updateActionButtonsPosition(meta);
     }
   }
   
@@ -1404,6 +1434,50 @@ const selectPlacedId = (placedId: string) => {
 
   ensureLabel(meta);
   applyLabelMode();
+  updateActionButtonsPosition(meta);
+};
+
+const handleDuplicate = () => {
+  if (!selected.value) return;
+  const placed = props.placedPlants.find(p => p.id === selected.value!.placedId);
+  if (placed) {
+    // Place duplicate at an offset position (one snap increment to the right and down)
+    const newX = placed.x + props.snapIncrement;
+    const newY = placed.y + props.snapIncrement;
+    emit('place-plant', placed.plantId, newX, newY);
+  }
+};
+
+const handleDelete = () => {
+  if (!selected.value) return;
+  emit('remove-placed', selected.value.placedId);
+  selected.value = null;
+  actionButtonsPosition.value = null;
+};
+
+const updateActionButtonsPosition = (meta: PlantInstanceMeta) => {
+  if (!camera || !renderer || !meta || !threeContainer.value || !rootRef.value) {
+    actionButtonsPosition.value = null;
+    return;
+  }
+  
+  // Project 3D position to screen coordinates
+  const worldPos = meta.center.clone();
+  // Position buttons above the plant (at the top of the cylinder)
+  worldPos.y = meta.heightFeet;
+  
+  const vector = worldPos.project(camera);
+  const canvasRect = threeContainer.value.getBoundingClientRect();
+  const containerRect = rootRef.value.getBoundingClientRect();
+  
+  // Convert from viewport coordinates to container-relative coordinates
+  const viewportX = (vector.x * 0.5 + 0.5) * canvasRect.width + canvasRect.left;
+  const viewportY = (-(vector.y * 0.5 - 0.5)) * canvasRect.height + canvasRect.top;
+  
+  actionButtonsPosition.value = {
+    x: viewportX - containerRect.left,
+    y: viewportY - containerRect.top,
+  };
 };
 
 // jumpToPlant removed with plant legend
@@ -1624,6 +1698,14 @@ const onPointerUp = (ev: PointerEvent) => {
       const finalX = Math.max(0, snap(desiredX));
       const finalY = Math.max(0, snap(desiredY));
       emit('place-plant', selectedPlantId.value, finalX, finalY);
+    }
+  } else {
+    // Click on empty space: deselect current plant (but not on mobile to avoid accidental deselection)
+    if (selected.value && !(props.isMobile ?? false)) {
+      selected.value = null;
+      actionButtonsPosition.value = null;
+      selectedObject = null;
+      setSelectionRing(null);
     }
   }
   pointerDownAt = null;
@@ -1953,57 +2035,81 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
   font-weight: 600;
 }
 
-.overlay-info {
-  position: absolute;
-  bottom: 14px;
-  left: 12px;
-  right: 12px;
-  max-width: 520px;
-  border: 1px solid #e5e7eb;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 14px;
-  padding: 12px 12px 10px;
-  z-index: 1001;
-  backdrop-filter: blur(6px);
-}
-
-.info-image {
-  width: 100%;
-  margin-bottom: 10px;
-}
-
-.info-image img {
-  width: 100%;
-  max-height: 160px;
-  object-fit: cover;
-  border-radius: 10px;
-  display: block;
-}
-
-.info-title {
-  font-family: Roboto, sans-serif;
-  font-weight: 700;
-  color: #111827;
-}
-
-.info-subtitle {
-  font-family: Roboto, sans-serif;
-  color: #4b5563;
-  margin-top: 2px;
-}
-
-.info-row {
-  font-family: Roboto, sans-serif;
-  color: #374151;
-  margin-top: 6px;
-  font-size: 13px;
-}
-
-.info-actions {
-  margin-top: 10px;
+.plant-actions-3d {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  z-index: 1002;
+  pointer-events: auto;
+}
+
+.action-button-3d {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.3);
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #000;
+  display: flex;
   align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  padding: 0;
+}
+
+.action-button-3d:hover {
+  background-color: rgba(255, 255, 255, 1);
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border-color: rgba(0, 0, 0, 0.5);
+}
+
+.action-button-3d:active {
+  transform: scale(0.95);
+}
+
+.action-button-3d.duplicate-button:hover {
+  background-color: rgba(76, 175, 80, 0.95);
+  border-color: rgba(76, 175, 80, 0.8);
+}
+
+.action-button-3d.duplicate-button:hover svg {
+  color: #000;
+  stroke: #000;
+}
+
+.action-button-3d.delete-button:hover {
+  background-color: rgba(220, 30, 30, 0.95);
+  border-color: rgba(220, 30, 30, 0.8);
+}
+
+.action-button-3d.delete-button:hover svg {
+  color: #000;
+  stroke: #000;
+}
+
+.action-button-3d svg {
+  stroke-width: 2.5;
+  color: #000;
+  stroke: #000;
+}
+
+@media screen and (max-width: 767px) {
+  .plant-actions-3d {
+    gap: 4px;
+  }
+  
+  .action-button-3d {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .action-button-3d svg {
+    width: 16px;
+    height: 16px;
+  }
 }
 
 .color-legend {
