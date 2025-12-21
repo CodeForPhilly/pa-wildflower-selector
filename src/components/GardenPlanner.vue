@@ -48,6 +48,14 @@
             :plant-counts="plantCounts"
             :label-mode="labelMode"
             :zoom="zoom"
+            :add-row-top="addRowTop"
+            :remove-row-top="removeRowTop"
+            :add-row-bottom="addRowBottom"
+            :remove-row-bottom="removeRowBottom"
+            :add-column-left="addColumnLeft"
+            :remove-column-left="removeColumnLeft"
+            :add-column-right="addColumnRight"
+            :remove-column-right="removeColumnRight"
             @update:zoom="zoom = $event"
             @move-placed="movePlant"
             @remove-placed="removePlaced"
@@ -164,7 +172,7 @@ const Garden3DView = defineAsyncComponent({
       message: errAny?.message,
       attempts
     });
-    fail(error);
+    fail();
   },
 });
 

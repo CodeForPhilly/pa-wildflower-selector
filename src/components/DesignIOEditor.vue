@@ -291,17 +291,6 @@ const confirmAndImport = () => {
   background: #8f0019;
   border-color: #8f0019;
 }
-
-.btn.switch-btn {
-  background: #4caf50;
-  border-color: #4caf50;
-  color: #fff;
-}
-
-.btn.switch-btn:hover {
-  background: #45a049;
-  border-color: #45a049;
-}
 </style>
 
 

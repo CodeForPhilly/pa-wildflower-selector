@@ -122,6 +122,14 @@ const props = defineProps<{
   plantCounts?: Record<string, number>;
   labelMode?: 'off' | 'selected' | 'all';
   zoom?: number;
+  addRowTop: () => void;
+  removeRowTop: () => void;
+  addRowBottom: () => void;
+  removeRowBottom: () => void;
+  addColumnLeft: () => void;
+  removeColumnLeft: () => void;
+  addColumnRight: () => void;
+  removeColumnRight: () => void;
 }>();
 
 const emit = defineEmits<{
@@ -161,6 +169,147 @@ const instancesRef = shallowRef<any>(null);
 const orbitRef = shallowRef<any>(null);
 const rootRef = ref<HTMLElement | null>(null);
 const threeContainer = ref<HTMLElement | null>(null);
+let resizeControlsGroup: THREE.Group | null = null;
+let resizeControlMeshes: THREE.Mesh[] = [];
+
+type ResizeAction =
+  | 'addRowTop'
+  | 'removeRowTop'
+  | 'addRowBottom'
+  | 'removeRowBottom'
+  | 'addColumnLeft'
+  | 'removeColumnLeft'
+  | 'addColumnRight'
+  | 'removeColumnRight';
+
+const makeResizeButtonTexture = (label: string) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  // Background (white rounded square + subtle border), matching the 2D controls style.
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(255,255,255,0.98)';
+  ctx.strokeStyle = '#d1d5db';
+  ctx.lineWidth = 10;
+  drawRoundedRect(ctx, 18, 18, canvas.width - 36, canvas.height - 36, 38);
+  ctx.fill();
+  ctx.stroke();
+
+  // Label
+  ctx.fillStyle = '#374151';
+  ctx.font = 'bold 140px Roboto, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, canvas.width / 2, canvas.height / 2 + 6);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+};
+
+const disposeResizeControls = () => {
+  if (!scene) return;
+  if (resizeControlsGroup) {
+    scene.remove(resizeControlsGroup);
+  }
+  for (const m of resizeControlMeshes) {
+    try {
+      m.geometry?.dispose?.();
+      const mat = m.material;
+      const disposeMat = (mm: THREE.Material) => {
+        const anyMat = mm as any;
+        if (anyMat?.map && typeof anyMat.map.dispose === 'function') anyMat.map.dispose();
+        if (typeof mm.dispose === 'function') mm.dispose();
+      };
+      if (Array.isArray(mat)) mat.forEach(disposeMat);
+      else disposeMat(mat);
+    } catch {
+      // ignore
+    }
+  }
+  resizeControlMeshes = [];
+  resizeControlsGroup = null;
+};
+
+const buildResizeControls = () => {
+  if (!scene) return;
+  disposeResizeControls();
+
+  const group = new THREE.Group();
+  group.name = 'ResizeControls';
+
+  const buttonSize = 0.9; // feet (world units)
+  const spacing = 1.05; // center-to-center for the +/- pair
+  // Place controls just OUTSIDE the grid edge (to match 2D "outside" buttons).
+  // "Hugging" the edge means the button is adjacent to the boundary, not inside the grid.
+  const outside = buttonSize / 2 + 0.12;
+  const y = 0.02; // lift slightly above ground to avoid z-fighting
+
+  const mkButton = (label: '+' | '−', action: ResizeAction) => {
+    const tex = makeResizeButtonTexture(label);
+    const geom = new THREE.PlaneGeometry(buttonSize, buttonSize);
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex ?? undefined,
+      transparent: true,
+      opacity: 1,
+      depthTest: true,
+    });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = y;
+    mesh.userData = { ...(mesh.userData || {}), resizeAction: action };
+    resizeControlMeshes.push(mesh);
+    group.add(mesh);
+    return mesh;
+  };
+
+  const centerX = props.gridWidth / 2;
+  const centerZ = props.gridHeight / 2;
+
+  // Top edge (z near 0)
+  const topPlus = mkButton('+', 'addRowTop');
+  const topMinus = mkButton('−', 'removeRowTop');
+  topPlus.position.set(centerX - spacing / 2, y, -outside);
+  topMinus.position.set(centerX + spacing / 2, y, -outside);
+
+  // Bottom edge (z near height)
+  const botPlus = mkButton('+', 'addRowBottom');
+  const botMinus = mkButton('−', 'removeRowBottom');
+  botPlus.position.set(centerX - spacing / 2, y, props.gridHeight + outside);
+  botMinus.position.set(centerX + spacing / 2, y, props.gridHeight + outside);
+
+  // Left edge (x near 0) - stacked along Z
+  const leftPlus = mkButton('+', 'addColumnLeft');
+  const leftMinus = mkButton('−', 'removeColumnLeft');
+  leftPlus.position.set(-outside, y, centerZ - spacing / 2);
+  leftMinus.position.set(-outside, y, centerZ + spacing / 2);
+
+  // Right edge (x near width)
+  const rightPlus = mkButton('+', 'addColumnRight');
+  const rightMinus = mkButton('−', 'removeColumnRight');
+  rightPlus.position.set(props.gridWidth + outside, y, centerZ - spacing / 2);
+  rightMinus.position.set(props.gridWidth + outside, y, centerZ + spacing / 2);
+
+  resizeControlsGroup = group;
+  scene.add(group);
+};
+
+const pickResizeActionUnderPointer = (ev: PointerEvent): ResizeAction | null => {
+  if (!renderer || !camera || !raycaster || !mouseNdc) return null;
+  if (!resizeControlMeshes.length) return null;
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouseNdc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+  mouseNdc.y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
+  raycaster.setFromCamera(mouseNdc, camera);
+  const hits = raycaster.intersectObjects(resizeControlMeshes, false);
+  if (!hits.length) return null;
+  const action = /** @type {any} */ (hits[0].object)?.userData?.resizeAction;
+  return typeof action === 'string' ? (action as ResizeAction) : null;
+};
 
 // Three.js objects
 let scene: THREE.Scene | null = null;
@@ -467,6 +616,9 @@ const initThreeJS = () => {
   // Ground + Grid
   rebuildGroundAndGrid();
 
+  // 3D edge resize controls (physical buttons on the ground)
+  buildResizeControls();
+
   // Selection ring
   const ringGeo = new THREE.RingGeometry(0.45, 0.5, 48);
   const ringMat = new THREE.MeshBasicMaterial({ color: 0x111827, transparent: true, opacity: 0.65, side: THREE.DoubleSide });
@@ -575,6 +727,9 @@ watch(
     gridHelperObj = new THREE.GridHelper(gridSize.value, gridDivisions.value, 0x94a3b8, 0xd1d5db);
     gridHelperObj.position.set(props.gridWidth / 2, 0.001, props.gridHeight / 2);
     scene.add(gridHelperObj);
+
+    // Keep 3D edge resize controls in sync with the new dimensions
+    buildResizeControls();
 
     // Update zoom bounds to match new garden size
     if (controls) {
@@ -939,6 +1094,7 @@ onUnmounted(() => {
   // Clean up Three.js resources
   window.removeEventListener('keydown', handleKeyDown);
   window.removeEventListener('keyup', handleKeyUp);
+  disposeResizeControls();
   if (renderer) {
     renderer.domElement.removeEventListener('pointermove', onPointerMove);
     renderer.domElement.removeEventListener('pointerdown', onPointerDown);
@@ -1351,6 +1507,25 @@ const onPointerUp = (ev: PointerEvent) => {
     if (controls && 'enabled' in controls) controls.enabled = true;
     return;
   }
+
+  // Grid resize controls: click the physical +/- buttons on the ground.
+  const resizeAction = pickResizeActionUnderPointer(ev);
+  if (resizeAction) {
+    if (resizeAction === 'addRowTop') props.addRowTop();
+    else if (resizeAction === 'removeRowTop') props.removeRowTop();
+    else if (resizeAction === 'addRowBottom') props.addRowBottom();
+    else if (resizeAction === 'removeRowBottom') props.removeRowBottom();
+    else if (resizeAction === 'addColumnLeft') props.addColumnLeft();
+    else if (resizeAction === 'removeColumnLeft') props.removeColumnLeft();
+    else if (resizeAction === 'addColumnRight') props.addColumnRight();
+    else if (resizeAction === 'removeColumnRight') props.removeColumnRight();
+
+    pointerDownAt = null;
+    pointerDragging = false;
+    dragCandidatePlacedId = null;
+    dragOffsetXZ = null;
+    return;
+  }
   const obj = pickObjectUnderPointer(ev);
   if (obj) {
     const placedIdRaw = /** @type {any} */ (obj)?.userData?.placedId;
@@ -1555,6 +1730,7 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
   /* Prevent browser scroll/zoom gestures from fighting OrbitControls on mobile */
   touch-action: none;
 }
+
 
 .overlay-3d-controls {
   display: flex;
