@@ -253,8 +253,11 @@ const gridStyle = computed(() => {
   const cellSize = dynamicCellSize.value;
   const gridWidthPx = props.gridWidth * cellSize;
   const gridHeightPx = props.gridHeight * cellSize;
+  // Grid line spacing based on snap increment (0.5ft or 1ft)
+  const gridSpacingPx = props.snapIncrement * cellSize;
   return {
     '--cell-size': `${cellSize}px`,
+    '--grid-spacing': `${gridSpacingPx}px`,
     width: `${gridWidthPx}px`,
     height: `${gridHeightPx}px`,
   };
@@ -712,21 +715,21 @@ const gridHighlightStyle = computed(() => {
   flex-shrink: 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(0, 0, 0, 0.15);
-  /* 1ft grid lines */
+  /* Grid lines based on snap increment (0.5ft or 1ft) */
   background-image:
     repeating-linear-gradient(
       to right,
       rgba(0, 0, 0, 0.15) 0,
       rgba(0, 0, 0, 0.15) 1px,
       transparent 1px,
-      transparent var(--cell-size)
+      transparent var(--grid-spacing)
     ),
     repeating-linear-gradient(
       to bottom,
       rgba(0, 0, 0, 0.15) 0,
       rgba(0, 0, 0, 0.15) 1px,
       transparent 1px,
-      transparent var(--cell-size)
+      transparent var(--grid-spacing)
     );
   background-position: 0 0;
   touch-action: none;

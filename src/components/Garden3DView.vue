@@ -357,7 +357,7 @@ const groundColor = new THREE.Color('#ffffff');
 const GRID_OUTSIDE_BG = '#f5f5f5'; // matches 2D .grid-scroll background
 const GRID_LINE_COLOR = 'rgba(0, 0, 0, 0.15)'; // matches 2D gridline color
 
-const make2DStyleGridTexture = (widthFt: number, heightFt: number): THREE.CanvasTexture => {
+const make2DStyleGridTexture = (widthFt: number, heightFt: number, snapIncrementFt: number): THREE.CanvasTexture => {
   const maxCanvas = 2048;
   const maxDimFt = Math.max(1, Math.max(widthFt, heightFt));
   const pxPerFt = clamp(Math.floor(maxCanvas / maxDimFt), 16, 64);
@@ -377,13 +377,13 @@ const make2DStyleGridTexture = (widthFt: number, heightFt: number): THREE.Canvas
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Grid lines every 1ft
+  // Grid lines based on snap increment (0.5ft or 1ft)
   ctx.strokeStyle = GRID_LINE_COLOR;
   ctx.lineWidth = 1;
 
-  // Crisp 1px lines
-  const xStep = pxPerFt;
-  const yStep = pxPerFt;
+  // Grid spacing in pixels based on snap increment
+  const xStep = pxPerFt * snapIncrementFt;
+  const yStep = pxPerFt * snapIncrementFt;
 
   for (let x = 0; x <= canvas.width; x += xStep) {
     const xx = Math.round(x) + 0.5;
@@ -660,7 +660,7 @@ const initThreeJS = () => {
 
     // Grid plane: pure white + subtle grey lines (matches 2D)
     const gridGeometry = new THREE.PlaneGeometry(props.gridWidth, props.gridHeight);
-    const gridTexture = make2DStyleGridTexture(props.gridWidth, props.gridHeight);
+    const gridTexture = make2DStyleGridTexture(props.gridWidth, props.gridHeight, props.snapIncrement);
     const gridMaterial = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       map: gridTexture,
@@ -748,9 +748,9 @@ const initThreeJS = () => {
   console.log('Garden3DView: Three.js initialized successfully');
 };
 
-// Keep ground/grid + controls bounds in sync when garden size changes (e.g. via GridSizeEditor in 3D)
+// Keep ground/grid + controls bounds in sync when garden size or snap increment changes
 watch(
-  () => [props.gridWidth, props.gridHeight],
+  () => [props.gridWidth, props.gridHeight, props.snapIncrement],
   (nextVals, prevVals) => {
     const nextW = nextVals[0];
     const nextH = nextVals[1];
@@ -793,7 +793,7 @@ watch(
     groundMesh = null;
 
     const gridGeometry = new THREE.PlaneGeometry(props.gridWidth, props.gridHeight);
-    const gridTexture = make2DStyleGridTexture(props.gridWidth, props.gridHeight);
+    const gridTexture = make2DStyleGridTexture(props.gridWidth, props.gridHeight, props.snapIncrement);
     const gridMaterial = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       map: gridTexture,
