@@ -12,6 +12,8 @@
  *   node scripts/tmp-fill-height-spread.js --ids-file db_backups/scientific_names.txt
  *   node scripts/tmp-fill-height-spread.js --all --redo-all --reset-csv --out db_backups/tmp-height-spread-full.csv
  *   node scripts/tmp-fill-height-spread.js --all --redo-all --reset-csv --csv-only=1
+ *   node scripts/tmp-fill-height-spread.js --fresh=1 --all --redo-all --web=1
+ *   node scripts/tmp-fill-height-spread.js --policy scripts/height-spread-source-policy.json --all --web=1
  *
  * Output files (gitignored via db_backups/):
  *   - db_backups/tmp-height-spread.csv
@@ -33,6 +35,7 @@ const DEFAULT_CHECKPOINT = "db_backups/tmp-height-spread-checkpoint.json";
 const DEFAULT_STATE = "db_backups/tmp-height-spread-state.json";
 const DEFAULT_NULLS_FILE = "db_backups/tmp-height-spread-nulls.txt";
 const DEFAULT_ERRORS_FILE = "db_backups/tmp-height-spread-errors.txt";
+const DEFAULT_POLICY = "scripts/height-spread-source-policy.json";
 
 function loadState(statePath) {
   try {
@@ -82,6 +85,136 @@ function normalizeSources(sources) {
 function hasHttpUrlSource(sources) {
   const normalized = normalizeSources(sources);
   return normalized.some((s) => typeof s === "string" && /^https?:\/\//i.test(s));
+}
+
+function parseDomainList(v) {
+  if (!v) return [];
+  return String(v)
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function parsePatternList(v) {
+  if (!v) return [];
+  return String(v)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function normalizeDomains(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.map((s) => String(s).trim().toLowerCase()).filter(Boolean);
+  return parseDomainList(v);
+}
+
+function normalizePatterns(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.map((s) => String(s).trim()).filter(Boolean);
+  return parsePatternList(v);
+}
+
+function loadPolicy(policyPath) {
+  if (!policyPath) return null;
+  const abs = path.resolve(String(policyPath));
+  if (!fs.existsSync(abs)) return null;
+  const raw = fs.readFileSync(abs, "utf8");
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    throw new Error(`Failed to parse policy JSON at ${policyPath}: ${e && e.message ? e.message : e}`);
+  }
+}
+
+function hostnameFromUrl(url) {
+  try {
+    const u = new URL(String(url));
+    return (u.hostname || "").toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function domainMatches(hostname, domain) {
+  const h = String(hostname || "").toLowerCase();
+  const d = String(domain || "").toLowerCase();
+  if (!h || !d) return false;
+  return h === d || h.endsWith(`.${d}`);
+}
+
+function urlMatchesAnyPattern(url, patterns) {
+  if (!patterns || !patterns.length) return false;
+  const s = String(url || "").toLowerCase();
+  return patterns.some((p) => p && s.includes(String(p).toLowerCase()));
+}
+
+function rankHostname(hostname, preferredDomains) {
+  if (!preferredDomains || !preferredDomains.length) return 999999;
+  const h = String(hostname || "").toLowerCase();
+  const idx = preferredDomains.findIndex((d) => domainMatches(h, d));
+  return idx === -1 ? 999999 : idx;
+}
+
+function filterAndPickBestSource({ sources, allowDomains, blockDomains, preferredDomains, blockUrlPatterns }) {
+  const normalized = normalizeSources(sources);
+  const candidates = [];
+  for (const url of normalized) {
+    const host = hostnameFromUrl(url);
+    if (!host) continue;
+    if (blockDomains && blockDomains.length && blockDomains.some((d) => domainMatches(host, d))) continue;
+    if (allowDomains && allowDomains.length && !allowDomains.some((d) => domainMatches(host, d))) continue;
+    if (urlMatchesAnyPattern(url, blockUrlPatterns)) continue;
+    candidates.push({ url, host, rank: rankHostname(host, preferredDomains) });
+  }
+  if (!candidates.length) return [];
+  candidates.sort((a, b) => a.rank - b.rank || a.host.localeCompare(b.host) || a.url.localeCompare(b.url));
+  return [candidates[0].url];
+}
+
+function parseNumbersFromText(text) {
+  if (!text) return [];
+  const s = String(text);
+  // captures integers/decimals, allowing thousands separators
+  const matches = s.match(/(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/g);
+  if (!matches) return [];
+  return matches
+    .map((m) => Number(String(m).replace(/,/g, "")))
+    .filter((n) => Number.isFinite(n));
+}
+
+function detectUnitFromEvidence(text) {
+  const s = String(text || "").toLowerCase();
+  const hasFeet = /\b(ft|feet|foot)\b/.test(s);
+  // basic detection: "m", "meter", "metre" (avoid matching "cm"/"mm")
+  const hasMeters = /\b(meter|metre|meters|metres)\b/.test(s) || (/\bm\b/.test(s) && !/\bcm\b|\bmm\b/.test(s));
+  if (hasFeet) return "feet";
+  if (hasMeters) return "meters";
+  return "unknown";
+}
+
+function evidenceSupportsValueFeet(valueFeet, evidenceText) {
+  if (valueFeet === null || valueFeet === undefined) return true;
+  if (!evidenceText || !String(evidenceText).trim()) return false;
+  const unit = detectUnitFromEvidence(evidenceText);
+  let nums = parseNumbersFromText(evidenceText);
+  if (!nums.length) return false;
+
+  if (unit === "meters") {
+    nums = nums.map((n) => n * 3.28084);
+  }
+
+  // If there is an obvious range, accept if value is inside it.
+  if (nums.length >= 2) {
+    const sorted = [...nums].sort((a, b) => a - b);
+    const min = sorted[0];
+    const max = sorted[sorted.length - 1];
+    if (valueFeet >= min - 0.5 && valueFeet <= max + 0.5) return true;
+  }
+
+  // Otherwise accept if it's close to any single cited number.
+  const tolerance = valueFeet <= 5 ? 0.6 : Math.max(2, valueFeet * 0.1);
+  return nums.some((n) => Math.abs(n - valueFeet) <= tolerance);
 }
 
 function parseArgs(argv) {
@@ -142,6 +275,11 @@ function loadCheckpoint(checkpointPath) {
 function saveCheckpoint(checkpointPath, checkpoint) {
   safeMkdirp(checkpointPath);
   fs.writeFileSync(checkpointPath, JSON.stringify(checkpoint, null, 2));
+}
+
+function resetCheckpoint(checkpointPath) {
+  safeMkdirp(checkpointPath);
+  fs.writeFileSync(checkpointPath, JSON.stringify({ done: {}, errors: {} }, null, 2));
 }
 
 function csvEscape(value) {
@@ -263,13 +401,58 @@ function getResponsesApiOutputText(resp) {
   return "";
 }
 
-async function callOpenAIForDimensions({ model, apiKey, useWeb, scientificName, commonName }) {
+async function callOpenAIForDimensions({
+  model,
+  apiKey,
+  useWeb,
+  scientificName,
+  commonName,
+  allowDomains,
+  blockDomains,
+  preferredDomains,
+  blockUrlPatterns,
+  requireAllowedSource,
+}) {
   // NOTE: This prompt is intentionally compact to reduce token cost at scale.
+  const sourcesRule = (() => {
+    if (!useWeb) {
+      return (
+        "Do NOT invent or guess URLs. " +
+        "Since web search is disabled, set sources to an empty array and set height_feet and spread_feet to null."
+      );
+    }
+    const allow = allowDomains && allowDomains.length ? `Allowed domains: ${allowDomains.join(", ")}. ` : "";
+    const block = blockDomains && blockDomains.length ? `Blocked domains: ${blockDomains.join(", ")}. ` : "";
+    const prefer =
+      preferredDomains && preferredDomains.length
+        ? `Prefer sources in this order (highest authority first): ${preferredDomains.join(", ")}. `
+        : "";
+    const blockPatterns =
+      blockUrlPatterns && blockUrlPatterns.length
+        ? `Avoid URLs matching these substrings (retail/SEO patterns): ${blockUrlPatterns.join(", ")}. `
+        : "";
+    const requireAllowed = requireAllowedSource
+      ? "If you cannot find an allowed-domain URL that clearly supports BOTH values, set height_feet and spread_feet to null and sources to an empty array."
+      : "If you cannot find a good URL, you may return nulls with an empty sources array.";
+    return (
+      "Include AT MOST one http(s) URL in sources. " +
+      allow +
+      block +
+      prefer +
+      blockPatterns +
+      "Never cite blocked domains. " +
+      "Do not use general gardening blogs, content farms, retailer product pages, or community Q&A as sources for numeric mature size. " +
+      "For each non-null number, include a short verbatim evidence snippet copied from the cited page that contains the numeric value(s) and units (feet or meters). " +
+      requireAllowed
+    );
+  })();
+
   const system =
     "Return ONLY JSON matching the schema. " +
     "Goal: typical mature HEIGHT and SPREAD in FEET for residential landscape cultivation (not max wild size). " +
     "No ranges; pick ONE typical value (midpoint ok). Convert metric to feet. " +
-    "If <=5 ft, use 0.5-ft steps. Include exactly one http(s) source URL if numbers are non-null; otherwise set both to null.";
+    "If <=5 ft, use 0.5-ft steps. " +
+    sourcesRule;
 
   const user =
     `Plant: ${scientificName}` +
@@ -282,14 +465,16 @@ async function callOpenAIForDimensions({ model, apiKey, useWeb, scientificName, 
     properties: {
       height_feet: { type: ["number", "null"] },
       spread_feet: { type: ["number", "null"] },
+      height_evidence: { type: ["string", "null"] },
+      spread_evidence: { type: ["string", "null"] },
       sources: {
         type: "array",
-        minItems: 1,
+        minItems: 0,
         maxItems: 1,
         items: { type: "string" },
       },
     },
-    required: ["height_feet", "spread_feet", "sources"],
+    required: ["height_feet", "spread_feet", "height_evidence", "spread_evidence", "sources"],
   };
 
   const payload = {
@@ -349,14 +534,36 @@ async function callOpenAIForDimensions({ model, apiKey, useWeb, scientificName, 
   return { obj, rawResponseText: text, parsedResponse };
 }
 
-async function callOpenAIForDimensionsWithRetry({ model, apiKey, useWeb, scientificName, commonName }) {
-  const firstResp = await callOpenAIForDimensions({ model, apiKey, useWeb, scientificName, commonName });
+async function callOpenAIForDimensionsWithRetry({
+  model,
+  apiKey,
+  useWeb,
+  scientificName,
+  commonName,
+  allowDomains,
+  blockDomains,
+  preferredDomains,
+  blockUrlPatterns,
+  requireAllowedSource,
+}) {
+  const firstResp = await callOpenAIForDimensions({
+    model,
+    apiKey,
+    useWeb,
+    scientificName,
+    commonName,
+    allowDomains,
+    blockDomains,
+    preferredDomains,
+    blockUrlPatterns,
+    requireAllowedSource,
+  });
   const first = firstResp.obj || {};
   const firstSourcesOk = hasHttpUrlSource(first.sources);
   const firstOk =
     Number.isFinite(first.height_feet) &&
     Number.isFinite(first.spread_feet) &&
-    firstSourcesOk;
+    (!requireAllowedSource || firstSourcesOk);
   if (firstOk) return firstResp;
 
   // Retry once with stronger "must find numbers if they exist" guidance (still compact).
@@ -364,7 +571,9 @@ async function callOpenAIForDimensionsWithRetry({ model, apiKey, useWeb, scienti
     "SECOND TRY. Return ONLY JSON matching the schema. " +
     "If ANY species-specific mature size info exists, return best-estimate numbers (no ranges; midpoint ok). " +
     "Convert metric to feet. If <=5 ft use 0.5-ft steps. " +
-    "If you return numbers, sources must contain exactly one http(s) URL.";
+    (requireAllowedSource
+      ? "If you return numbers, sources must contain one allowed-domain http(s) URL and you must include verbatim evidence snippets containing the numeric values and units."
+      : "If you return numbers, include one http(s) URL if available; otherwise return nulls with empty sources.");
 
   const user =
     `Plant: ${scientificName}` +
@@ -377,9 +586,11 @@ async function callOpenAIForDimensionsWithRetry({ model, apiKey, useWeb, scienti
     properties: {
       height_feet: { type: ["number", "null"] },
       spread_feet: { type: ["number", "null"] },
-      sources: { type: "array", minItems: 1, maxItems: 1, items: { type: "string" } },
+      height_evidence: { type: ["string", "null"] },
+      spread_evidence: { type: ["string", "null"] },
+      sources: { type: "array", minItems: 0, maxItems: 1, items: { type: "string" } },
     },
-    required: ["height_feet", "spread_feet", "sources"],
+    required: ["height_feet", "spread_feet", "height_evidence", "spread_evidence", "sources"],
   };
 
   const payload = {
@@ -448,7 +659,8 @@ async function main() {
 
   const model = args.model || process.env.OPENAI_MODEL || "gpt-4o-mini";
   const statePath = args.state || DEFAULT_STATE;
-  const resume = toBool(args.resume, true);
+  const fresh = toBool(args.fresh, false) || toBool(args["reset-run"], false) || toBool(args["start-fresh"], false);
+  const resume = fresh ? false : toBool(args.resume, true);
   const priorState = resume ? loadState(statePath) : null;
 
   const outPath = args.out || (priorState && priorState.outPath) || DEFAULT_OUT;
@@ -468,7 +680,7 @@ async function main() {
   const maxFeet = toInt(args["max-feet"], 400);
   const redoNulls = toBool(args["redo-nulls"], false);
   const redoAll = toBool(args["redo-all"], false);
-  const resetCsvFlag = toBool(args["reset-csv"], false);
+  const resetCsvFlag = toBool(args["reset-csv"], false) || fresh;
   const csvOnly = toBool(args["csv-only"], false);
   const resetNullsFileFlag = toBool(args["reset-nulls-file"], false) || resetCsvFlag;
   const resetErrorsFileFlag = toBool(args["reset-errors-file"], false) || resetCsvFlag;
@@ -484,7 +696,13 @@ async function main() {
   const rpm = toInt(args.rpm, 20); // conservative default
   const limiter = new RateLimiter({ tokensPerInterval: rpm, interval: "minute" });
 
+  const resetCheckpointFlag = toBool(args["reset-checkpoint"], false) || resetCsvFlag || fresh;
   const checkpoint = csvOnly ? { done: {}, errors: {} } : loadCheckpoint(checkpointPath);
+  if (!csvOnly && resetCheckpointFlag) {
+    resetCheckpoint(checkpointPath);
+    checkpoint.done = {};
+    checkpoint.errors = {};
+  }
 
   // Optional: load explicit list of plant IDs (scientific names)
   let idsList = null;
@@ -497,40 +715,30 @@ async function main() {
       .filter(Boolean);
   }
 
+  // Source policy: load from JSON (default) and allow CLI overrides
+  const policyPath = args.policy || process.env.HEIGHT_SPREAD_SOURCE_POLICY || DEFAULT_POLICY;
+  const policy = loadPolicy(policyPath) || {};
+  const hasCli = (k) => Object.prototype.hasOwnProperty.call(args, k);
+
+  const allowDomains = hasCli("allow-domains") ? parseDomainList(args["allow-domains"]) : normalizeDomains(policy.allow_domains);
+  const blockDomains = hasCli("block-domains") ? parseDomainList(args["block-domains"]) : normalizeDomains(policy.block_domains);
+  const preferredDomains = hasCli("preferred-domains")
+    ? parseDomainList(args["preferred-domains"])
+    : normalizeDomains(policy.preferred_domains);
+  const blockUrlPatterns = hasCli("block-url-patterns")
+    ? parsePatternList(args["block-url-patterns"])
+    : normalizePatterns(policy.block_url_patterns);
+  const requireAllowedSource = hasCli("require-allowed-source")
+    ? toBool(args["require-allowed-source"], true)
+    : toBool(policy.require_allowed_source, true);
+
   const { plants, close } = await db();
   try {
-    const query = {};
-    if (!includeAll && onlyMissing) {
-      query.$or = [
-        { "Height (feet)": { $lte: 0 } },
-        { "Spread (feet)": { $lte: 0 } },
-      ];
-    }
-    if (idsList && idsList.length) {
-      query._id = { $in: idsList };
-    }
-    if (startAfter) {
-      // _id is Scientific Name in this DB
-      query._id = query._id || {};
-      query._id.$gt = startAfter;
-    }
-
-    const cursor = plants
-      .find(query, {
-        projection: {
-          _id: 1,
-          "Scientific Name": 1,
-          "Common Name": 1,
-          "Height (feet)": 1,
-          "Spread (feet)": 1,
-        },
-      })
-      .sort({ _id: 1 });
-
     let processed = 0;
     let updated = 0;
     let skipped = 0;
     let failed = 0;
+    let stopEarly = false;
 
     if (resetCsvFlag) resetCsv(outPath);
     else ensureCsvHeader(outPath);
@@ -567,12 +775,8 @@ async function main() {
     }
     saveState(statePath, state);
 
-    while (await cursor.hasNext()) {
-      const plant = await cursor.next();
-      const id = plant._id;
-      const scientificName = plant["Scientific Name"] || id;
-      const commonName = plant["Common Name"] || "";
-
+    async function processOne({ id, scientificName, commonName }) {
+      if (stopEarly) return;
       if (!csvOnly && !redoAll && checkpoint.done[id]) {
         if (!redoNulls) {
           skipped++;
@@ -580,7 +784,7 @@ async function main() {
           state.lastId = id;
           state.updatedAt = new Date().toISOString();
           saveState(statePath, state);
-          continue;
+          return;
         }
         const prev = checkpoint.done[id] || {};
         const prevOk =
@@ -594,11 +798,11 @@ async function main() {
           state.lastId = id;
           state.updatedAt = new Date().toISOString();
           saveState(statePath, state);
-          continue;
+          return;
         }
       }
 
-      if (limit && processed >= limit) break;
+      if (limit && processed >= limit) return;
 
       processed++;
       process.stdout.write(`\rProcessing ${processed}${limit ? `/${limit}` : ""}: ${scientificName}               `);
@@ -616,6 +820,11 @@ async function main() {
           useWeb,
           scientificName,
           commonName,
+          allowDomains,
+          blockDomains,
+          preferredDomains,
+          blockUrlPatterns,
+          requireAllowedSource,
         });
         const dim = dimResp.obj || {};
 
@@ -641,15 +850,31 @@ async function main() {
         const heightFeet = clampReasonableFeet(dim.height_feet, maxFeet);
         const spreadFeet = clampReasonableFeet(dim.spread_feet, maxFeet);
 
-        const normalizedSources = normalizeSources(dim.sources);
+        const normalizedSources = filterAndPickBestSource({
+          sources: dim.sources,
+          allowDomains,
+          blockDomains,
+          preferredDomains,
+          blockUrlPatterns,
+        });
         const sources = normalizedSources.join(" | ");
+
+        const heightEvidence = dim.height_evidence ?? dim.heightEvidence ?? null;
+        const spreadEvidence = dim.spread_evidence ?? dim.spreadEvidence ?? null;
+
+        const sourceOk = !requireAllowedSource || normalizedSources.length > 0;
+        const heightOk = sourceOk && evidenceSupportsValueFeet(heightFeet, heightEvidence);
+        const spreadOk = sourceOk && evidenceSupportsValueFeet(spreadFeet, spreadEvidence);
+
+        const finalHeightFeet = heightOk ? heightFeet : null;
+        const finalSpreadFeet = spreadOk ? spreadFeet : null;
 
         // Write a CSV row regardless; you can choose to ignore nulls later.
         appendCsvRow(outPath, {
           scientificName,
           commonName,
-          heightFeet: heightFeet === null ? "" : heightFeet,
-          spreadFeet: spreadFeet === null ? "" : spreadFeet,
+          heightFeet: finalHeightFeet === null ? "" : finalHeightFeet,
+          spreadFeet: finalSpreadFeet === null ? "" : finalSpreadFeet,
           sources,
         });
         state.lastWrittenId = id;
@@ -658,14 +883,16 @@ async function main() {
         saveState(statePath, state);
 
         // Track blanks so you can do a focused, more expensive second pass later.
-        if (nullsFile && (heightFeet === null || spreadFeet === null)) {
+        if (nullsFile && (finalHeightFeet === null || finalSpreadFeet === null)) {
           appendTextLine(nullsFile, scientificName);
         }
 
         checkpoint.done[id] = {
-          height_feet: heightFeet,
-          spread_feet: spreadFeet,
+          height_feet: finalHeightFeet,
+          spread_feet: finalSpreadFeet,
           sources: normalizedSources,
+          height_evidence: heightEvidence,
+          spread_evidence: spreadEvidence,
           notes: dim.notes || "",
           at: new Date().toISOString(),
         };
@@ -699,8 +926,61 @@ async function main() {
         // If the account is out of quota, stop immediately to avoid spamming failures
         if (isInsufficientQuotaError(e)) {
           console.error("Stopping early due to insufficient OpenAI quota. Top up/enable billing, then re-run to resume.");
-          break;
+          stopEarly = true;
+          return;
         }
+      }
+    }
+
+    if (idsList && idsList.length) {
+      let effectiveIds = idsList;
+      if (startAfter) effectiveIds = idsList.filter((id) => String(id).localeCompare(String(startAfter)) > 0);
+      for (const id of effectiveIds) {
+        if (limit && processed >= limit) break;
+        if (stopEarly) break;
+        // eslint-disable-next-line no-await-in-loop
+        const plant = await plants.findOne(
+          { _id: id },
+          { projection: { _id: 1, "Scientific Name": 1, "Common Name": 1, "Height (feet)": 1, "Spread (feet)": 1 } }
+        );
+        const scientificName = (plant && plant["Scientific Name"]) || id;
+        const commonName = (plant && plant["Common Name"]) || "";
+        // eslint-disable-next-line no-await-in-loop
+        await processOne({ id, scientificName, commonName });
+        if (stopEarly) break;
+      }
+    } else {
+      const query = {};
+      if (!includeAll && onlyMissing) {
+        query.$or = [{ "Height (feet)": { $lte: 0 } }, { "Spread (feet)": { $lte: 0 } }];
+      }
+      if (startAfter) {
+        // _id is Scientific Name in this DB
+        query._id = query._id || {};
+        query._id.$gt = startAfter;
+      }
+
+      const cursor = plants
+        .find(query, {
+          projection: {
+            _id: 1,
+            "Scientific Name": 1,
+            "Common Name": 1,
+            "Height (feet)": 1,
+            "Spread (feet)": 1,
+          },
+        })
+        .sort({ _id: 1 });
+
+      while (await cursor.hasNext()) {
+        const plant = await cursor.next();
+        const id = plant._id;
+        const scientificName = plant["Scientific Name"] || id;
+        const commonName = plant["Common Name"] || "";
+        // eslint-disable-next-line no-await-in-loop
+        await processOne({ id, scientificName, commonName });
+        if (stopEarly) break;
+        if (limit && processed >= limit) break;
       }
     }
 

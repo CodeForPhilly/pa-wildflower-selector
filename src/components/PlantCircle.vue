@@ -14,7 +14,7 @@
     @dblclick="handleDoubleClick"
     @keydown="handleKeyDown"
   >
-    <div class="placed-label">
+    <div v-if="showLabel" class="placed-label">
       <!-- Coordinate badge above common name -->
       <div class="coordinate-badge">
         {{ centerPosition }}
@@ -57,6 +57,7 @@ interface Emits {
   (e: 'drag-start', event: PointerEvent, placedId: string): void;
   (e: 'delete', placedId: string): void;
   (e: 'select', placedId: string): void;
+  (e: 'deselect'): void;
   (e: 'move', placedId: string, x: number, y: number): void;
   (e: 'duplicate', placedId: string): void;
 }
@@ -67,6 +68,7 @@ interface Props {
   isOverlapping: boolean;
   isDragging?: boolean;
   isSelected?: boolean;
+  showLabel?: boolean;
   cellSize: number;
   imageUrl: (plant: Plant | undefined, preview: boolean) => string;
   isMobile: boolean;
@@ -310,6 +312,12 @@ const handleKeyDown = (event: KeyboardEvent) => {
     event.preventDefault();
     emit('delete', props.placed.id);
   }
+  
+  // Handle Enter/Esc to deselect
+  if (event.key === 'Enter' || event.key === 'Escape') {
+    event.preventDefault();
+    emit('deselect');
+  }
 };
 
 const handleDoubleClick = (event: MouseEvent) => {
@@ -377,7 +385,7 @@ const handleDeleteClick = () => {
   font-family: Roboto;
   font-size: 13px;
   color: #fff;
-  padding: 12px 8px;
+  padding: 10px 8px;
   line-height: 1.4;
   text-align: center;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 10px rgba(0, 0, 0, 0.6);
@@ -386,6 +394,16 @@ const handleDeleteClick = () => {
   overflow-wrap: break-word;
   hyphens: auto;
   box-sizing: border-box;
+  pointer-events: none;
+
+  /* Improve readability over bright photos while keeping the same layout */
+  background: rgba(17, 24, 39, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 12px;
+  backdrop-filter: blur(6px);
+  max-width: calc(100% - 12px);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .label-line {
@@ -395,12 +413,12 @@ const handleDeleteClick = () => {
 }
 
 .label-line.common {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .label-line.scientific {
-  font-size: 0.85em;
+  font-size: 12px;
   margin-top: 3px;
   opacity: 0.95;
   max-width: 100%;

@@ -4686,79 +4686,69 @@ th {
     background: none;
     text-shadow: 0px 0px 2px black;
   }
+}
 
-  /* Compact utility header styles */
+/* Compact utility header styles
+   Mobile/tablet: centered, clean (no grey bar)
+   Desktop (orange hero): left-aligned with the utility bar styling */
+.compact-utility-header {
+  background: transparent;
+  border-bottom: none;
+  padding: 8px 16px 0;
+  margin-bottom: 11px; /* match other primary controls spacing */
+}
+
+.utility-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.location-section {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Keep default button styling for consistency; just lay out the icon/text nicely */
+.location-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.location-btn .material-icons {
+  font-size: 16px;
+}
+
+@media screen and (max-width: 768px) {
+  .location-btn {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+}
+
+@media all and (min-width: 1280px) {
   .compact-utility-header {
     background-color: #f5f5f5;
     border-bottom: 1px solid #e0e0e0;
     padding: 12px 40px 8px;
     margin-bottom: 8px;
   }
-  
+
   .utility-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
+    justify-content: flex-start;
   }
-  
+
   .location-section {
-    flex-shrink: 0;
-  }
-  
-  .location-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    background-color: #B74D15;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-family: Roboto;
-    font-size: 14px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  }
-  
-  .location-btn:hover {
-    background-color: #a03d0e;
-  }
-  
-  .location-btn .material-icons {
-    font-size: 16px;
-  }
-  
-  .helper-text {
-    color: #555;
-    font-family: Roboto;
-    font-size: 14px;
-    line-height: 1.4;
-    flex: 1;
-    min-width: 200px;
-  }
-  
-  /* Mobile responsive for compact header */
-  @media screen and (max-width: 768px) {
-    .compact-utility-header {
-      padding: 8px 16px 6px;
-    }
-    
-    .utility-content {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 8px;
-    }
-    
-    .location-btn {
-      font-size: 13px;
-      padding: 6px 12px;
-    }
-    
-    .helper-text {
-      font-size: 13px;
-    }
+    width: auto;
+    justify-content: flex-start;
   }
 }
 </style>

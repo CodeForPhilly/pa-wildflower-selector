@@ -4,6 +4,8 @@ import qs from 'qs';
 import type { Plant, PlacedPlant, StoragePayload, GridCoords } from '../types/garden';
 import { useLocalStorage } from './useLocalStorage';
 import { useUndoRedo } from './useUndoRedo';
+import { buildGardenDesignV1, clamp, parseGardenDesignV1, roundToIncrement, stringifyGardenDesign } from '../lib/gardenDesign';
+import type { GardenDesignV1 } from '../types/gardenDesign';
 
 const STORAGE_KEY = 'gardenPlanner:v1';
 const SNAP_INCREMENT_KEY = 'gardenPlanner:snapIncrement';
@@ -170,6 +172,8 @@ export function useGardenPlanner() {
     if (!Number.isFinite(num) || num <= 0) return 1;
     return Math.max(1, Math.round(num));
   };
+
+  // (helper reserved for future export/prompt detail expansion)
 
   const loadFromStorage = (): void => {
     const data = storageData.value;
@@ -520,6 +524,128 @@ export function useGardenPlanner() {
     }
   };
 
+  const getExportDesignObject = (name?: string): GardenDesignV1 => {
+    return buildGardenDesignV1({
+      gridWidthFt: gridWidth.value,
+      gridHeightFt: gridHeight.value,
+      snapIncrementFt: snapIncrement.value,
+      favoriteIds: favoriteIds.value,
+      favoritePlants: favoritePlants.value,
+      placedPlants: placedPlants.value,
+      name,
+    });
+  };
+
+  const getExportDesignText = (name?: string): string => {
+    return stringifyGardenDesign(getExportDesignObject(name));
+  };
+
+  const applyImportedFavorites = (plantIds: string[]) => {
+    const current = store.state?.favorites;
+    const existing = current instanceof Set ? (current as Set<string>) : new Set<string>();
+    const merged = new Set<string>([...existing, ...plantIds]);
+    store.commit('setFavorites', merged);
+  };
+
+  const applyImportedDesignObject = (design: GardenDesignV1): { success: boolean; error?: string } => {
+    // Snap increment: accept import if provided, else keep current
+    const importedSnap = design.grid.snapIncrementFt;
+    const nextSnap = importedSnap === 0.5 || importedSnap === 1.0 ? importedSnap : snapIncrement.value;
+    snapIncrement.value = nextSnap;
+
+    // Favorites: include explicit favorites AND any plants referenced in placements
+    const placementIds = design.placements.map(p => p.plantId);
+    const favoriteIdsFromImport = Array.isArray(design.favorites) ? design.favorites : [];
+    applyImportedFavorites([...favoriteIdsFromImport, ...placementIds]);
+
+    // Grid size (may be expanded further below if placements require it)
+    const w = Math.round(design.grid.widthFt);
+    const h = Math.round(design.grid.heightFt);
+    if (w < 1 || h < 1 || w > 100 || h > 100) {
+      return { success: false, error: 'Imported grid dimensions must be between 1 and 100 feet.' };
+    }
+    gridWidth.value = w;
+    gridHeight.value = h;
+
+    const metaById = new Map<string, { spreadFt?: number }>();
+    if (Array.isArray(design.plants)) {
+      for (const p of design.plants) {
+        if (p && typeof p.plantId === 'string') {
+          metaById.set(p.plantId, { spreadFt: typeof p.spreadFt === 'number' ? p.spreadFt : undefined });
+        }
+      }
+    }
+
+    const computeSizeFt = (plantId: string, sizeFt?: number): number => {
+      if (typeof sizeFt === 'number' && Number.isFinite(sizeFt) && sizeFt > 0) {
+        return Math.max(1, Math.round(sizeFt));
+      }
+      const plant = plantById.value[plantId];
+      if (plant) return spreadCells(plant);
+      const meta = metaById.get(plantId);
+      if (meta?.spreadFt && Number.isFinite(meta.spreadFt) && meta.spreadFt > 0) {
+        return Math.max(1, Math.round(meta.spreadFt));
+      }
+      return 1;
+    };
+
+    // Build placedPlants directly (overwrite)
+    const nextPlaced: PlacedPlant[] = design.placements.map((p) => {
+      const size = computeSizeFt(p.plantId, p.sizeFt);
+      const centerX = roundToIncrement(p.centerXFt, nextSnap);
+      const centerY = roundToIncrement(p.centerYFt, nextSnap);
+      const topLeftX = roundToIncrement(centerX - size / 2, nextSnap);
+      const topLeftY = roundToIncrement(centerY - size / 2, nextSnap);
+
+      return {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+        plantId: p.plantId,
+        x: Math.max(0, topLeftX),
+        y: Math.max(0, topLeftY),
+        width: size,
+        height: size,
+      };
+    });
+
+    // Ensure grid fits all imported plants (still respecting 100ft max)
+    let requiredW = gridWidth.value;
+    let requiredH = gridHeight.value;
+    for (const pp of nextPlaced) {
+      requiredW = Math.max(requiredW, pp.x + pp.width);
+      requiredH = Math.max(requiredH, pp.y + pp.height);
+    }
+    if (requiredW > 100 || requiredH > 100) {
+      return {
+        success: false,
+        error: 'Imported placements require a grid larger than 100ft × 100ft, which is not supported.',
+      };
+    }
+    gridWidth.value = Math.max(1, Math.round(requiredW));
+    gridHeight.value = Math.max(1, Math.round(requiredH));
+
+    // Clamp final positions to grid bounds
+    const clampedPlaced = nextPlaced.map((pp) => ({
+      ...pp,
+      x: clamp(pp.x, 0, Math.max(0, gridWidth.value - pp.width)),
+      y: clamp(pp.y, 0, Math.max(0, gridHeight.value - pp.height)),
+    }));
+
+    placedPlants.value = clampedPlaced;
+    selectedPlantId.value = null;
+    selectedPlacedPlantId.value = null;
+
+    // Reset undo/redo baseline to the imported layout
+    undoRedo.reset(clampedPlaced.map(p => ({ ...p })));
+
+    return { success: true };
+  };
+
+  const importDesignFromText = (text: string): { success: boolean; error?: string } => {
+    const parsed = parseGardenDesignV1(text);
+    if ('error' in parsed) return { success: false, error: parsed.error };
+    return applyImportedDesignObject(parsed.design);
+  };
+
   // Watch for changes and sync to storage
   watch(
     [placedPlants, selectedPlantId, gridWidth, gridHeight],
@@ -668,6 +794,11 @@ export function useGardenPlanner() {
     
     // Snap increment
     toggleSnapIncrement,
+
+    // Design import/export
+    getExportDesignObject,
+    getExportDesignText,
+    importDesignFromText,
   };
 }
 

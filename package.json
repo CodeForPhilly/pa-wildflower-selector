@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
+    "@tresjs/cientos": "^3.2.0",
     "@tresjs/core": "3.9.0",
     "@vue/cli-plugin-babel": "^4.5.16",
     "@vue/cli-plugin-eslint": "^4.5.16",
@@ -46,6 +47,7 @@
     "axios": "^1.7.7",
     "babel-eslint": "^10.1.0",
     "boring": "^1.1.1",
+    "camera-controls": "^2.10.1",
     "cheerio": "^1.0.0-rc.9",
     "core-js": "^3.21.1",
     "csv-parse": "^4.15.4",

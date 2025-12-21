@@ -1,6 +1,14 @@
 <template>
   <div class="grid-area" ref="gridAreaRef">
-      <div class="grid-scroll">
+      <div 
+        class="grid-scroll"
+        :class="{ 'pan-mode': isSpacebarHeld }"
+        @wheel.prevent="handleWheel"
+        @pointerdown="handleGridPointerDown"
+        @pointermove="handleGridPointerMove"
+        @pointerup="handleGridPointerUp"
+        @pointercancel="handleGridPointerUp"
+      >
         <div class="grid-scroll-inner">
           <div class="grid-wrapper" :style="gridWrapperStyle">
           <div
@@ -9,6 +17,9 @@
             :style="gridStyle"
           @click="handleGridClick"
           @pointerdown="handleGridPointerDown"
+          @pointermove="handleGridPointerMove"
+          @pointerup="handleGridPointerUp"
+          @pointercancel="handleGridPointerUp"
           aria-label="Garden planner grid"
           role="application"
         >
@@ -20,6 +31,7 @@
           :is-overlapping="overlapIds.has(p.id)"
           :is-dragging="dragState.isDragging && dragState.plantId === p.id && dragState.dragType === 'move'"
           :is-selected="selectedPlacedPlantId === p.id"
+          :show-label="labelModeResolved === 'all'"
           :cell-size="dynamicCellSize"
           :image-url="imageUrl"
           :is-mobile="isMobile"
@@ -29,6 +41,7 @@
           @drag-start="handlePlantDragStart"
           @delete="handleDelete"
           @select="handlePlantSelect"
+          @deselect="handlePlantDeselect"
           @move="handlePlantMove"
           @duplicate="handleDuplicate"
         />
@@ -158,7 +171,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Copy } from 'lucide-vue-next';
 import { usePointerDrag } from '../composables/usePointerDrag';
 import PlantCircle from './PlantCircle.vue';
@@ -181,6 +194,7 @@ interface Props {
   gridHeight: number;
   snapIncrement: number;
   zoom?: number;
+  labelMode?: 'off' | 'all';
   addRowTop: () => void;
   removeRowTop: () => void;
   addRowBottom: () => void;
@@ -193,9 +207,21 @@ interface Props {
 
 const props = defineProps<Props>();
 
+const emit = defineEmits<{
+  (e: 'update:zoom', value: number): void;
+}>();
+
 const gridRef = ref<HTMLElement | null>(null);
 const gridAreaRef = ref<HTMLElement | null>(null);
 const activeDrag = ref<{ type: 'place' | 'move'; plantId: string } | null>(null);
+
+// Pan state (spacebar + left click drag)
+const isSpacebarHeld = ref(false);
+const isPanning = ref(false);
+const panStart = ref<{ x: number; y: number } | null>(null);
+const panOffset = ref({ x: 0, y: 0 });
+
+const labelModeResolved = computed(() => props.labelMode ?? 'off');
 
 const dynamicCellSize = computed(() => {
   if (typeof window === 'undefined') return 36;
@@ -208,7 +234,8 @@ const dynamicCellSize = computed(() => {
   // Estimate favorites tray height - compact on all sizes
   const favoritesTrayHeight = 120;
   
-  const availableWidth = window.innerWidth - mainPadding * 2 - padding * 2;
+  // For full-width layout, use the full window width minus minimal padding
+  const availableWidth = window.innerWidth - padding * 2;
   const availableHeight = window.innerHeight - toolbarHeight - headerHeight - mainPadding * 2 - favoritesTrayHeight - gap;
   
   // Use width as primary constraint to fill screen width
@@ -224,8 +251,11 @@ const gridStyle = computed(() => {
   const cellSize = dynamicCellSize.value;
   const gridWidthPx = props.gridWidth * cellSize;
   const gridHeightPx = props.gridHeight * cellSize;
+  // Grid line spacing based on snap increment (0.5ft or 1ft)
+  const gridSpacingPx = props.snapIncrement * cellSize;
   return {
     '--cell-size': `${cellSize}px`,
+    '--grid-spacing': `${gridSpacingPx}px`,
     width: `${gridWidthPx}px`,
     height: `${gridHeightPx}px`,
   };
@@ -234,7 +264,7 @@ const gridStyle = computed(() => {
 const gridWrapperStyle = computed(() => {
   const zoomValue = props.zoom ?? 1;
   return {
-    transform: `scale(${zoomValue})`,
+    transform: `translate(${panOffset.value.x}px, ${panOffset.value.y}px) scale(${zoomValue})`,
     transformOrigin: 'center center',
   };
 });
@@ -366,6 +396,56 @@ const handleGridPointerDown = (event: PointerEvent) => {
     if (coords) {
       handleDragEnd(coords, activeDrag.value.type, activeDrag.value.plantId);
     }
+    return;
+  }
+  
+  // Don't pan if a plant drag is active
+  if (dragState.value.isDragging) {
+    return;
+  }
+  
+  // Check if clicking on a plant - if so, don't pan
+  const target = event.target as HTMLElement;
+  if (target.closest('.placed')) {
+    return;
+  }
+  
+  // Start panning only if spacebar is held and left button is pressed
+  if (isSpacebarHeld.value && event.isPrimary && event.button === 0) {
+    isPanning.value = true;
+    panStart.value = { x: event.clientX - panOffset.value.x, y: event.clientY - panOffset.value.y };
+    const element = event.currentTarget as HTMLElement;
+    if (element) {
+      element.setPointerCapture(event.pointerId);
+    }
+    event.preventDefault();
+  }
+};
+
+const handleGridPointerMove = (event: PointerEvent) => {
+  // Don't pan if a plant drag is active
+  if (dragState.value.isDragging) {
+    return;
+  }
+  
+  if (isPanning.value && panStart.value && event.isPrimary && isSpacebarHeld.value) {
+    panOffset.value = {
+      x: event.clientX - panStart.value.x,
+      y: event.clientY - panStart.value.y,
+    };
+    event.preventDefault();
+  }
+};
+
+const handleGridPointerUp = (event: PointerEvent) => {
+  if (isPanning.value && event.isPrimary) {
+    isPanning.value = false;
+    panStart.value = null;
+    const element = event.currentTarget as HTMLElement;
+    if (element) {
+      element.releasePointerCapture(event.pointerId);
+    }
+    event.preventDefault();
   }
 };
 
@@ -410,6 +490,10 @@ const handlePlantSelect = (placedId: string) => {
   props.selectPlacedPlant(placedId);
 };
 
+const handlePlantDeselect = () => {
+  props.selectPlacedPlant(null);
+};
+
 const handlePlantMove = (placedId: string, x: number, y: number) => {
   props.movePlant(placedId, x, y);
 };
@@ -424,6 +508,49 @@ const handleDuplicate = (placedId: string) => {
     props.placePlant(placed.plantId, newX, newY);
   }
 };
+
+const handleWheel = (event: WheelEvent) => {
+  // Prevent default scrolling behavior
+  event.preventDefault();
+  
+  // Calculate zoom delta (similar to 3D view behavior)
+  const zoomDelta = -event.deltaY * 0.001; // Negative to make scroll up zoom in
+  const currentZoom = props.zoom ?? 1;
+  const newZoom = Math.max(0.5, Math.min(2, currentZoom + zoomDelta));
+  
+  // Emit zoom update
+  emit('update:zoom', newZoom);
+};
+
+// Track spacebar state
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (event.code === 'Space' && !event.repeat) {
+    isSpacebarHeld.value = true;
+    event.preventDefault();
+  }
+};
+
+const handleKeyUp = (event: KeyboardEvent) => {
+  if (event.code === 'Space') {
+    isSpacebarHeld.value = false;
+    // Stop panning if spacebar is released
+    if (isPanning.value) {
+      isPanning.value = false;
+      panStart.value = null;
+    }
+    event.preventDefault();
+  }
+};
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown);
+  window.removeEventListener('keyup', handleKeyUp);
+});
 
 // Drag preview - transparent plant image following cursor
 const dragPreviewPlant = computed(() => {
@@ -529,9 +656,10 @@ const gridHighlightStyle = computed(() => {
 }
 
 .grid-scroll {
-  overflow: auto;
-  border-radius: 16px;
-  border: 1px solid #e5e5e5;
+  overflow: hidden; /* Changed from auto to prevent scrolling */
+  border-radius: 0;
+  border: none;
+  border-top: 1px solid #e5e5e5;
   background: #f5f5f5;
   position: relative;
   width: 100%;
@@ -541,27 +669,38 @@ const gridHighlightStyle = computed(() => {
   align-items: center;
   justify-content: center;
   min-height: 400px;
-  padding: 48px;
+  padding: 12px;
+}
+
+.grid-scroll.pan-mode {
+  cursor: grab;
+}
+
+.grid-scroll.pan-mode:active {
+  cursor: grabbing;
 }
 
 .grid-scroll-inner {
   position: relative;
-  margin: 0 auto;
-  min-width: fit-content;
-  min-height: fit-content;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .grid-wrapper {
   transition: transform 0.1s ease-out;
   position: relative;
   display: inline-block;
-  margin: 0 auto;
+  margin: 0;
 }
 
 @media screen and (max-width: 767px) {
   .grid-scroll {
-    border-radius: 12px;
-    padding: 32px 4px 4px 40px;
+    border-radius: 0;
+    padding: 8px;
     min-height: 200px;
   }
 }
@@ -578,21 +717,21 @@ const gridHighlightStyle = computed(() => {
   flex-shrink: 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(0, 0, 0, 0.15);
-  /* 1ft grid lines */
+  /* Grid lines based on snap increment (0.5ft or 1ft) */
   background-image:
     repeating-linear-gradient(
       to right,
       rgba(0, 0, 0, 0.15) 0,
       rgba(0, 0, 0, 0.15) 1px,
       transparent 1px,
-      transparent var(--cell-size)
+      transparent var(--grid-spacing)
     ),
     repeating-linear-gradient(
       to bottom,
       rgba(0, 0, 0, 0.15) 0,
       rgba(0, 0, 0, 0.15) 1px,
       transparent 1px,
-      transparent var(--cell-size)
+      transparent var(--grid-spacing)
     );
   background-position: 0 0;
   touch-action: none;
@@ -669,16 +808,24 @@ button.primary-bar.small.danger {
   font-family: Roboto;
   font-size: 13px;
   color: #fff;
-  padding: 12px 8px;
+  padding: 10px 8px;
   line-height: 1.4;
   text-align: center;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 10px rgba(0, 0, 0, 0.6);
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.35) 70%, rgba(0, 0, 0, 0.35) 100%);
   margin-top: 25%;
   word-wrap: break-word;
   overflow-wrap: break-word;
   hyphens: auto;
   box-sizing: border-box;
+
+  /* Match 2D label readability treatment */
+  background: rgba(17, 24, 39, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 12px;
+  backdrop-filter: blur(6px);
+  max-width: calc(100% - 12px);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .drag-preview-label .label-line {
@@ -688,12 +835,12 @@ button.primary-bar.small.danger {
 }
 
 .drag-preview-label .label-line.common {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .drag-preview-label .label-line.scientific {
-  font-size: 0.85em;
+  font-size: 12px;
   margin-top: 3px;
   opacity: 0.95;
   max-width: 100%;

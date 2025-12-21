@@ -5,6 +5,7 @@
  * Usage:
  *   node scripts/tmp-apply-height-spread-batch.js --in db_backups/batch-output.jsonl --map db_backups/tmp-height-spread-batch-map.json --out db_backups/tmp-height-spread-batch.csv
  *   node scripts/tmp-apply-height-spread-batch.js --in db_backups/batch-output.jsonl --map db_backups/tmp-height-spread-batch-map.json --out db_backups/tmp-height-spread-batch.csv --checkpoint db_backups/tmp-height-spread-checkpoint.json
+ *   node scripts/tmp-apply-height-spread-batch.js --policy scripts/height-spread-source-policy.json --in db_backups/batch-output.jsonl --map db_backups/tmp-height-spread-batch-map.json
  */
 
 const fs = require("fs");
@@ -15,6 +16,7 @@ const DEFAULT_OUT = "db_backups/tmp-height-spread-batch.csv";
 const DEFAULT_CHECKPOINT = "db_backups/tmp-height-spread-checkpoint.json";
 const DEFAULT_NULLS = "db_backups/tmp-height-spread-batch-nulls.txt";
 const DEFAULT_ERRORS = "db_backups/tmp-height-spread-batch-errors.txt";
+const DEFAULT_POLICY = "scripts/height-spread-source-policy.json";
 
 function parseArgs(argv) {
   const args = {};
@@ -37,6 +39,95 @@ function toBool(v, def = false) {
   if (["1", "true", "yes", "y", "on"].includes(s)) return true;
   if (["0", "false", "no", "n", "off"].includes(s)) return false;
   return def;
+}
+
+function parseDomainList(v) {
+  if (!v) return [];
+  return String(v)
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function parsePatternList(v) {
+  if (!v) return [];
+  return String(v)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function normalizeDomains(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) {
+    return v.map((s) => String(s).trim().toLowerCase()).filter(Boolean);
+  }
+  return parseDomainList(v);
+}
+
+function normalizePatterns(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) {
+    return v.map((s) => String(s).trim()).filter(Boolean);
+  }
+  return parsePatternList(v);
+}
+
+function loadPolicy(policyPath) {
+  if (!policyPath) return null;
+  const abs = path.resolve(String(policyPath));
+  if (!fs.existsSync(abs)) return null;
+  const raw = fs.readFileSync(abs, "utf8");
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    throw new Error(`Failed to parse policy JSON at ${policyPath}: ${e && e.message ? e.message : e}`);
+  }
+}
+
+function hostnameFromUrl(url) {
+  try {
+    const u = new URL(String(url));
+    return (u.hostname || "").toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function domainMatches(hostname, domain) {
+  const h = String(hostname || "").toLowerCase();
+  const d = String(domain || "").toLowerCase();
+  if (!h || !d) return false;
+  return h === d || h.endsWith(`.${d}`);
+}
+
+function urlMatchesAnyPattern(url, patterns) {
+  if (!patterns || !patterns.length) return false;
+  const s = String(url || "");
+  return patterns.some((p) => p && s.toLowerCase().includes(String(p).toLowerCase()));
+}
+
+function rankHostname(hostname, preferredDomains) {
+  if (!preferredDomains || !preferredDomains.length) return 999999;
+  const h = String(hostname || "").toLowerCase();
+  const idx = preferredDomains.findIndex((d) => domainMatches(h, d));
+  return idx === -1 ? 999999 : idx;
+}
+
+function filterAndPickBestSource({ sources, allowDomains, blockDomains, preferredDomains, blockUrlPatterns }) {
+  const normalized = normalizeSources(sources);
+  const candidates = [];
+  for (const url of normalized) {
+    const host = hostnameFromUrl(url);
+    if (!host) continue;
+    if (blockDomains && blockDomains.length && blockDomains.some((d) => domainMatches(host, d))) continue;
+    if (allowDomains && allowDomains.length && !allowDomains.some((d) => domainMatches(host, d))) continue;
+    if (urlMatchesAnyPattern(url, blockUrlPatterns)) continue;
+    candidates.push({ url, host, rank: rankHostname(host, preferredDomains) });
+  }
+  if (!candidates.length) return [];
+  candidates.sort((a, b) => a.rank - b.rank || a.host.localeCompare(b.host) || a.url.localeCompare(b.url));
+  return [candidates[0].url];
 }
 
 function safeMkdirp(filePath) {
@@ -170,6 +261,23 @@ async function main() {
   const errorsPath = args["errors-file"] || DEFAULT_ERRORS;
   const reset = toBool(args["reset-csv"], true);
 
+  // Source policy: load from JSON (default) and allow CLI overrides
+  const policyPath = args.policy || process.env.HEIGHT_SPREAD_SOURCE_POLICY || DEFAULT_POLICY;
+  const policy = loadPolicy(policyPath) || {};
+  const hasCli = (k) => Object.prototype.hasOwnProperty.call(args, k);
+
+  const allowDomains = hasCli("allow-domains") ? parseDomainList(args["allow-domains"]) : normalizeDomains(policy.allow_domains);
+  const blockDomains = hasCli("block-domains") ? parseDomainList(args["block-domains"]) : normalizeDomains(policy.block_domains);
+  const preferredDomains = hasCli("preferred-domains")
+    ? parseDomainList(args["preferred-domains"])
+    : normalizeDomains(policy.preferred_domains);
+  const blockUrlPatterns = hasCli("block-url-patterns")
+    ? parsePatternList(args["block-url-patterns"])
+    : normalizePatterns(policy.block_url_patterns);
+  const requireAllowedSource = hasCli("require-allowed-source")
+    ? toBool(args["require-allowed-source"], false)
+    : toBool(policy.require_allowed_source, false);
+
   const map = mapPath && fs.existsSync(mapPath) ? JSON.parse(fs.readFileSync(mapPath, "utf8")) : {};
   const checkpoint = checkpointPath ? loadCheckpoint(checkpointPath) : { done: {}, errors: {} };
 
@@ -241,23 +349,32 @@ async function main() {
 
     const heightFeet = Number.isFinite(obj.height_feet) ? obj.height_feet : null;
     const spreadFeet = Number.isFinite(obj.spread_feet) ? obj.spread_feet : null;
-    const sourcesArr = normalizeSources(obj.sources);
+    const sourcesArr = filterAndPickBestSource({
+      sources: obj.sources,
+      allowDomains,
+      blockDomains,
+      preferredDomains,
+      blockUrlPatterns,
+    });
     const sources = sourcesArr.join(" | ");
+
+    const finalHeightFeet = requireAllowedSource && !sourcesArr.length ? null : heightFeet;
+    const finalSpreadFeet = requireAllowedSource && !sourcesArr.length ? null : spreadFeet;
 
     appendCsvRow(outPath, {
       scientificName,
       commonName,
-      heightFeet: heightFeet === null ? "" : heightFeet,
-      spreadFeet: spreadFeet === null ? "" : spreadFeet,
+      heightFeet: finalHeightFeet === null ? "" : finalHeightFeet,
+      spreadFeet: finalSpreadFeet === null ? "" : finalSpreadFeet,
       sources,
     });
 
-    if (heightFeet === null || spreadFeet === null) appendTextLine(nullsPath, scientificName);
+    if (finalHeightFeet === null || finalSpreadFeet === null) appendTextLine(nullsPath, scientificName);
 
     if (checkpointPath) {
       checkpoint.done[scientificName] = {
-        height_feet: heightFeet,
-        spread_feet: spreadFeet,
+        height_feet: finalHeightFeet,
+        spread_feet: finalSpreadFeet,
         sources: sourcesArr,
         at: new Date().toISOString(),
       };

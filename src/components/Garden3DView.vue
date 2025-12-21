@@ -1,73 +1,57 @@
 <template>
   <div class="garden-3d" ref="rootRef">
-    <div class="overlay-top">
-      <button class="overlay-button" type="button" @click="$emit('close')" aria-label="Close 3D view">
-        Close
-      </button>
-      <button class="overlay-button" type="button" @click="resetView" aria-label="Reset camera view">
-        Reset view
-      </button>
-      <button class="overlay-button" type="button" @click="setViewPreset('top')" aria-label="Top-down view">
-        Top
-      </button>
-      <button class="overlay-button" type="button" @click="setViewPreset('iso')" aria-label="Isometric view">
-        Iso
-      </button>
-      <button class="overlay-button" type="button" @click="cycleLabelMode" aria-label="Toggle labels">
-        Labels: {{ labelModeLabel }}
-      </button>
-      <div class="overlay-legend" aria-hidden="true">
-        Footprint = spread, Height = "Height (feet)"
-      </div>
-      
-      <!-- Plant Legend -->
-      <div class="plant-legend" v-if="plantLegend.length > 0">
-        <div class="legend-title">Plants:</div>
-        <button
-          v-for="entry in plantLegend"
-          :key="entry.plantId"
-          class="legend-plant"
-          type="button"
-          @click="jumpToPlant(entry.plantId)"
-        >
-          <span class="legend-plant-name">{{ entry.commonName }}</span>
-          <span class="legend-plant-meta">
-            <span class="legend-plant-count">×{{ entry.count }}</span>
-            <span v-if="entry.count > 1" class="legend-plant-index">{{ legendCycleIndex(entry.plantId) }}</span>
-          </span>
+    <div class="favorites-overlay" v-if="favoritePlants && favoritePlants.length">
+      <FavoritesTray
+        :favorite-plants="favoritePlants"
+        :selected-plant-id="selectedPlantId ?? null"
+        :is-mobile="isMobile ?? false"
+        :loading="loading ?? false"
+        :image-url="imageUrlResolved"
+        :spread-feet-label="spreadFeetLabelResolved"
+        :spread-cells="spreadCellsResolved"
+        :plant-counts="plantCounts"
+        :interaction-hint="(isMobile ?? false) ? 'tap' : 'click'"
+        @select="(id) => emit('select-plant', id)"
+      />
+
+      <!-- 3D-only controls (shared toolbar lives in GardenPlanner) -->
+      <div class="overlay-3d-controls" aria-label="3D view controls">
+        <button class="overlay-button" type="button" @click="resetView" aria-label="Reset camera view">
+          Reset view
+        </button>
+        <button class="overlay-button" type="button" @click="setViewPreset('top')" aria-label="Top-down view">
+          Top
+        </button>
+        <button class="overlay-button" type="button" @click="cycleSideView" aria-label="Side view (cycle)">
+          Side
         </button>
       </div>
-    </div>
 
-    <div class="overlay-scale" aria-hidden="true">
-      <div class="scale-row">
-        <span class="scale-label">Scale:</span>
-        <span class="scale-value">1 grid square = 1 ft</span>
-      </div>
-      <div class="scale-bar" aria-hidden="true">
-        <div class="scale-bar-seg" />
-        <div class="scale-bar-seg" />
-      </div>
-      <div class="scale-bar-labels">
-        <span>0</span><span>5ft</span><span>10ft</span>
-      </div>
-      <div class="orientation-cue">
-        <div class="orientation-title">Axes</div>
-        <div class="orientation-axes">
-          <span class="axis x">X →</span>
-          <span class="axis z">Z ↓</span>
-        </div>
+      <div v-if="selectedPlantId && (isMobile ?? false) === false" class="place-hint" aria-live="polite">
+        Placement mode: click the ground to add another
       </div>
     </div>
 
-    <div v-if="selected" class="overlay-info" role="status" aria-live="polite">
-      <div v-if="selectedImageSrc" class="info-image">
-        <img :src="selectedImageSrc" :alt="`${selected.commonName} photo`" loading="lazy" />
-      </div>
-      <div class="info-title">{{ selected.commonName }}</div>
-      <div v-if="selected.scientificName" class="info-subtitle"><i>{{ selected.scientificName }}</i></div>
-      <div class="info-row">Height: {{ selected.heightFeet ?? '—' }} ft</div>
-      <div class="info-row">Spread: {{ selected.spreadFeet ?? '—' }} ft</div>
+    <!-- Action buttons overlay for selected plant (similar to 2D mode) -->
+    <div v-if="selected && actionButtonsPosition" class="plant-actions-3d" :style="actionButtonsStyle">
+      <button
+        class="action-button-3d duplicate-button"
+        type="button"
+        @click.stop="handleDuplicate"
+        title="Duplicate plant"
+        aria-label="Duplicate plant"
+      >
+        <Copy :size="18" />
+      </button>
+      <button
+        class="action-button-3d delete-button"
+        type="button"
+        @click.stop="handleDelete"
+        title="Delete plant"
+        aria-label="Delete plant"
+      >
+        <Trash2 :size="18" />
+      </button>
     </div>
 
     <div ref="threeContainer" class="canvas"></div>
@@ -75,27 +59,29 @@
 </template>
 
 <script setup lang="ts">
-import { computed, shallowRef, onMounted, onUnmounted, ref } from 'vue';
-// @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
-import { TresCanvas, extend } from '@tresjs/core';
+import { computed, shallowRef, onMounted, onUnmounted, ref, watch, nextTick } from 'vue';
 // @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
 import * as THREE from 'three';
-import TresOrbitControls from './TresOrbitControls.vue';
+// @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+// @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
+import CameraControls from 'camera-controls';
+import { Copy, Trash2 } from 'lucide-vue-next';
 import type { Plant, PlacedPlant } from '../types/garden';
+import FavoritesTray from './FavoritesTray.vue';
 
 // THREE.js classes are now extended globally in main.js
 
 if (typeof window !== 'undefined') {
+  const wAny = /** @type {any} */ (window);
   console.log('Garden3DView: WebGL support detected', {
-    webgl: !!(window as any).WebGLRenderingContext,
-    webgl2: !!(window as any).WebGL2RenderingContext
+    webgl: !!wAny.WebGLRenderingContext,
+    webgl2: !!wAny.WebGL2RenderingContext
   });
   
   // Test WebGL context creation
   const canvas = document.createElement('canvas');
-  const gl =
-    (canvas.getContext('webgl') as WebGLRenderingContext | null) ||
-    (canvas.getContext('experimental-webgl') as WebGLRenderingContext | null);
+  const gl: any = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
   console.log('Garden3DView: WebGL context test', {
     contextCreated: !!gl,
     renderer: gl ? gl.getParameter(gl.RENDERER) : null,
@@ -108,35 +94,238 @@ const props = defineProps<{
   plantById: Record<string, Plant>;
   gridWidth: number;
   gridHeight: number;
+  snapIncrement: number;
   imageUrl?: (plant: Plant | undefined, preview: boolean) => string;
+  favoritePlants?: Plant[];
+  selectedPlantId?: string | null;
+  isMobile?: boolean;
+  loading?: boolean;
+  spreadFeetLabel?: (plant: Plant | undefined) => string;
+  spreadCells?: (plant: Plant | undefined) => number;
+  plantCounts?: Record<string, number>;
+  labelMode?: 'off' | 'all';
+  zoom?: number;
+  addRowTop: () => void;
+  removeRowTop: () => void;
+  addRowBottom: () => void;
+  removeRowBottom: () => void;
+  addColumnLeft: () => void;
+  removeColumnLeft: () => void;
+  addColumnRight: () => void;
+  removeColumnRight: () => void;
 }>();
 
-defineEmits<{
-  (e: 'close'): void;
+const emit = defineEmits<{
+  (e: 'move-placed', placedId: string, x: number, y: number): void;
+  (e: 'remove-placed', placedId: string): void;
+  (e: 'select-plant', plantId: string | null): void;
+  (e: 'place-plant', plantId: string, x: number, y: number): void;
+  (e: 'update:zoom', value: number): void;
 }>();
+
+const favoritePlants = computed(() => props.favoritePlants ?? []);
+const selectedPlantId = computed(() => props.selectedPlantId ?? null);
+const plantCounts = computed(() => props.plantCounts ?? undefined);
+
+const imageUrlResolved = (plant: Plant | undefined, preview: boolean) => {
+  return props.imageUrl ? props.imageUrl(plant, preview) : '/assets/images/missing-image.png';
+};
+const spreadFeetLabelResolved = (plant: Plant | undefined) => {
+  if (props.spreadFeetLabel) return props.spreadFeetLabel(plant);
+  // fallback: best-effort
+  const plantAny = plant ? /** @type {any} */ (plant) : null;
+  const raw = plantAny ? plantAny['Spread (feet)'] : null;
+  const num = parseFloat(String(raw));
+  if (!Number.isFinite(num) || num <= 0) return '1';
+  return raw && typeof raw === 'string' ? raw : `${num}`;
+};
+const spreadCellsResolved = (plant: Plant | undefined) => {
+  if (props.spreadCells) return props.spreadCells(plant);
+  const plantAny = plant ? /** @type {any} */ (plant) : null;
+  const raw = plantAny ? plantAny['Spread (feet)'] : null;
+  const num = parseFloat(String(raw));
+  if (!Number.isFinite(num) || num <= 0) return 1;
+  return Math.max(1, Math.round(num));
+};
 
 const instancesRef = shallowRef<any>(null);
 const orbitRef = shallowRef<any>(null);
 const rootRef = ref<HTMLElement | null>(null);
 const threeContainer = ref<HTMLElement | null>(null);
+let resizeControlsGroup: THREE.Group | null = null;
+let resizeControlMeshes: THREE.Mesh[] = [];
+
+type ResizeAction =
+  | 'addRowTop'
+  | 'removeRowTop'
+  | 'addRowBottom'
+  | 'removeRowBottom'
+  | 'addColumnLeft'
+  | 'removeColumnLeft'
+  | 'addColumnRight'
+  | 'removeColumnRight';
+
+const makeResizeButtonTexture = (label: string) => {
+  const canvas = document.createElement('canvas');
+  // Higher resolution helps keep +/- crisp in 3D (especially at slight angles).
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  // Background (white rounded square + subtle border), matching the 2D controls style.
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(255,255,255,0.98)';
+  ctx.strokeStyle = '#d1d5db';
+  ctx.lineWidth = 16;
+  drawRoundedRect(ctx, 28, 28, canvas.width - 56, canvas.height - 56, 56);
+  ctx.fill();
+  ctx.stroke();
+
+  // Label
+  ctx.fillStyle = '#374151';
+  ctx.font = 'bold 280px Roboto, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, canvas.width / 2, canvas.height / 2 + 10);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  // Sharpen sampling (avoid mipmap blur on tiny UI glyphs)
+  texture.generateMipmaps = false;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.NearestFilter;
+  // Improves crispness at grazing angles when the camera isn't perfectly top-down.
+  const maxAniso = renderer?.capabilities.getMaxAnisotropy?.() ?? 1;
+  texture.anisotropy = Math.min(16, Math.max(1, maxAniso));
+  texture.needsUpdate = true;
+  return texture;
+};
+
+const disposeResizeControls = () => {
+  if (!scene) return;
+  if (resizeControlsGroup) {
+    scene.remove(resizeControlsGroup);
+  }
+  for (const m of resizeControlMeshes) {
+    try {
+      m.geometry?.dispose?.();
+      const mat = m.material;
+      const disposeMat = (mm: THREE.Material) => {
+        const anyMat = mm as any;
+        if (anyMat?.map && typeof anyMat.map.dispose === 'function') anyMat.map.dispose();
+        if (typeof mm.dispose === 'function') mm.dispose();
+      };
+      if (Array.isArray(mat)) mat.forEach(disposeMat);
+      else disposeMat(mat);
+    } catch {
+      // ignore
+    }
+  }
+  resizeControlMeshes = [];
+  resizeControlsGroup = null;
+};
+
+const buildResizeControls = () => {
+  if (!scene) return;
+  disposeResizeControls();
+
+  const group = new THREE.Group();
+  group.name = 'ResizeControls';
+
+  const buttonSize = 0.9; // feet (world units)
+  const spacing = 1.05; // center-to-center for the +/- pair
+  // Place controls just OUTSIDE the grid edge (to match 2D "outside" buttons).
+  // "Hugging" the edge means the button is adjacent to the boundary, not inside the grid.
+  const outside = buttonSize / 2 + 0.12;
+  const y = 0.02; // lift slightly above ground to avoid z-fighting
+
+  const mkButton = (label: '+' | '−', action: ResizeAction) => {
+    const tex = makeResizeButtonTexture(label);
+    const geom = new THREE.PlaneGeometry(buttonSize, buttonSize);
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex ?? undefined,
+      transparent: true,
+      opacity: 1,
+      depthTest: true,
+    });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = y;
+    mesh.userData = { ...(mesh.userData || {}), resizeAction: action };
+    resizeControlMeshes.push(mesh);
+    group.add(mesh);
+    return mesh;
+  };
+
+  const centerX = props.gridWidth / 2;
+  const centerZ = props.gridHeight / 2;
+
+  // Top edge (z near 0)
+  const topPlus = mkButton('+', 'addRowTop');
+  const topMinus = mkButton('−', 'removeRowTop');
+  topPlus.position.set(centerX - spacing / 2, y, -outside);
+  topMinus.position.set(centerX + spacing / 2, y, -outside);
+
+  // Bottom edge (z near height)
+  const botPlus = mkButton('+', 'addRowBottom');
+  const botMinus = mkButton('−', 'removeRowBottom');
+  botPlus.position.set(centerX - spacing / 2, y, props.gridHeight + outside);
+  botMinus.position.set(centerX + spacing / 2, y, props.gridHeight + outside);
+
+  // Left edge (x near 0) - stacked along Z
+  const leftPlus = mkButton('+', 'addColumnLeft');
+  const leftMinus = mkButton('−', 'removeColumnLeft');
+  leftPlus.position.set(-outside, y, centerZ - spacing / 2);
+  leftMinus.position.set(-outside, y, centerZ + spacing / 2);
+
+  // Right edge (x near width)
+  const rightPlus = mkButton('+', 'addColumnRight');
+  const rightMinus = mkButton('−', 'removeColumnRight');
+  rightPlus.position.set(props.gridWidth + outside, y, centerZ - spacing / 2);
+  rightMinus.position.set(props.gridWidth + outside, y, centerZ + spacing / 2);
+
+  resizeControlsGroup = group;
+  scene.add(group);
+};
+
+const pickResizeActionUnderPointer = (ev: PointerEvent): ResizeAction | null => {
+  if (!renderer || !camera || !raycaster || !mouseNdc) return null;
+  if (!resizeControlMeshes.length) return null;
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouseNdc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+  mouseNdc.y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
+  raycaster.setFromCamera(mouseNdc, camera);
+  const hits = raycaster.intersectObjects(resizeControlMeshes, false);
+  if (!hits.length) return null;
+  const action = /** @type {any} */ (hits[0].object)?.userData?.resizeAction;
+  return typeof action === 'string' ? (action as ResizeAction) : null;
+};
 
 // Three.js objects
 let scene: THREE.Scene | null = null;
 let camera: THREE.PerspectiveCamera | null = null;
 let renderer: THREE.WebGLRenderer | null = null;
 let controls: any = null;
+let clock: THREE.Clock | null = null;
 let raycaster: THREE.Raycaster | null = null;
 let mouseNdc: THREE.Vector2 | null = null;
 let resizeObserver: ResizeObserver | null = null;
+let groundMesh: THREE.Mesh | null = null;
+let gridMesh: THREE.Mesh | null = null;
+let gridHelperObj: THREE.GridHelper | null = null;
 
 type PlantInstanceMeta = {
   placed: PlacedPlant;
   plant: Plant | undefined;
-  mesh: THREE.Object3D;
+  mesh: THREE.Mesh;
   label?: THREE.Sprite;
   center: THREE.Vector3;
   heightFeet: number;
   spreadFeet: number;
+  // For GLB models, the scene object is a Group whose position is anchored at ground-level.
+  // We track its "ground Y" separately because `center.y` is used for UI (labels/rings).
+  groundY?: number;
 };
 
 const placedIdToInstance = new Map<string, PlantInstanceMeta>();
@@ -144,18 +333,16 @@ const plantIdToPlacedIds = new Map<string, string[]>();
 
 let selectionRing: THREE.Mesh | null = null;
 let hoveredObject: THREE.Object3D | null = null;
-let selectedObject: THREE.Object3D | null = null;
+let selectedObject: THREE.Mesh | null = null;
 let pointerDownAt: { x: number; y: number } | null = null;
 let pointerDragging = false;
+let dragCandidatePlacedId: string | null = null;
+let dragPlacedId: string | null = null;
+let dragOffsetXZ: { dx: number; dz: number } | null = null;
+const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
-let focusAnim: {
-  startAt: number;
-  durationMs: number;
-  fromTarget: THREE.Vector3;
-  toTarget: THREE.Vector3;
-  fromCam: THREE.Vector3;
-  toCam: THREE.Vector3;
-} | null = null;
+// Spacebar pan state
+const isSpacebarHeld = ref(false);
 
 const gridSize = computed(() => Math.max(props.gridWidth, props.gridHeight));
 const gridDivisions = computed(() => Math.max(1, Math.round(gridSize.value)));
@@ -172,7 +359,65 @@ const maxDistance = computed(() => Math.max(25, gridSize.value * 4));
 const cylinderGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 12, 1, false);
 const cylinderMaterial = new THREE.MeshStandardMaterial({ vertexColors: true });
 
+// GLTFLoader instance (reused for all model loads)
+let gltfLoader: GLTFLoader | null = null;
+
 const groundColor = new THREE.Color('#ffffff');
+
+const GRID_OUTSIDE_BG = '#f5f5f5'; // matches 2D .grid-scroll background
+const GRID_LINE_COLOR = 'rgba(0, 0, 0, 0.15)'; // matches 2D gridline color
+
+const make2DStyleGridTexture = (widthFt: number, heightFt: number, snapIncrementFt: number): THREE.CanvasTexture => {
+  const maxCanvas = 2048;
+  const maxDimFt = Math.max(1, Math.max(widthFt, heightFt));
+  const pxPerFt = clamp(Math.floor(maxCanvas / maxDimFt), 16, 64);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(256, Math.round(widthFt * pxPerFt));
+  canvas.height = Math.max(256, Math.round(heightFt * pxPerFt));
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    const fallback = new THREE.CanvasTexture(canvas);
+    fallback.colorSpace = THREE.SRGBColorSpace;
+    return fallback;
+  }
+
+  // White background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Grid lines based on snap increment (0.5ft or 1ft)
+  ctx.strokeStyle = GRID_LINE_COLOR;
+  ctx.lineWidth = 1;
+
+  // Grid spacing in pixels based on snap increment
+  const xStep = pxPerFt * snapIncrementFt;
+  const yStep = pxPerFt * snapIncrementFt;
+
+  for (let x = 0; x <= canvas.width; x += xStep) {
+    const xx = Math.round(x) + 0.5;
+    ctx.beginPath();
+    ctx.moveTo(xx, 0);
+    ctx.lineTo(xx, canvas.height);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= canvas.height; y += yStep) {
+    const yy = Math.round(y) + 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, yy);
+    ctx.lineTo(canvas.width, yy);
+    ctx.stroke();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.anisotropy = Math.min(8, renderer?.capabilities.getMaxAnisotropy?.() ?? 1);
+  texture.needsUpdate = true;
+  return texture;
+};
 
 type SelectedInfo = {
   placedId: string;
@@ -191,45 +436,108 @@ const selectedImageSrc = computed(() => {
   return props.imageUrl(plant, true);
 });
 
+// Position for action buttons overlay (screen coordinates)
+const actionButtonsPosition = ref<{ x: number; y: number } | null>(null);
+
+// Compute style for action buttons overlay
+const actionButtonsStyle = computed(() => {
+  if (!actionButtonsPosition.value) {
+    return { display: 'none' as const };
+  }
+  return {
+    position: 'absolute' as const,
+    left: `${actionButtonsPosition.value.x}px`,
+    top: `${actionButtonsPosition.value.y}px`,
+    transform: 'translate(-50%, -50%)',
+  };
+});
+
 const instanceCount = computed(() => props.placedPlants.length);
 
-const plantLegend = computed(() => {
-  const map = new Map<string, { plantId: string; commonName: string; count: number }>();
-  for (const placed of props.placedPlants) {
-    const plant = props.plantById[placed.plantId];
-    const commonName = (plant?.['Common Name'] as string) || placed.plantId;
-    const existing = map.get(placed.plantId);
-    if (existing) {
-      existing.count += 1;
-    } else {
-      map.set(placed.plantId, { plantId: placed.plantId, commonName, count: 1 });
+// 2D-like zoom controls for 3D camera (based on camera distance to target)
+const baseDistance = ref<number | null>(null);
+const isInitializing = ref(false); // Flag to prevent watch from interfering during initialization
+type ViewMode = 'top' | 'side';
+const viewMode = ref<ViewMode>('top');
+const sideIndex = ref(0);
+
+const getCameraDistance = (): number | null => {
+  if (!controls || !camera) return null;
+  try {
+    if (typeof controls.getDistance === 'function') {
+      const d = controls.getDistance();
+      return Number.isFinite(d) ? d : null;
     }
+  } catch {
+    // ignore
   }
-
-  return Array.from(map.values()).sort((a, b) => a.commonName.localeCompare(b.commonName));
-});
-
-const plantIdToCycleIndex = ref<Record<string, number>>({});
-
-const legendCycleIndex = (plantId: string) => {
-  const ids = plantIdToPlacedIds.get(plantId) ?? [];
-  const idx = plantIdToCycleIndex.value[plantId] ?? 0;
-  if (ids.length <= 1) return '';
-  return `${(idx % ids.length) + 1}/${ids.length}`;
+  const curTarget = new THREE.Vector3();
+  const curPos = new THREE.Vector3();
+  controls.getTarget?.(curTarget);
+  controls.getPosition?.(curPos);
+  const d = curPos.distanceTo(curTarget);
+  return Number.isFinite(d) ? d : null;
 };
 
-type LabelMode = 'off' | 'selected' | 'all';
-const labelMode = ref<LabelMode>('selected');
+// When shared zoom changes (2D zoom scale), convert to camera distance (3D dolly)
+let isFirstZoomUpdate = true;
+watch(
+  () => props.zoom,
+  (z) => {
+    if (!controls || isInitializing.value) return; // Don't interfere during initialization
+    
+    // Skip the first update since we handle it during initialization
+    if (isFirstZoomUpdate) {
+      isFirstZoomUpdate = false;
+      return;
+    }
+    
+    const current = getCameraDistance();
+    if (!baseDistance.value && current) baseDistance.value = current;
+    const base = baseDistance.value;
+    if (!base) return;
+    const zoomVal = typeof z === 'number' ? z : 1;
+    const nextDistance = base / clamp(zoomVal, 0.5, 2);
+    setCameraDistance(nextDistance, true);
+  }
+);
+
+const setCameraDistance = (nextDistance: number, smooth = true) => {
+  if (!controls || !camera) return;
+  const curTarget = new THREE.Vector3();
+  const curPos = new THREE.Vector3();
+  controls.getTarget?.(curTarget);
+  controls.getPosition?.(curPos);
+
+  const dir = curPos.clone().sub(curTarget);
+  if (dir.lengthSq() < 1e-8) dir.set(1, 1, 1);
+  dir.normalize();
+
+  const d = clamp(nextDistance, minDistance.value, maxDistance.value);
+  const nextPos = curTarget.clone().add(dir.multiplyScalar(d));
+  controls.setLookAt(
+    nextPos.x,
+    nextPos.y,
+    nextPos.z,
+    curTarget.x,
+    curTarget.y,
+    curTarget.z,
+    smooth
+  );
+};
+
+// Note: zoom UI removed; zoom is still possible via mouse/trackpad via CameraControls.
+
+// Plant legend removed (Favorites tray now serves as the left-side plant list)
+
+type LabelMode = 'off' | 'all';
+const labelMode = computed<LabelMode>(() => props.labelMode ?? 'off');
 const labelModeLabel = computed(() => {
   if (labelMode.value === 'off') return 'Off';
-  if (labelMode.value === 'all') return 'All';
-  return 'Selected';
+  return 'On';
 });
 
-const cycleLabelMode = () => {
-  labelMode.value = labelMode.value === 'selected' ? 'off' : labelMode.value === 'off' ? 'all' : 'selected';
-  applyLabelMode();
-};
+watch(() => props.labelMode, () => applyLabelMode());
 
 const parseFeet = (v: unknown): number | null => {
   if (v === null || v === undefined) return null;
@@ -252,6 +560,41 @@ const parseFeet = (v: unknown): number | null => {
   return Number.isFinite(n) && n >= 0 ? n : null;
 };
 
+const formatCoord = (value: number, increment: number): string => {
+  if (increment === 0.5) {
+    // Show one decimal place for 0.5ft snap, but remove .0 for whole numbers
+    if (value % 1 === 0) return Math.round(value).toString();
+    return value.toFixed(1);
+  }
+  return Math.round(value).toString();
+};
+
+const centerPositionLabel = (placed: PlacedPlant): string => {
+  const centerX = placed.x + placed.width / 2;
+  const centerY = placed.y + placed.height / 2;
+  return `${formatCoord(centerX, props.snapIncrement)},${formatCoord(centerY, props.snapIncrement)}`;
+};
+
+const shortLabel = (s: string, maxLen: number) => (s.length > maxLen ? s.slice(0, Math.max(0, maxLen - 1)) + '…' : s);
+
+const drawRoundedRect = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) => {
+  const rr = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+};
+
 const initThreeJS = () => {
   if (!threeContainer.value) return;
 
@@ -260,7 +603,8 @@ const initThreeJS = () => {
   
   // Scene
   scene = new THREE.Scene();
-  scene.background = new THREE.Color('#87ceeb');
+  // Match the planner's neutral canvas so this feels like a true "3D mode"
+  scene.background = new THREE.Color(GRID_OUTSIDE_BG);
 
   // Camera - positioned based on garden size and plant heights
   const maxHeight = Math.max(...props.placedPlants.map(placed => {
@@ -284,9 +628,22 @@ const initThreeJS = () => {
   // Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(rect.width, rect.height);
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // Color management for correct texture appearance
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  // Match 2D "true white" UI: disable tone mapping so white stays white.
+  renderer.toneMapping = THREE.NoToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  // No shadows (match 2D flat look)
+  renderer.shadowMap.enabled = false;
   container.appendChild(renderer.domElement);
+  clock = new THREE.Clock();
+
+  // CameraControls (camera-controls) setup
+  try {
+    CameraControls.install({ THREE });
+  } catch {
+    // ignore (install is idempotent, but some bundlers can throw on repeat)
+  }
 
   // Lights
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
@@ -294,22 +651,66 @@ const initThreeJS = () => {
 
   const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
   directionalLight.position.set(10, 20, 10);
-  directionalLight.castShadow = true;
+  directionalLight.castShadow = false;
   scene.add(directionalLight);
 
 
-  // Ground
-  const groundGeometry = new THREE.PlaneGeometry(props.gridWidth, props.gridHeight);
-  const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 1.0, metalness: 0.0 });
-  const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.set(props.gridWidth / 2, 0, props.gridHeight / 2);
-  scene.add(ground);
+  const rebuildGroundAndGrid = () => {
+    if (!scene) return;
 
-  // Grid
-  const gridHelper = new THREE.GridHelper(gridSize.value, gridDivisions.value, 0x94a3b8, 0xd1d5db);
-  gridHelper.position.set(props.gridWidth / 2, 0.001, props.gridHeight / 2);
-  scene.add(gridHelper);
+    if (groundMesh) {
+      scene.remove(groundMesh);
+      groundMesh.geometry?.dispose?.();
+      const matAny = /** @type {any} */ (groundMesh.material);
+      if (Array.isArray(matAny)) matAny.forEach((m: any) => m?.dispose?.());
+      else matAny?.dispose?.();
+      groundMesh = null;
+    }
+
+    if (gridMesh) {
+      scene.remove(gridMesh);
+      gridMesh.geometry?.dispose?.();
+      const matAny = /** @type {any} */ (gridMesh.material);
+      const disposeMat = (m: any) => {
+        if (m?.map && typeof m.map.dispose === 'function') m.map.dispose();
+        m?.dispose?.();
+      };
+      if (Array.isArray(matAny)) matAny.forEach(disposeMat);
+      else disposeMat(matAny);
+      gridMesh = null;
+    }
+
+    if (gridHelperObj) {
+      scene.remove(gridHelperObj);
+      gridHelperObj.geometry?.dispose?.();
+      const matAny = /** @type {any} */ (gridHelperObj.material);
+      if (Array.isArray(matAny)) matAny.forEach((m: any) => m?.dispose?.());
+      else matAny?.dispose?.();
+      gridHelperObj = null;
+    }
+
+    // No separate "background slab" mesh. Outside-of-grid area is just the scene background color.
+    groundMesh = null;
+
+    // Grid plane: pure white + subtle grey lines (matches 2D)
+    const gridGeometry = new THREE.PlaneGeometry(props.gridWidth, props.gridHeight);
+    const gridTexture = make2DStyleGridTexture(props.gridWidth, props.gridHeight, props.snapIncrement);
+    const gridMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      map: gridTexture,
+      toneMapped: false,
+    });
+    gridMesh = new THREE.Mesh(gridGeometry, gridMaterial);
+    gridMesh.rotation.x = -Math.PI / 2;
+    gridMesh.position.set(props.gridWidth / 2, 0.001, props.gridHeight / 2);
+    scene.add(gridMesh);
+  };
+
+  // Ground + Grid
+  rebuildGroundAndGrid();
+
+  // 3D edge resize controls (physical buttons on the ground)
+  buildResizeControls();
 
   // Selection ring
   const ringGeo = new THREE.RingGeometry(0.45, 0.5, 48);
@@ -323,24 +724,65 @@ const initThreeJS = () => {
   addPlants();
 
   // Controls
-  import('three/examples/jsm/controls/OrbitControls.js').then(({ OrbitControls }) => {
-    controls = new OrbitControls(camera!, renderer!.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.enablePan = true;
-    controls.minPolarAngle = 0.15;
-    controls.maxPolarAngle = Math.PI / 2 - 0.05;
+  if (camera && renderer) {
+    controls = new CameraControls(camera, renderer.domElement);
+
+    // Smooth, modern feel (and avoids "twitchy" camera).
+    controls.smoothTime = 0.22;
+    controls.draggingSmoothTime = 0.14;
+
+    // Set up mouse button mappings
+    const ACTION = /** @type {any} */ (CameraControls).ACTION;
+    if (ACTION && controls.mouseButtons) {
+      controls.mouseButtons.left = ACTION.ROTATE; // Default: left click rotates/orbits
+      controls.mouseButtons.right = ACTION.NONE; // Right click disabled
+      controls.mouseButtons.wheel = ACTION.DOLLY; // Scroll wheel zooms
+    }
+
+    // Lock so the user cannot orbit under the scene (no "under plants" view).
+    // Camera-controls uses the same polar-angle concept as OrbitControls.
+    controls.minPolarAngle = 0.05; // allow nearly-top-down
+    controls.maxPolarAngle = Math.PI / 2 - 0.08; // stop at horizon (no below-ground)
+
+    // Dolly bounds
     controls.minDistance = minDistance.value;
     controls.maxDistance = maxDistance.value;
-    controls.target.set(props.gridWidth / 2, 0, props.gridHeight / 2);
-    controls.addEventListener('change', () => {
-      // Keep navigation oriented within the garden bounds.
-      if (!controls || !camera) return;
-      controls.target.x = clamp(controls.target.x, 0, props.gridWidth);
-      controls.target.z = clamp(controls.target.z, 0, props.gridHeight);
-    });
-    controls.update();
-  });
+    controls.dollyToCursor = true;
+
+    // Seamless "2D -> 3D": start in Top view so it matches 2D immediately.
+    isInitializing.value = true; // Prevent watch and animate loop from interfering
+    
+    // Get current zoom level from 2D view
+    const zoomVal = typeof props.zoom === 'number' ? props.zoom : 1;
+    
+    // Set initial camera position (this is the "100% zoom" position)
+    applyViewPresetInstant('top');
+    
+    // Get the distance at this default position
+    const defaultDistance = getCameraDistance();
+    if (defaultDistance) {
+      // Calculate what the camera distance should be for the current zoom level
+      const targetDistance = defaultDistance / clamp(zoomVal, 0.5, 2);
+      
+      // Set the camera to the target distance immediately (no animation)
+      setCameraDistance(targetDistance, false);
+      
+      // Now set baseDistance to the default "100% zoom" distance
+      // This ensures future zoom changes work correctly
+      baseDistance.value = defaultDistance;
+      
+      // Wait for camera to settle before allowing sync
+      setTimeout(() => {
+        isInitializing.value = false;
+        isFirstZoomUpdate = false; // Allow future zoom updates
+      }, 200); // Longer delay to ensure everything is stable
+    } else {
+      // Fallback if distance couldn't be calculated
+      nextTick(() => {
+        isInitializing.value = false;
+      });
+    }
+  }
 
   raycaster = new THREE.Raycaster();
   mouseNdc = new THREE.Vector2();
@@ -348,6 +790,10 @@ const initThreeJS = () => {
   renderer.domElement.addEventListener('pointermove', onPointerMove, { passive: true });
   renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: true });
   renderer.domElement.addEventListener('pointerup', onPointerUp, { passive: true });
+  
+  // Track spacebar for panning
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
 
   // Resize handling
   const handleResize = () => {
@@ -366,13 +812,247 @@ const initThreeJS = () => {
   console.log('Garden3DView: Three.js initialized successfully');
 };
 
-const addPlants = () => {
-  if (!scene) return;
+// Keep ground/grid + controls bounds in sync when garden size or snap increment changes
+watch(
+  () => [props.gridWidth, props.gridHeight, props.snapIncrement],
+  (nextVals, prevVals) => {
+    const nextW = nextVals[0];
+    const nextH = nextVals[1];
+    const prevW = prevVals[0];
+    const prevH = prevVals[1];
+    if (!scene) return;
 
-  const cylinderGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 12, 1, false);
+    // Rebuild ground + grid helper to match new dimensions
+    if (groundMesh) {
+      scene.remove(groundMesh);
+      groundMesh.geometry?.dispose?.();
+      const matAny = /** @type {any} */ (groundMesh.material);
+      if (Array.isArray(matAny)) matAny.forEach((m: any) => m?.dispose?.());
+      else matAny?.dispose?.();
+      groundMesh = null;
+    }
+    if (gridMesh) {
+      scene.remove(gridMesh);
+      gridMesh.geometry?.dispose?.();
+      const matAny = /** @type {any} */ (gridMesh.material);
+      const disposeMat = (m: any) => {
+        if (m?.map && typeof m.map.dispose === 'function') m.map.dispose();
+        m?.dispose?.();
+      };
+      if (Array.isArray(matAny)) matAny.forEach(disposeMat);
+      else disposeMat(matAny);
+      gridMesh = null;
+    }
+    if (gridHelperObj) {
+      scene.remove(gridHelperObj);
+      gridHelperObj.geometry?.dispose?.();
+      const matAny = /** @type {any} */ (gridHelperObj.material);
+      if (Array.isArray(matAny)) matAny.forEach((m: any) => m?.dispose?.());
+      else matAny?.dispose?.();
+      gridHelperObj = null;
+    }
+
+    // Re-create using the latest values (2D-matching visuals)
+    // No separate "background slab" mesh. Outside-of-grid area is just the scene background color.
+    groundMesh = null;
+
+    const gridGeometry = new THREE.PlaneGeometry(props.gridWidth, props.gridHeight);
+    const gridTexture = make2DStyleGridTexture(props.gridWidth, props.gridHeight, props.snapIncrement);
+    const gridMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      map: gridTexture,
+      toneMapped: false,
+    });
+    gridMesh = new THREE.Mesh(gridGeometry, gridMaterial);
+    gridMesh.rotation.x = -Math.PI / 2;
+    gridMesh.position.set(props.gridWidth / 2, 0.001, props.gridHeight / 2);
+    scene.add(gridMesh);
+
+    // Keep 3D edge resize controls in sync with the new dimensions
+    buildResizeControls();
+
+    // Update zoom bounds to match new garden size
+    if (controls) {
+      controls.minDistance = minDistance.value;
+      controls.maxDistance = maxDistance.value;
+    }
+
+    // Keep the camera centered on the grid after resize so the change is visually obvious.
+    // Shift current camera position + target by the change in grid center.
+    if (controls && camera && Number.isFinite(prevW) && Number.isFinite(prevH)) {
+      const dx = (nextW - prevW) / 2;
+      const dz = (nextH - prevH) / 2;
+      if (Math.abs(dx) > 1e-6 || Math.abs(dz) > 1e-6) {
+        const curTarget = new THREE.Vector3();
+        const curPos = new THREE.Vector3();
+        controls.getTarget?.(curTarget);
+        controls.getPosition?.(curPos);
+        const nextTarget = curTarget.clone().add(new THREE.Vector3(dx, 0, dz));
+        const nextPos = curPos.clone().add(new THREE.Vector3(dx, 0, dz));
+        controls.setLookAt(
+          nextPos.x,
+          nextPos.y,
+          nextPos.z,
+          nextTarget.x,
+          nextTarget.y,
+          nextTarget.z,
+          true
+        );
+        baseDistance.value = getCameraDistance();
+      }
+    }
+  }
+);
+
+const disposeMeshMaterials = (mesh: THREE.Mesh | THREE.Object3D) => {
+  // Handle GLB models (which are typically Groups)
+  if (mesh instanceof THREE.Group || (mesh as any).isGLBModel) {
+    mesh.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        const mat = /** @type {any} */ (child.material);
+        const disposeMat = (m: any) => {
+          if (!m) return;
+          if (m.map && typeof m.map.dispose === 'function') m.map.dispose();
+          if (typeof m.dispose === 'function') m.dispose();
+        };
+        if (Array.isArray(mat)) mat.forEach(disposeMat);
+        else disposeMat(mat);
+      }
+    });
+    // Dispose geometry if it exists on the group itself (unlikely but possible)
+    if ((mesh as any).geometry && typeof (mesh as any).geometry.dispose === 'function') {
+      (mesh as any).geometry.dispose();
+    }
+    return;
+  }
   
+  // Handle regular meshes (cylinders)
+  const mat = /** @type {any} */ ((mesh as THREE.Mesh).material);
+  const disposeMat = (m: any) => {
+    if (!m) return;
+    if (m.map && typeof m.map.dispose === 'function') m.map.dispose();
+    if (typeof m.dispose === 'function') m.dispose();
+  };
+  if (Array.isArray(mat)) mat.forEach(disposeMat);
+  else disposeMat(mat);
+  
+  // Explicitly dispose cloned top texture if it exists
+  if ((mesh as any).userData?.topTexture && typeof (mesh as any).userData.topTexture.dispose === 'function') {
+    (mesh as any).userData.topTexture.dispose();
+    (mesh as any).userData.topTexture = null;
+  }
+};
+
+const clearPlantInstances = () => {
+  if (!scene) return;
+  for (const meta of placedIdToInstance.values()) {
+    // Remove the mesh (which is the Group for GLB models, or the Mesh for cylinders)
+    scene.remove(meta.mesh);
+    disposeMeshMaterials(meta.mesh);
+    
+    // Dispose geometry if it exists (only for regular meshes, not Groups)
+    if ((meta.mesh as any).geometry && typeof (meta.mesh as any).geometry.dispose === 'function') {
+      (meta.mesh as any).geometry.dispose();
+    }
+    
+    if (meta.label) {
+      scene.remove(meta.label);
+      const mat = /** @type {any} */ (meta.label.material);
+      if (mat.map) mat.map.dispose();
+      mat.dispose();
+    }
+  }
   placedIdToInstance.clear();
   plantIdToPlacedIds.clear();
+
+  hoveredObject = null;
+  selectedObject = null;
+  selected.value = null;
+  actionButtonsPosition.value = null;
+  setSelectionRing(null);
+};
+
+// Keep meshes in sync when parent state changes (undo/redo/clear, etc.)
+const syncFromProps = () => {
+  if (!scene) return;
+
+  const nextIds = new Set(props.placedPlants.map(p => p.id));
+  // Remove any instances that no longer exist
+  for (const [placedId, meta] of placedIdToInstance.entries()) {
+    if (nextIds.has(placedId)) continue;
+    scene.remove(meta.mesh);
+    disposeMeshMaterials(meta.mesh);
+    placedIdToInstance.delete(placedId);
+  }
+
+  // Add or update
+  for (const placed of props.placedPlants) {
+    const plant = props.plantById[placed.plantId];
+    const plantAny = /** @type {any} */ (plant);
+    const heightFeetRaw = plant ? plantAny['Height (feet)'] : null;
+    const heightFeet = parseFeet(heightFeetRaw) ?? 1;
+    const cappedHeight = Math.max(heightFeet, 0.1);
+    const spreadFeet = placed.width;
+
+    // Center of footprint
+    const x = placed.x + placed.width / 2;
+    const z = placed.y + placed.height / 2;
+    const y = cappedHeight / 2;
+
+    const existing = placedIdToInstance.get(placed.id);
+    if (!existing) {
+      // Structural change (new item) -> easiest: rebuild all once
+      // (keeps logic centralized, avoids partial texture state edge cases)
+      addPlants();
+      return;
+    }
+
+    // Update meta + mesh transform
+    existing.placed = placed;
+    existing.plant = plant;
+    existing.spreadFeet = spreadFeet;
+    const isGLB = existing.mesh instanceof THREE.Group || (existing.mesh as any).isGLBModel;
+    if (isGLB) {
+      // Keep GLB height from the loaded/scaled model; keep its ground anchor.
+      const glbCenterY = Math.max(0.05, existing.heightFeet / 2);
+      existing.center.set(x, glbCenterY, z);
+      const gy = typeof existing.groundY === 'number' ? existing.groundY : existing.mesh.position.y;
+      existing.mesh.position.set(x, gy, z);
+    } else {
+      existing.heightFeet = cappedHeight;
+      existing.center.set(x, y, z);
+      existing.mesh.position.set(x, y, z);
+      existing.mesh.scale.set(spreadFeet, cappedHeight, spreadFeet);
+    }
+  }
+
+  // Keep selection ring aligned if selection is active
+  if (selected.value) {
+    const meta = placedIdToInstance.get(selected.value.placedId);
+    if (meta) {
+      setSelectionRing(meta);
+      updateActionButtonsPosition(meta);
+    }
+  }
+};
+
+watch(
+  () => props.placedPlants,
+  () => syncFromProps(),
+  { deep: true }
+);
+
+const addPlants = () => {
+  const s = scene;
+  if (!s) return;
+
+  // Rebuild: remove any existing plant meshes/labels before re-adding.
+  clearPlantInstances();
+
+  // Initialize GLTFLoader if not already done
+  if (!gltfLoader) {
+    gltfLoader = new GLTFLoader();
+  }
 
   props.placedPlants.forEach((placed) => {
     const plant = props.plantById[placed.plantId];
@@ -389,27 +1069,158 @@ const addPlants = () => {
     const family = plant && typeof plant['Plant Family'] === 'string' ? plant['Plant Family'] : 'Unknown';
     const fallbackColor = hashToColor(String(family || 'Unknown'));
     
-    // Create plant cylinder with image texture
-    if (plant && props.imageUrl) {
-      createPlantWithTexture(plant, cylinderGeometry, x, y, z, spreadFeet, cappedHeight, placed, fallbackColor);
+    // Try to load GLB model first, fall back to cylinder if not available
+    const scientificName = plant?.['Scientific Name'];
+    if (scientificName && typeof scientificName === 'string') {
+      const modelPath = `/assets/models/${scientificName}.glb`;
+      createPlantWithGLB(plant, modelPath, x, y, z, spreadFeet, cappedHeight, placed, fallbackColor);
     } else {
-      // Fallback to colored cylinder
-      const material = new THREE.MeshStandardMaterial({ 
-        color: fallbackColor,
-        roughness: 0.7,
-        metalness: 0.1
-      });
-      const mesh = new THREE.Mesh(cylinderGeometry, material);
-      mesh.position.set(x, y, z);
-      mesh.scale.set(spreadFeet, cappedHeight, spreadFeet);
-      mesh.userData = { plantId: placed.plantId, placedId: placed.id };
-      scene!.add(mesh);
-
-      registerInstance(mesh, placed, plant, x, y, z, spreadFeet, cappedHeight);
+      // No scientific name, use cylinder fallback
+      createPlantWithCylinder(plant, x, y, z, spreadFeet, cappedHeight, placed, fallbackColor);
     }
-
-    // Labels are handled later (declutter / selected-only)
   });
+};
+
+const createPlantWithGLB = (
+  plant: any,
+  modelPath: string,
+  x: number,
+  y: number,
+  z: number,
+  spreadFeet: number,
+  cappedHeight: number,
+  placed: any,
+  fallbackColor: THREE.Color
+) => {
+  if (!scene || !gltfLoader) return;
+
+  // Try to load GLB model
+  gltfLoader.load(
+    modelPath,
+    (gltf) => {
+      // Model loaded successfully
+      const model = gltf.scene.clone(); // Clone to allow multiple instances
+      
+      // Calculate bounding box to scale model appropriately (before scaling)
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const min = box.min; // Get minimum point (bottom-left-front corner)
+      
+      // Skip if model has invalid dimensions
+      if (size.x < 0.001 && size.y < 0.001 && size.z < 0.001) {
+        console.warn(`GLB model has invalid dimensions for ${plant?.['Scientific Name'] || placed.plantId}, using cylinder fallback`);
+        createPlantWithCylinder(plant, x, y, z, spreadFeet, cappedHeight, placed, fallbackColor);
+        return;
+      }
+      
+      // Calculate scale factors to match plant dimensions
+      // Scale to fit both spread (x/z) and height (y) constraints
+      const targetSpread = spreadFeet;
+      const targetHeight = cappedHeight;
+      const scaleX = targetSpread / Math.max(size.x, 0.001);
+      const scaleY = targetHeight / Math.max(size.y, 0.001);
+      const scaleZ = targetSpread / Math.max(size.z, 0.001);
+      
+      // Use uniform scaling based on the most constrained dimension to maintain aspect ratio
+      const uniformScale = Math.min(scaleX, scaleY, scaleZ);
+      
+      // Apply scaling
+      model.scale.set(uniformScale, uniformScale, uniformScale);
+      
+      // Position model: center horizontally (x, z), place bottom at ground level (y=0)
+      // The min.y is the bottom of the model in local space (before scaling)
+      // After scaling, the bottom will be at min.y * uniformScale
+      // To place the bottom at y=0, we need to offset by -min.y * uniformScale
+      model.position.set(x, -min.y * uniformScale, z);
+      // Persist ground anchor so later sync/drag doesn't "center-lift" the model.
+      model.userData = { ...(model.userData || {}), groundY: model.position.y };
+      
+      // Set up user data for selection/interaction on the root model
+      model.userData = { ...(model.userData || {}), plantId: placed.plantId, placedId: placed.id, isGLBModel: true };
+      
+      // Disable shadows to match cylinder behavior
+      model.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = false;
+          child.receiveShadow = false;
+          // Also set userData on individual meshes for raycasting
+          child.userData = { ...child.userData, plantId: placed.plantId, placedId: placed.id, isGLBModel: true };
+
+          // Make GLB look like the rest of the planner (flat/unlit, no shading).
+          // This also reduces render cost vs PBR materials.
+          const makeUnlit = (mat: any): THREE.Material => {
+            const map = mat?.map;
+            if (map) {
+              // Ensure correct color appearance
+              map.colorSpace = THREE.SRGBColorSpace;
+              map.needsUpdate = true;
+            }
+            return new THREE.MeshBasicMaterial({
+              map: map ?? undefined,
+              color: 0xffffff,
+              transparent: !!mat?.transparent,
+              opacity: typeof mat?.opacity === 'number' ? mat.opacity : 1,
+              alphaTest: typeof mat?.alphaTest === 'number' ? mat.alphaTest : 0
+            });
+          };
+
+          const curMat: any = child.material;
+          if (Array.isArray(curMat)) {
+            child.material = curMat.map((m) => makeUnlit(m));
+          } else {
+            child.material = makeUnlit(curMat);
+          }
+        }
+      });
+      
+      if (scene) {
+        scene.add(model);
+        
+        // Register the Group (model) itself for GLB models, not a child mesh
+        // This ensures all lookups and operations work correctly
+        // Use the actual height of the scaled model for registration
+        const scaledHeight = size.y * uniformScale;
+        registerInstance(model as any, placed, plant, x, scaledHeight / 2, z, spreadFeet, scaledHeight);
+      }
+    },
+    undefined,
+    (error) => {
+      // Model failed to load (404 or other error), fall back to cylinder
+      createPlantWithCylinder(plant, x, y, z, spreadFeet, cappedHeight, placed, fallbackColor);
+    }
+  );
+};
+
+const createPlantWithCylinder = (
+  plant: any,
+  x: number,
+  y: number,
+  z: number,
+  spreadFeet: number,
+  cappedHeight: number,
+  placed: any,
+  fallbackColor: THREE.Color
+) => {
+  if (!scene) return;
+
+  // Create plant cylinder with image texture if available
+  if (plant && props.imageUrl) {
+    createPlantWithTexture(plant, cylinderGeometry, x, y, z, spreadFeet, cappedHeight, placed, fallbackColor);
+  } else {
+    // Fallback to colored cylinder
+    const material = new THREE.MeshStandardMaterial({ 
+      color: fallbackColor,
+      roughness: 0.7,
+      metalness: 0.1
+    });
+    const mesh = new THREE.Mesh(cylinderGeometry, material);
+    mesh.position.set(x, y, z);
+    mesh.scale.set(spreadFeet, cappedHeight, spreadFeet);
+    mesh.userData = { plantId: placed.plantId, placedId: placed.id };
+    scene.add(mesh);
+
+    registerInstance(mesh, placed, plant, x, y, z, spreadFeet, cappedHeight);
+  }
 };
 
 const createPlantWithTexture = (
@@ -428,7 +1239,7 @@ const createPlantWithTexture = (
   const imageUrl = props.imageUrl(plant, false); // Get full-size image
   
   // Create a mesh immediately (so legend jump/selection works without waiting for image load).
-  // Later, if the photo loads, we swap the TOP material map only.
+  // Later, if the photo loads, we swap the SIDE + TOP material maps.
   const materials: THREE.Material[] = [
     new THREE.MeshStandardMaterial({
       color: fallbackColor,
@@ -453,8 +1264,8 @@ const createPlantWithTexture = (
   mesh.position.set(x, y, z);
   mesh.scale.set(spreadFeet, cappedHeight, spreadFeet);
   mesh.userData = { plantId: placed.plantId, placedId: placed.id };
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
+  mesh.castShadow = false;
+  mesh.receiveShadow = false;
 
   scene.add(mesh);
   registerInstance(mesh, placed, plant, x, y, z, spreadFeet, cappedHeight);
@@ -466,14 +1277,50 @@ const createPlantWithTexture = (
     imageUrl,
     (texture) => {
       console.log(`Loaded texture for ${plant['Common Name']}`);
+      // Correct color for photo textures
+      texture.colorSpace = THREE.SRGBColorSpace;
+
+      // Reduce shimmering/blurriness at grazing angles while orbiting
+      texture.generateMipmaps = true;
+      texture.minFilter = THREE.LinearMipmapLinearFilter;
+      texture.magFilter = THREE.LinearFilter;
       texture.wrapS = THREE.ClampToEdgeWrapping;
       texture.wrapT = THREE.ClampToEdgeWrapping;
-      texture.minFilter = THREE.LinearMipMapLinearFilter;
-      texture.magFilter = THREE.LinearFilter;
 
-      const topMat = materials[1] as THREE.MeshStandardMaterial;
-      topMat.map = texture;
-      topMat.needsUpdate = true;
+      // Anisotropy depends on the renderer caps
+      const maxAniso = renderer?.capabilities.getMaxAnisotropy?.() ?? 1;
+      texture.anisotropy = Math.min(8, Math.max(1, maxAniso));
+
+      const sideMatAny: any = materials[0];
+      const topMatAny: any = materials[1];
+
+      // Dispose any previous maps safely (avoid leaking GPU memory).
+      const oldMaps = new Set<any>();
+      const sideOld = sideMatAny.map;
+      const topOld = topMatAny.map;
+      if (sideOld && sideOld !== texture) oldMaps.add(sideOld);
+      if (topOld && topOld !== texture && topOld !== sideOld) oldMaps.add(topOld);
+
+      // Use original texture for side material
+      sideMatAny.map = texture;
+      sideMatAny.needsUpdate = true;
+
+      // Clone texture for top material and rotate to match 2D orientation
+      // The top face of a cylinder in Three.js may be oriented differently,
+      // so we rotate 90 degrees to match the 2D view orientation
+      const topTexture = texture.clone();
+      topTexture.center.set(0.5, 0.5); // Rotate around center
+      topTexture.rotation = Math.PI / 2; // 90 degrees rotation to match 2D view
+      
+      topMatAny.map = topTexture;
+      topMatAny.needsUpdate = true;
+
+      // Store reference to cloned texture for cleanup
+      if (!mesh.userData.topTexture) {
+        mesh.userData.topTexture = topTexture;
+      }
+
+      for (const old of oldMaps) old.dispose();
     },
     undefined,
     (error) => {
@@ -483,7 +1330,7 @@ const createPlantWithTexture = (
 };
 
 const registerInstance = (
-  mesh: THREE.Object3D,
+  mesh: THREE.Mesh | THREE.Object3D,
   placed: PlacedPlant,
   plant: Plant | undefined,
   x: number,
@@ -493,7 +1340,12 @@ const registerInstance = (
   heightFeet: number
 ) => {
   const center = new THREE.Vector3(x, y, z);
-  const meta: PlantInstanceMeta = { placed, plant, mesh, center, heightFeet, spreadFeet };
+  const meshAny = mesh as any;
+  const groundY =
+    typeof meshAny?.userData?.groundY === 'number'
+      ? meshAny.userData.groundY
+      : y - heightFeet / 2;
+  const meta: PlantInstanceMeta = { placed, plant, mesh: mesh as THREE.Mesh, center, heightFeet, spreadFeet, groundY };
   placedIdToInstance.set(placed.id, meta);
   const arr = plantIdToPlacedIds.get(placed.plantId) ?? [];
   arr.push(placed.id);
@@ -501,7 +1353,7 @@ const registerInstance = (
 
   if (labelMode.value === 'all') {
     ensureLabel(meta);
-    meta.label!.visible = true;
+    if (meta.label) meta.label.visible = true;
   }
 };
 
@@ -510,31 +1362,37 @@ const animate = () => {
   
   requestAnimationFrame(animate);
   
-  if (controls) {
-    controls.update();
+  const dt = clock?.getDelta?.() ?? 1 / 60;
+  if (controls?.update) controls.update(dt);
+
+  // Sync 3D zoom back to shared toolbar (2D uses zoom scale, 3D uses camera distance)
+  // Skip sync during initialization to prevent feedback loop
+  if (controls && baseDistance.value && typeof emit === 'function' && !isInitializing.value) {
+    const d = getCameraDistance();
+    if (d && d > 0) {
+      const z = clamp(baseDistance.value / d, 0.5, 2);
+      if (Math.abs((props.zoom ?? 1) - z) > 0.03) {
+        emit('update:zoom', z);
+      }
+    }
   }
 
-  // Smooth focus animation
-  if (focusAnim && controls) {
-    const now = performance.now();
-    const t = Math.min(1, (now - focusAnim.startAt) / focusAnim.durationMs);
-    const k = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; // easeInOutQuad
-
-    const curTarget = focusAnim.fromTarget.clone().lerp(focusAnim.toTarget, k);
-    const curCam = focusAnim.fromCam.clone().lerp(focusAnim.toCam, k);
-    controls.target.copy(curTarget);
-    camera.position.copy(curCam);
-    if (t >= 1) focusAnim = null;
+  // Keep labels readable (scale by distance; smaller than previous defaults).
+  if (camera) {
+    for (const meta of placedIdToInstance.values()) {
+      if (!meta.label || !meta.label.visible) continue;
+      const d = camera.position.distanceTo(meta.center);
+      const s = clamp(d * 0.045, 1.3, 3.6);
+      meta.label.scale.set(s * 1.55, s * 0.55, 1);
+      meta.label.position.set(meta.center.x, meta.heightFeet + 1.1, meta.center.z);
+    }
   }
-
-  // Keep selected label readable
+  
+  // Update action buttons position if a plant is selected
   if (selected.value) {
     const meta = placedIdToInstance.get(selected.value.placedId);
-    if (meta?.label && camera) {
-      const d = camera.position.distanceTo(meta.center);
-      const s = clamp(d * 0.08, 2.5, 7.5);
-      meta.label.scale.set(s * 1.6, s * 0.45, 1);
-      meta.label.position.set(meta.center.x, meta.heightFeet + 1.1, meta.center.z);
+    if (meta) {
+      updateActionButtonsPosition(meta);
     }
   }
   
@@ -551,16 +1409,110 @@ onMounted(() => {
   setTimeout(initThreeJS, 0);
 });
 
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (event.code === 'Space' && !event.repeat) {
+    isSpacebarHeld.value = true;
+    event.preventDefault();
+    // Update cursor to indicate pan mode
+    if (renderer) {
+      renderer.domElement.style.cursor = 'grab';
+    }
+    return;
+  }
+
+  // Only handle keyboard events if a plant is selected
+  // Don't handle if user is typing in an input field
+  if (!selected.value) return;
+  const target = event.target as HTMLElement;
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+    return;
+  }
+
+  // Handle arrow keys for movement
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+    event.preventDefault();
+    
+    const meta = placedIdToInstance.get(selected.value.placedId);
+    if (!meta) return;
+    
+    let newX = meta.placed.x;
+    let newY = meta.placed.y;
+    const moveDistance = props.snapIncrement;
+    
+    switch (event.key) {
+      case 'ArrowUp':
+        newY = Math.max(0, meta.placed.y - moveDistance);
+        break;
+      case 'ArrowDown':
+        newY = Math.min(props.gridHeight - meta.placed.height, meta.placed.y + moveDistance);
+        break;
+      case 'ArrowLeft':
+        newX = Math.max(0, meta.placed.x - moveDistance);
+        break;
+      case 'ArrowRight':
+        newX = Math.min(props.gridWidth - meta.placed.width, meta.placed.x + moveDistance);
+        break;
+    }
+    
+    // Only move if position actually changed
+    if (newX !== meta.placed.x || newY !== meta.placed.y) {
+      emit('move-placed', meta.placed.id, newX, newY);
+    }
+    return;
+  }
+  
+  // Handle delete key
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    event.preventDefault();
+    handleDelete();
+    return;
+  }
+  
+  // Handle Enter/Esc to deselect
+  if (event.key === 'Enter' || event.key === 'Escape') {
+    event.preventDefault();
+    selected.value = null;
+    actionButtonsPosition.value = null;
+    selectedObject = null;
+    setSelectionRing(null);
+  }
+};
+
+const handleKeyUp = (event: KeyboardEvent) => {
+  if (event.code === 'Space') {
+    isSpacebarHeld.value = false;
+    event.preventDefault();
+    // Restore normal cursor
+    if (renderer) {
+      renderer.domElement.style.cursor = hoveredObject ? 'pointer' : '';
+    }
+    // Restore normal camera controls
+    if (controls) {
+      const ACTION = /** @type {any} */ (CameraControls).ACTION;
+      if (ACTION && controls.mouseButtons) {
+        controls.mouseButtons.left = ACTION.ROTATE;
+      }
+    }
+  }
+};
+
 onUnmounted(() => {
   // Clean up Three.js resources
+  window.removeEventListener('keydown', handleKeyDown);
+  window.removeEventListener('keyup', handleKeyUp);
+  disposeResizeControls();
   if (renderer) {
-    renderer.domElement.removeEventListener('pointermove', onPointerMove as any);
-    renderer.domElement.removeEventListener('pointerdown', onPointerDown as any);
-    renderer.domElement.removeEventListener('pointerup', onPointerUp as any);
+    renderer.domElement.removeEventListener('pointermove', onPointerMove);
+    renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+    renderer.domElement.removeEventListener('pointerup', onPointerUp);
     renderer.dispose();
   }
   if (controls) {
-    controls.dispose();
+    try {
+      controls.dispose?.();
+    } catch {
+      // ignore
+    }
   }
   if (resizeObserver) {
     resizeObserver.disconnect();
@@ -568,12 +1520,21 @@ onUnmounted(() => {
   }
   if (selectionRing) {
     selectionRing.geometry.dispose();
-    (selectionRing.material as THREE.Material).dispose();
+    const ringMat = selectionRing.material;
+    if (Array.isArray(ringMat)) {
+      ringMat.forEach((m) => {
+        const mAny = /** @type {any} */ (m);
+        mAny?.dispose?.();
+      });
+    } else {
+      const ringMatAny = /** @type {any} */ (ringMat);
+      ringMatAny?.dispose?.();
+    }
     selectionRing = null;
   }
   for (const meta of placedIdToInstance.values()) {
     if (meta.label) {
-      const mat = meta.label.material as THREE.SpriteMaterial;
+      const mat = /** @type {any} */ (meta.label.material);
       if (mat.map) mat.map.dispose();
       mat.dispose();
     }
@@ -594,10 +1555,34 @@ const hashToColor = (seed: string) => {
 const resetView = () => {
   if (camera && controls) {
     fitCameraToGarden();
+    baseDistance.value = getCameraDistance();
+    viewMode.value = 'top';
   }
 };
 
-type ViewPreset = 'top' | 'iso';
+type ViewPreset = 'top';
+const applyViewPresetInstant = (preset: ViewPreset) => {
+  if (!camera || !controls) return;
+
+  const cx = props.gridWidth / 2;
+  const cz = props.gridHeight / 2;
+  const d = Math.max(props.gridWidth, props.gridHeight);
+
+  const nextTarget = new THREE.Vector3(cx, 0, cz);
+  // Adjust camera height to better match 2D view scale - use a smaller multiplier for closer view
+  const h = Math.max(15, d * 0.9); // Reduced from 1.25 to 0.9 for closer initial view
+  const nextCam = new THREE.Vector3(cx, h, cz + Math.max(0.5, d * 0.06));
+
+  controls.setLookAt(
+    nextCam.x,
+    nextCam.y,
+    nextCam.z,
+    nextTarget.x,
+    nextTarget.y,
+    nextTarget.z,
+    false
+  );
+};
 const setViewPreset = (preset: ViewPreset) => {
   if (!camera || !controls) return;
   const cx = props.gridWidth / 2;
@@ -605,23 +1590,79 @@ const setViewPreset = (preset: ViewPreset) => {
   const d = Math.max(props.gridWidth, props.gridHeight);
 
   const nextTarget = new THREE.Vector3(cx, 0, cz);
-  let nextCam: THREE.Vector3;
-  if (preset === 'top') {
-    const h = Math.max(18, d * 1.25);
-    nextCam = new THREE.Vector3(cx, h, cz + Math.max(0.5, d * 0.06));
-  } else {
-    const dist = Math.max(18, d * 0.95);
-    nextCam = new THREE.Vector3(cx + dist, Math.max(18, dist * 0.75), cz + dist);
-  }
+  const h = Math.max(18, d * 1.25);
+  const nextCam = new THREE.Vector3(cx, h, cz + Math.max(0.5, d * 0.06));
 
-  focusAnim = {
-    startAt: performance.now(),
-    durationMs: 550,
-    fromTarget: controls.target.clone(),
-    toTarget: nextTarget,
-    fromCam: camera.position.clone(),
-    toCam: nextCam
-  };
+  controls.setLookAt(
+    nextCam.x,
+    nextCam.y,
+    nextCam.z,
+    nextTarget.x,
+    nextTarget.y,
+    nextTarget.z,
+    true
+  );
+  baseDistance.value = getCameraDistance();
+  viewMode.value = preset;
+};
+
+const estimateMaxPlantHeightFeet = (): number => {
+  if (!props.placedPlants || props.placedPlants.length === 0) return 3;
+  let maxH = 0;
+  for (const placed of props.placedPlants) {
+    const plant = props.plantById[placed.plantId];
+    const plantAny = plant ? /** @type {any} */ (plant) : null;
+    const heightFeetRaw = plantAny ? plantAny['Height (feet)'] : null;
+    const h = parseFeet(heightFeetRaw) ?? 1;
+    maxH = Math.max(maxH, h);
+  }
+  return Math.max(1, maxH);
+};
+
+const applySideView = (idx: number, smooth = true) => {
+  if (!camera || !controls) return;
+  const cx = props.gridWidth / 2;
+  const cz = props.gridHeight / 2;
+  const d = Math.max(props.gridWidth, props.gridHeight);
+
+  // Keep distance stable-ish and within bounds.
+  const dist = clamp(Math.max(18, d * 0.95), minDistance.value, maxDistance.value);
+  // Height: enough to see plants clearly but still feels "side-on".
+  const maxH = estimateMaxPlantHeightFeet();
+  // Center the camera height around the middle of the plants for better vertical centering
+  const y = Math.max(8, Math.min(dist * 0.6, maxH * 0.8 + 6));
+
+  // Target at roughly the middle of plant heights to center the view vertically
+  const targetY = Math.max(0, maxH * 0.4);
+  const nextTarget = new THREE.Vector3(cx, targetY, cz);
+  let nextCam: THREE.Vector3;
+  // 0..3 cycles around grid, 90° each.
+  if (idx === 0) nextCam = new THREE.Vector3(cx, y, cz + dist); // front (bottom edge)
+  else if (idx === 1) nextCam = new THREE.Vector3(cx + dist, y, cz); // right
+  else if (idx === 2) nextCam = new THREE.Vector3(cx, y, cz - dist); // back (top edge)
+  else nextCam = new THREE.Vector3(cx - dist, y, cz); // left
+
+  controls.setLookAt(
+    nextCam.x,
+    nextCam.y,
+    nextCam.z,
+    nextTarget.x,
+    nextTarget.y,
+    nextTarget.z,
+    smooth
+  );
+  baseDistance.value = getCameraDistance();
+};
+
+const cycleSideView = () => {
+  // First click always goes to the default-facing side; subsequent clicks rotate 90°.
+  if (viewMode.value !== 'side') {
+    sideIndex.value = 0;
+  } else {
+    sideIndex.value = (sideIndex.value + 1) % 4;
+  }
+  viewMode.value = 'side';
+  applySideView(sideIndex.value, true);
 };
 
 const setSelectionRing = (meta: PlantInstanceMeta | null) => {
@@ -641,7 +1682,14 @@ const setSelectionRing = (meta: PlantInstanceMeta | null) => {
 const focusOnInstance = (meta: PlantInstanceMeta) => {
   if (!camera || !controls) return;
   const nextTarget = new THREE.Vector3(meta.center.x, Math.min(meta.heightFeet / 2, 6), meta.center.z);
-  const offset = camera.position.clone().sub(controls.target);
+  const curTarget = new THREE.Vector3();
+  const curPos = new THREE.Vector3();
+  controls.getTarget?.(curTarget);
+  controls.getPosition?.(curPos);
+  const offset = (controls.getTarget && controls.getPosition)
+    ? curPos.clone().sub(curTarget)
+    : camera.position.clone().sub(new THREE.Vector3(props.gridWidth / 2, 0, props.gridHeight / 2));
+
   let nextCam = nextTarget.clone().add(offset);
   nextCam.y = Math.max(nextCam.y, 2.5);
 
@@ -653,14 +1701,15 @@ const focusOnInstance = (meta: PlantInstanceMeta) => {
     nextCam = nextTarget.clone().add(dir.multiplyScalar(clampedDist));
   }
 
-  focusAnim = {
-    startAt: performance.now(),
-    durationMs: 550,
-    fromTarget: controls.target.clone(),
-    toTarget: nextTarget,
-    fromCam: camera.position.clone(),
-    toCam: nextCam
-  };
+  controls.setLookAt(
+    nextCam.x,
+    nextCam.y,
+    nextCam.z,
+    nextTarget.x,
+    nextTarget.y,
+    nextTarget.z,
+    true
+  );
 };
 
 const selectPlacedId = (placedId: string) => {
@@ -672,8 +1721,9 @@ const selectPlacedId = (placedId: string) => {
   focusOnInstance(meta);
 
   const plant = props.plantById[meta.placed.plantId];
-  const commonName = (plant?.['Common Name'] as string) || meta.placed.plantId;
-  const scientificName = plant?.['Scientific Name'] as string | undefined;
+  const plantAny = plant ? /** @type {any} */ (plant) : null;
+  const commonName = plantAny?.['Common Name'] || meta.placed.plantId;
+  const scientificName = plantAny?.['Scientific Name'] || undefined;
   const heightFeetRaw = plant ? plant['Height (feet)'] : null;
   const heightFeet = parseFeet(heightFeetRaw) ?? meta.heightFeet;
   const spreadFeet = meta.placed.width;
@@ -689,39 +1739,100 @@ const selectPlacedId = (placedId: string) => {
 
   ensureLabel(meta);
   applyLabelMode();
+  updateActionButtonsPosition(meta);
 };
 
-const jumpToPlant = (plantId: string) => {
-  const ids = plantIdToPlacedIds.get(plantId) ?? [];
-  if (ids.length === 0) return;
-  const prev = plantIdToCycleIndex.value[plantId] ?? 0;
-  const next = (prev + 1) % ids.length;
-  plantIdToCycleIndex.value = { ...plantIdToCycleIndex.value, [plantId]: next };
-  selectPlacedId(ids[next]);
+const handleDuplicate = () => {
+  if (!selected.value) return;
+  const placed = props.placedPlants.find(p => p.id === selected.value!.placedId);
+  if (placed) {
+    // Place duplicate at an offset position (one snap increment to the right and down)
+    const newX = placed.x + props.snapIncrement;
+    const newY = placed.y + props.snapIncrement;
+    emit('place-plant', placed.plantId, newX, newY);
+  }
 };
+
+const handleDelete = () => {
+  if (!selected.value) return;
+  emit('remove-placed', selected.value.placedId);
+  selected.value = null;
+  actionButtonsPosition.value = null;
+};
+
+const updateActionButtonsPosition = (meta: PlantInstanceMeta) => {
+  if (!camera || !renderer || !meta || !threeContainer.value || !rootRef.value) {
+    actionButtonsPosition.value = null;
+    return;
+  }
+  
+  // Project 3D position to screen coordinates
+  const worldPos = meta.center.clone();
+  // Position buttons above the plant (at the top of the cylinder)
+  worldPos.y = meta.heightFeet;
+  
+  const vector = worldPos.project(camera);
+  const canvasRect = threeContainer.value.getBoundingClientRect();
+  const containerRect = rootRef.value.getBoundingClientRect();
+  
+  // Convert from viewport coordinates to container-relative coordinates
+  const viewportX = (vector.x * 0.5 + 0.5) * canvasRect.width + canvasRect.left;
+  const viewportY = (-(vector.y * 0.5 - 0.5)) * canvasRect.height + canvasRect.top;
+  
+  actionButtonsPosition.value = {
+    x: viewportX - containerRect.left,
+    y: viewportY - containerRect.top,
+  };
+};
+
+// jumpToPlant removed with plant legend
 
 const updateHover = (obj: THREE.Object3D | null) => {
   if (hoveredObject === obj) return;
-  const setEmissive = (o: THREE.Object3D | null, on: boolean) => {
+  const setEmissive = (o: any, on: boolean) => {
     if (!o) return;
-    const mat = (o as any).material;
-    if (Array.isArray(mat)) {
-      for (const m of mat) {
-        if (m && 'emissive' in m) {
-          (m as any).emissive = new THREE.Color(on ? 0x111827 : 0x000000);
-          (m as any).emissiveIntensity = on ? 0.25 : 0.0;
+    // For GLB models (groups), traverse and update all meshes
+    if (o instanceof THREE.Group || (o as any).isGLBModel) {
+      o.traverse((child: THREE.Object3D) => {
+        if (child instanceof THREE.Mesh) {
+          const mat = child.material;
+          if (Array.isArray(mat)) {
+            for (const m of mat) {
+              if (m && 'emissive' in m) {
+                m.emissive = new THREE.Color(on ? 0x111827 : 0x000000);
+                m.emissiveIntensity = on ? 0.25 : 0.0;
+              }
+            }
+          } else if (mat && 'emissive' in mat) {
+            mat.emissive = new THREE.Color(on ? 0x111827 : 0x000000);
+            mat.emissiveIntensity = on ? 0.25 : 0.0;
+          }
         }
+      });
+    } else {
+      // Regular mesh
+      const mat = o.material;
+      if (Array.isArray(mat)) {
+        for (const m of mat) {
+          if (m && 'emissive' in m) {
+            m.emissive = new THREE.Color(on ? 0x111827 : 0x000000);
+            m.emissiveIntensity = on ? 0.25 : 0.0;
+          }
+        }
+      } else if (mat && 'emissive' in mat) {
+        mat.emissive = new THREE.Color(on ? 0x111827 : 0x000000);
+        mat.emissiveIntensity = on ? 0.25 : 0.0;
       }
-    } else if (mat && 'emissive' in mat) {
-      mat.emissive = new THREE.Color(on ? 0x111827 : 0x000000);
-      mat.emissiveIntensity = on ? 0.25 : 0.0;
     }
   };
   setEmissive(hoveredObject, false);
   hoveredObject = obj;
   setEmissive(hoveredObject, true);
   if (renderer) {
-    renderer.domElement.style.cursor = hoveredObject ? 'pointer' : '';
+    // Don't override cursor if spacebar is held (pan mode)
+    if (!isSpacebarHeld.value) {
+      renderer.domElement.style.cursor = hoveredObject ? 'pointer' : '';
+    }
   }
 };
 
@@ -732,16 +1843,79 @@ const pickObjectUnderPointer = (ev: PointerEvent) => {
   mouseNdc.y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
   raycaster.setFromCamera(mouseNdc, camera);
   const meshes: THREE.Object3D[] = [];
-  for (const meta of placedIdToInstance.values()) meshes.push(meta.mesh);
+  for (const meta of placedIdToInstance.values()) {
+    // For GLB models, add all meshes in the group for raycasting
+    if (meta.mesh instanceof THREE.Group || (meta.mesh as any).isGLBModel) {
+      meta.mesh.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          meshes.push(child);
+        }
+      });
+    } else {
+      meshes.push(meta.mesh);
+    }
+  }
   const hits = raycaster.intersectObjects(meshes, false);
   return hits.length > 0 ? hits[0].object : null;
 };
 
 const onPointerMove = (ev: PointerEvent) => {
-  if (pointerDownAt) {
+  // Track "any drag" so orbit/pan drags don't accidentally select on pointerup.
+  if (pointerDownAt && !pointerDragging) {
     const dx = ev.clientX - pointerDownAt.x;
     const dy = ev.clientY - pointerDownAt.y;
-    if (dx * dx + dy * dy > 36) pointerDragging = true; // 6px threshold
+    if (dx * dx + dy * dy > 36) {
+      pointerDragging = true;
+    }
+  }
+
+  // Dragging a plant: move it along the ground plane (X/Z), keep height data-driven.
+  if (dragPlacedId && raycaster && mouseNdc && camera && renderer && dragOffsetXZ) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouseNdc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    mouseNdc.y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
+    raycaster.setFromCamera(mouseNdc, camera);
+
+    const hit = new THREE.Vector3();
+    const ok = raycaster.ray.intersectPlane(groundPlane, hit);
+    if (ok) {
+      const meta = placedIdToInstance.get(dragPlacedId);
+      if (meta) {
+        const centerX = hit.x + dragOffsetXZ.dx;
+        const centerZ = hit.z + dragOffsetXZ.dz;
+
+        const topLeftX = centerX - meta.placed.width / 2;
+        const topLeftY = centerZ - meta.placed.height / 2;
+
+        const snap = (v: number) => Math.round(v / props.snapIncrement) * props.snapIncrement;
+        const clampedX = clamp(snap(topLeftX), 0, Math.max(0, props.gridWidth - meta.placed.width));
+        const clampedY = clamp(snap(topLeftY), 0, Math.max(0, props.gridHeight - meta.placed.height));
+
+        const newCenterX = clampedX + meta.placed.width / 2;
+        const newCenterZ = clampedY + meta.placed.height / 2;
+        meta.center.set(newCenterX, meta.center.y, newCenterZ);
+
+        // Keep GLB models anchored to the ground while moving.
+        const isGLB = meta.mesh instanceof THREE.Group || (meta.mesh as any).isGLBModel;
+        const nextY = isGLB ? (typeof meta.groundY === 'number' ? meta.groundY : meta.mesh.position.y) : meta.center.y;
+        meta.mesh.position.set(newCenterX, nextY, newCenterZ);
+
+        if (selected.value?.placedId === meta.placed.id) setSelectionRing(meta);
+      }
+    }
+    return;
+  }
+
+  if (pointerDownAt && dragCandidatePlacedId) {
+    const dx = ev.clientX - pointerDownAt.x;
+    const dy = ev.clientY - pointerDownAt.y;
+    if (dx * dx + dy * dy > 36) {
+      // Begin plant drag after small threshold
+      dragPlacedId = dragCandidatePlacedId;
+      dragCandidatePlacedId = null;
+      pointerDragging = true;
+      if (controls && 'enabled' in controls) controls.enabled = false;
+    }
   }
   const obj = pickObjectUnderPointer(ev);
   updateHover(obj);
@@ -750,53 +1924,226 @@ const onPointerMove = (ev: PointerEvent) => {
 const onPointerDown = (ev: PointerEvent) => {
   pointerDownAt = { x: ev.clientX, y: ev.clientY };
   pointerDragging = false;
+
+  // If spacebar is held, enable panning (truck) mode
+  if (isSpacebarHeld.value && ev.isPrimary && ev.button === 0 && controls) {
+    // Enable truck (pan) mode for CameraControls
+    const ACTION = /** @type {any} */ (CameraControls).ACTION;
+    if (ACTION && controls.mouseButtons) {
+      // Temporarily change left button to truck (pan) when spacebar is held
+      controls.mouseButtons.left = ACTION.TRUCK;
+    }
+    // Don't process plant selection/dragging when panning
+    return;
+  }
+
+  // If pointer is down on a plant, prepare for ground-plane drag
+  const obj = pickObjectUnderPointer(ev);
+  const placedIdRaw = /** @type {any} */ (obj)?.userData?.placedId;
+  const placedId = typeof placedIdRaw === 'string' ? placedIdRaw : null;
+  if (placedId && raycaster && mouseNdc && camera && renderer) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouseNdc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    mouseNdc.y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
+    raycaster.setFromCamera(mouseNdc, camera);
+    const hit = new THREE.Vector3();
+    const ok = raycaster.ray.intersectPlane(groundPlane, hit);
+    if (ok) {
+      const meta = placedIdToInstance.get(placedId);
+      if (meta) {
+        dragCandidatePlacedId = placedId;
+        dragOffsetXZ = { dx: meta.center.x - hit.x, dz: meta.center.z - hit.z };
+      }
+    }
+  } else {
+    dragCandidatePlacedId = null;
+    dragOffsetXZ = null;
+  }
 };
 
 const onPointerUp = (ev: PointerEvent) => {
+  // Restore normal camera controls if spacebar pan was active
+  if (isSpacebarHeld.value && controls) {
+    const ACTION = /** @type {any} */ (CameraControls).ACTION;
+    if (ACTION && controls.mouseButtons) {
+      controls.mouseButtons.left = ACTION.ROTATE;
+    }
+  }
+  
+  // Finish plant drag: commit to planner state (single history entry)
+  if (dragPlacedId) {
+    const meta = placedIdToInstance.get(dragPlacedId);
+    if (meta) {
+      const finalX = meta.center.x - meta.placed.width / 2;
+      const finalY = meta.center.z - meta.placed.height / 2;
+      emit('move-placed', meta.placed.id, finalX, finalY);
+    }
+    dragPlacedId = null;
+    dragCandidatePlacedId = null;
+    dragOffsetXZ = null;
+    pointerDownAt = null;
+    pointerDragging = false;
+    if (controls && 'enabled' in controls) controls.enabled = true;
+    return;
+  }
+
   // If user dragged to orbit/pan, don't treat it as a selection click.
   if (pointerDragging) {
     pointerDownAt = null;
     pointerDragging = false;
+    dragCandidatePlacedId = null;
+    dragOffsetXZ = null;
+    if (controls && 'enabled' in controls) controls.enabled = true;
+    return;
+  }
+
+  // Grid resize controls: click the physical +/- buttons on the ground.
+  const resizeAction = pickResizeActionUnderPointer(ev);
+  if (resizeAction) {
+    if (resizeAction === 'addRowTop') props.addRowTop();
+    else if (resizeAction === 'removeRowTop') props.removeRowTop();
+    else if (resizeAction === 'addRowBottom') props.addRowBottom();
+    else if (resizeAction === 'removeRowBottom') props.removeRowBottom();
+    else if (resizeAction === 'addColumnLeft') props.addColumnLeft();
+    else if (resizeAction === 'removeColumnLeft') props.removeColumnLeft();
+    else if (resizeAction === 'addColumnRight') props.addColumnRight();
+    else if (resizeAction === 'removeColumnRight') props.removeColumnRight();
+
+    pointerDownAt = null;
+    pointerDragging = false;
+    dragCandidatePlacedId = null;
+    dragOffsetXZ = null;
     return;
   }
   const obj = pickObjectUnderPointer(ev);
   if (obj) {
-    const placedId = (obj as any).userData?.placedId as string | undefined;
+    // For GLB models, the clicked object might be a child mesh
+    // We set userData.placedId on all child meshes, so we can get it directly
+    let placedIdRaw = /** @type {any} */ (obj)?.userData?.placedId;
+    
+    // If not found on the object itself, try traversing up to find the parent Group
+    if (!placedIdRaw && obj.parent) {
+      let parent: THREE.Object3D | null = obj.parent;
+      while (parent && parent !== scene) {
+        placedIdRaw = (parent as any)?.userData?.placedId;
+        if (placedIdRaw) break;
+        parent = parent.parent;
+      }
+    }
+    
+    const placedId = typeof placedIdRaw === 'string' ? placedIdRaw : null;
     if (placedId) selectPlacedId(placedId);
+  } else if (selectedPlantId.value && raycaster && mouseNdc && camera && renderer) {
+    // Place from favorites: click ground to add another instance (mirrors 2D "tap then tap grid")
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouseNdc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    mouseNdc.y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
+    raycaster.setFromCamera(mouseNdc, camera);
+    const hit = new THREE.Vector3();
+    const ok = raycaster.ray.intersectPlane(groundPlane, hit);
+    if (ok) {
+      const plant = props.plantById[selectedPlantId.value];
+      const size = spreadCellsResolved(plant);
+      const snap = (v: number) => Math.round(v / props.snapIncrement) * props.snapIncrement;
+      // Center placement on click (matches drag-preview/drag-place behavior in 2D)
+      const desiredX = hit.x - size / 2;
+      const desiredY = hit.z - size / 2;
+      const finalX = Math.max(0, snap(desiredX));
+      const finalY = Math.max(0, snap(desiredY));
+      emit('place-plant', selectedPlantId.value, finalX, finalY);
+    }
+  } else {
+    // Click on empty space: deselect current plant (but not on mobile to avoid accidental deselection)
+    if (selected.value && !(props.isMobile ?? false)) {
+      selected.value = null;
+      actionButtonsPosition.value = null;
+      selectedObject = null;
+      setSelectionRing(null);
+    }
   }
   pointerDownAt = null;
   pointerDragging = false;
+  dragCandidatePlacedId = null;
+  dragOffsetXZ = null;
 };
 
 const ensureLabel = (meta: PlantInstanceMeta) => {
   if (!scene) return;
   if (meta.label) return;
   const plant = props.plantById[meta.placed.plantId];
-  const commonName = (plant?.['Common Name'] as string) || meta.placed.plantId;
-  const shortName = commonName.length > 26 ? commonName.substring(0, 23) + '…' : commonName;
+  const plantAny = plant ? /** @type {any} */ (plant) : null;
+  const commonNameRaw = plantAny?.['Common Name'] || meta.placed.plantId;
+  const scientificNameRaw = plantAny?.['Scientific Name'] || '';
+  const commonName = shortLabel(commonNameRaw, 28);
+  const scientificName = shortLabel(scientificNameRaw, 34);
 
   const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d')!;
-  canvas.width = 768;
-  canvas.height = 192;
+  const context = canvas.getContext('2d');
+  if (!context) return;
+  canvas.width = 720;
+  canvas.height = 240;
 
-  // Background + border
-  context.fillStyle = 'rgba(255, 255, 255, 0.92)';
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.strokeStyle = 'rgba(17, 24, 39, 0.18)';
-  context.lineWidth = 6;
-  context.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
+  // Match 2D label feel: dark translucent rounded panel + white text
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.save();
+  context.shadowColor = 'rgba(0, 0, 0, 0.35)';
+  context.shadowBlur = 18;
+  context.shadowOffsetY = 6;
+  context.fillStyle = 'rgba(17, 24, 39, 0.45)';
+  drawRoundedRect(context, 16, 26, canvas.width - 32, canvas.height - 52, 26);
+  context.fill();
+  context.restore();
 
-  // Text
-  context.fillStyle = '#111827';
-  context.font = 'bold 44px Arial';
+  // Subtle border
+  context.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+  context.lineWidth = 3;
+  drawRoundedRect(context, 16, 26, canvas.width - 32, canvas.height - 52, 26);
+  context.stroke();
+
+  // Coordinate badge (like 2D)
+  const coord = centerPositionLabel(meta.placed);
+  context.font = '700 28px "Roboto Mono", monospace';
+  const badgePaddingX = 18;
+  const badgePaddingY = 10;
+  const badgeTextW = context.measureText(coord).width;
+  const badgeW = badgeTextW + badgePaddingX * 2;
+  const badgeH = 28 + badgePaddingY * 2;
+  const badgeX = (canvas.width - badgeW) / 2;
+  const badgeY = 34;
+  context.fillStyle = 'rgba(0, 0, 0, 0.72)';
+  drawRoundedRect(context, badgeX, badgeY, badgeW, badgeH, 14);
+  context.fill();
+  context.strokeStyle = 'rgba(255, 255, 255, 0.30)';
+  context.lineWidth = 2;
+  drawRoundedRect(context, badgeX, badgeY, badgeW, badgeH, 14);
+  context.stroke();
+  context.fillStyle = '#ffffff';
   context.textAlign = 'center';
   context.textBaseline = 'middle';
-  context.fillText(shortName, canvas.width / 2, canvas.height / 2);
+  context.fillText(coord, canvas.width / 2, badgeY + badgeH / 2);
+
+  // Common name
+  context.font = '700 44px Roboto, Arial, sans-serif';
+  context.fillStyle = '#ffffff';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.shadowColor = 'rgba(0, 0, 0, 0.45)';
+  context.shadowBlur = 8;
+  context.shadowOffsetY = 2;
+  context.fillText(commonName, canvas.width / 2, canvas.height / 2 + 10);
+
+  // Scientific name (optional)
+  if (scientificName) {
+    context.shadowBlur = 0;
+    context.font = 'italic 30px Roboto, Arial, sans-serif';
+    context.fillStyle = 'rgba(255, 255, 255, 0.95)';
+    context.fillText(scientificName, canvas.width / 2, canvas.height / 2 + 60);
+  }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
+  texture.colorSpace = THREE.SRGBColorSpace;
 
   const spriteMaterial = new THREE.SpriteMaterial({
     map: texture,
@@ -805,31 +2152,21 @@ const ensureLabel = (meta: PlantInstanceMeta) => {
   });
   const sprite = new THREE.Sprite(spriteMaterial);
   sprite.position.set(meta.center.x, meta.heightFeet + 1.1, meta.center.z);
-  sprite.scale.set(6.4, 1.8, 1);
+  // Smaller baseline; we scale dynamically based on camera distance
+  sprite.scale.set(3.8, 1.35, 1);
   sprite.visible = false;
   scene.add(sprite);
   meta.label = sprite;
 };
 
 const applyLabelMode = () => {
-  // Hide/show labels based on mode. Default is selected-only for declutter.
+  // Hide/show labels based on mode.
   const mode = labelMode.value;
-  const selectedPlacedId = selected.value?.placedId ?? null;
 
   for (const meta of placedIdToInstance.values()) {
     if (mode === 'all') {
       ensureLabel(meta);
       if (meta.label) meta.label.visible = true;
-      continue;
-    }
-
-    if (mode === 'selected') {
-      if (selectedPlacedId === meta.placed.id) {
-        ensureLabel(meta);
-        if (meta.label) meta.label.visible = true;
-      } else if (meta.label) {
-        meta.label.visible = false;
-      }
       continue;
     }
 
@@ -864,14 +2201,15 @@ const fitCameraToGarden = () => {
   const nextTarget = new THREE.Vector3(center.x, 0, center.z);
   const nextCam = nextTarget.clone().add(dir.multiplyScalar(dist));
 
-  focusAnim = {
-    startAt: performance.now(),
-    durationMs: 650,
-    fromTarget: controls.target.clone(),
-    toTarget: nextTarget,
-    fromCam: camera.position.clone(),
-    toCam: nextCam
-  };
+  controls.setLookAt(
+    nextCam.x,
+    nextCam.y,
+    nextCam.z,
+    nextTarget.x,
+    nextTarget.y,
+    nextTarget.z,
+    true
+  );
 };
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
@@ -879,10 +2217,10 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
 
 <style scoped>
 .garden-3d {
-  position: fixed;
-  inset: 0;
-  background: #f8fafc;
-  z-index: 1000;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #f5f5f5;
 }
 
 .canvas {
@@ -892,16 +2230,55 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
   touch-action: none;
 }
 
-.overlay-top {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  right: 12px;
+
+.overlay-3d-controls {
   display: flex;
   gap: 8px;
   align-items: center;
+  margin-top: 10px;
+  pointer-events: auto;
+}
+
+.favorites-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 1001;
-  pointer-events: none;
+  pointer-events: auto;
+}
+
+.place-hint {
+  margin-top: 6px;
+  display: inline-block;
+  padding: 6px 10px;
+  border: 1px solid rgba(229, 231, 235, 0.95);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  font-family: Roboto, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  backdrop-filter: blur(6px);
+}
+
+.overlay-left {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  pointer-events: auto;
+}
+
+.overlay-right {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  pointer-events: auto;
+  text-align: right;
+  font-family: Roboto, sans-serif;
 }
 
 .overlay-button {
@@ -914,151 +2291,178 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
   font-family: Roboto, sans-serif;
   font-weight: 600;
   font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.overlay-legend {
-  margin-left: auto;
-  padding: 8px 10px;
-  border: 1px solid #e5e7eb;
-  background: rgba(255, 255, 255, 0.85);
-  border-radius: 10px;
-  font-family: Roboto, sans-serif;
-  font-size: 12px;
-  color: #374151;
+.overlay-button .icon {
+  flex-shrink: 0;
+  stroke-width: 2;
 }
 
-.overlay-info {
-  position: absolute;
-  bottom: 14px;
-  left: 12px;
-  right: 12px;
-  max-width: 520px;
-  border: 1px solid #e5e7eb;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 14px;
-  padding: 12px 12px 10px;
-  z-index: 1001;
-  backdrop-filter: blur(6px);
+.overlay-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
-.overlay-scale {
-  position: absolute;
-  right: 12px;
-  bottom: 14px;
-  width: min(260px, 44vw);
-  border: 1px solid #e5e7eb;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 12px;
-  padding: 10px;
-  z-index: 1001;
-  backdrop-filter: blur(6px);
+.overlay-button.danger {
+  border-color: rgba(220, 38, 38, 0.7);
+  color: #b91c1c;
 }
 
-.scale-row {
+.overlay-button.danger:hover:not(:disabled) {
+  background: rgba(254, 242, 242, 0.92);
+  border-color: rgba(185, 28, 28, 0.85);
+}
+
+/* 2D-like toolbar controls */
+.toolbar-zoom {
   display: flex;
   gap: 6px;
-  align-items: baseline;
-  margin-bottom: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.zoom-value {
+  font-size: 14px;
+  font-weight: 500;
   font-family: Roboto, sans-serif;
-}
-
-.scale-label {
-  font-size: 12px;
-  font-weight: 600;
   color: #374151;
+  min-width: 3rem;
+  text-align: center;
 }
 
-.scale-value {
-  font-size: 12px;
-  color: #374151;
-}
-
-.scale-bar {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  height: 10px;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid rgba(17, 24, 39, 0.12);
-}
-
-.scale-bar-seg {
-  background: rgba(17, 24, 39, 0.18);
-}
-
-.scale-bar-seg + .scale-bar-seg {
-  background: rgba(17, 24, 39, 0.08);
-  border-left: 1px solid rgba(17, 24, 39, 0.18);
-}
-
-.scale-bar-labels {
+.toolbar-button {
   display: flex;
-  justify-content: space-between;
-  margin-top: 4px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 14px;
   font-family: Roboto, sans-serif;
-  font-size: 11px;
-  color: #6b7280;
-}
-
-.orientation-cue {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(229, 231, 235, 0.9);
-}
-
-.orientation-title {
-  font-family: Roboto, sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 4px;
-}
-
-.orientation-axes {
-  display: flex;
-  gap: 10px;
-  font-family: Roboto, sans-serif;
-  font-size: 11px;
-  color: #374151;
-}
-
-.axis {
-  padding: 2px 6px;
-  border-radius: 999px;
-  border: 1px solid rgba(17, 24, 39, 0.10);
-  background: rgba(17, 24, 39, 0.04);
-}
-
-.info-image {
-  width: 100%;
-  margin-bottom: 10px;
-}
-
-.info-image img {
-  width: 100%;
-  max-height: 160px;
-  object-fit: cover;
+  font-weight: 500;
+  border: 1px solid #d1d5db;
   border-radius: 10px;
-  display: block;
-}
-
-.info-title {
-  font-family: Roboto, sans-serif;
-  font-weight: 700;
-  color: #111827;
-}
-
-.info-subtitle {
-  font-family: Roboto, sans-serif;
-  color: #4b5563;
-  margin-top: 2px;
-}
-
-.info-row {
-  font-family: Roboto, sans-serif;
+  background-color: rgba(255, 255, 255, 0.92);
   color: #374151;
-  margin-top: 6px;
-  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.toolbar-button:hover:not(:disabled) {
+  background-color: rgba(249, 250, 251, 0.95);
+  border-color: #9ca3af;
+}
+
+.toolbar-button:active:not(:disabled) {
+  background-color: rgba(243, 244, 246, 0.95);
+}
+
+.toolbar-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.toolbar-button.icon-only {
+  padding: 8px;
+  min-width: 40px;
+  min-height: 40px;
+  justify-content: center;
+}
+
+.toolbar-button .icon {
+  flex-shrink: 0;
+  stroke-width: 2;
+}
+
+.snap-toggle-button {
+  font-family: 'Roboto Mono', monospace;
+}
+
+.snap-value {
+  font-weight: 600;
+}
+
+.grid-dimensions-button strong {
+  font-weight: 600;
+}
+
+.plant-actions-3d {
+  display: flex;
+  gap: 6px;
+  z-index: 1002;
+  pointer-events: auto;
+}
+
+.action-button-3d {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.3);
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  padding: 0;
+}
+
+.action-button-3d:hover {
+  background-color: rgba(255, 255, 255, 1);
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border-color: rgba(0, 0, 0, 0.5);
+}
+
+.action-button-3d:active {
+  transform: scale(0.95);
+}
+
+.action-button-3d.duplicate-button:hover {
+  background-color: rgba(76, 175, 80, 0.95);
+  border-color: rgba(76, 175, 80, 0.8);
+}
+
+.action-button-3d.duplicate-button:hover svg {
+  color: #000;
+  stroke: #000;
+}
+
+.action-button-3d.delete-button:hover {
+  background-color: rgba(220, 30, 30, 0.95);
+  border-color: rgba(220, 30, 30, 0.8);
+}
+
+.action-button-3d.delete-button:hover svg {
+  color: #000;
+  stroke: #000;
+}
+
+.action-button-3d svg {
+  stroke-width: 2.5;
+  color: #000;
+  stroke: #000;
+}
+
+@media screen and (max-width: 767px) {
+  .plant-actions-3d {
+    gap: 4px;
+  }
+  
+  .action-button-3d {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .action-button-3d svg {
+    width: 16px;
+    height: 16px;
+  }
 }
 
 .color-legend {
@@ -1074,98 +2478,7 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
   backdrop-filter: blur(6px);
 }
 
-.plant-legend {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 10px;
-  width: min(280px, 40vw);
-  max-height: min(60vh, 520px);
-  overflow: auto;
-  z-index: 1001;
-  backdrop-filter: blur(6px);
-}
-
-.legend-title {
-  font-family: Roboto, sans-serif;
-  font-weight: 600;
-  font-size: 12px;
-  color: #374151;
-  margin-bottom: 6px;
-}
-
-.legend-plant {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  font-family: Roboto, sans-serif;
-  color: #111827;
-}
-
-.legend-plant:hover {
-  background: rgba(17, 24, 39, 0.06);
-  border-color: rgba(17, 24, 39, 0.08);
-}
-
-.legend-plant-name {
-  font-size: 12px;
-  line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
-
-.legend-plant-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.legend-plant-count {
-  font-size: 12px;
-  color: #374151;
-}
-
-.legend-plant-index {
-  font-size: 11px;
-  color: #6b7280;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-  font-family: Roboto, sans-serif;
-  font-size: 11px;
-}
-
-.color-swatch {
-  width: 12px;
-  height: 12px;
-  border-radius: 2px;
-  border: 1px solid #ccc;
-  flex-shrink: 0;
-}
-
-.family-name {
-  color: #374151;
-  line-height: 1.2;
-}
+/* Plant legend removed */
 
 @media screen and (max-width: 767px) {
   .overlay-top {
@@ -1183,10 +2496,10 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
     display: none;
   }
 
-  .overlay-scale {
-    right: 10px;
-    bottom: 10px;
-    width: min(240px, 70vw);
+  .favorites-overlay {
+    top: 0;
+    left: 0;
+    right: 0;
   }
 }
 </style>

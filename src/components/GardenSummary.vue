@@ -56,6 +56,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import type { Plant } from '../types/garden';
 
 interface PlantSummary {
   plantId: string;
@@ -84,6 +85,8 @@ interface Props {
   summaryData: SummaryData;
   gridWidth: number;
   gridHeight: number;
+  favoritePlants?: Plant[];
+  favoriteIds?: string[];
 }
 
 const props = defineProps<Props>();
@@ -120,22 +123,106 @@ const generateChatGPTPrompt = (): string => {
 
   lines.push('Coordinates indicate the center point where each plant should be planted (where to dig the hole), measured in feet from the top-left corner of the garden.');
   lines.push('');
-  lines.push('Please provide advice on:');
+  
+  // Add favorites list for context (even if not all are placed)
+  // Get all favorite plant IDs that are placed
+  const placedPlantIds = new Set<string>();
+  for (const family of props.summaryData.families) {
+    for (const plant of family.plants) {
+      placedPlantIds.add(plant.plantId);
+    }
+  }
+  
+  // Always try to include favorites - check both favoritePlants array and favoriteIds array
+  const hasFavoritePlants = Array.isArray(props.favoritePlants) && props.favoritePlants.length > 0;
+  const hasFavoriteIds = Array.isArray(props.favoriteIds) && props.favoriteIds.length > 0;
+  
+  if (hasFavoritePlants) {
+    lines.push('### Additional Context: Available Favorite Plants');
+    lines.push('The following plants are in my favorites list (some may not be placed in the current plan):');
+    lines.push('');
+    for (const plant of props.favoritePlants) {
+      const common = plant['Common Name'] ? String(plant['Common Name']) : plant._id;
+      const sci = plant['Scientific Name'] ? String(plant['Scientific Name']) : '';
+      const spreadRaw = plant['Spread (feet)'];
+      const spreadNum = parseFloat(String(spreadRaw));
+      const spread = Number.isFinite(spreadNum) && spreadNum > 0 ? spreadNum : 1;
+      const heightRaw = plant['Height (feet)'];
+      const heightNum = parseFloat(String(heightRaw));
+      const height = Number.isFinite(heightNum) && heightNum > 0 ? `${heightNum}ft` : 'unknown';
+      const family = plant['Plant Family'] ? String(plant['Plant Family']) : '';
+      const months = plant['Flowering Months'] ? String(plant['Flowering Months']) : '';
+      const isPlaced = placedPlantIds.has(plant._id);
+      
+      let plantLine = `- ${common}`;
+      if (sci) plantLine += ` (${sci})`;
+      if (family) plantLine += ` — ${family} family`;
+      plantLine += ` — Spread: ${spread}ft, Height: ${height}`;
+      if (months) plantLine += `, Flowers: ${months}`;
+      if (isPlaced) plantLine += ` [already placed above]`;
+      lines.push(plantLine);
+    }
+    lines.push('');
+  } else if (hasFavoriteIds) {
+    // Fallback if favorite metadata hasn't loaded
+    lines.push('### Additional Context: Available Favorite Plants');
+    lines.push('The following plant IDs are in my favorites list (some may not be placed in the current plan):');
+    lines.push('');
+    for (const id of props.favoriteIds) {
+      const isPlaced = placedPlantIds.has(id);
+      lines.push(`- ${id}${isPlaced ? ' [already placed above]' : ''}`);
+    }
+    lines.push('');
+  }
+  
+  lines.push('Please provide planting advice (plain text is fine; no JSON needed) on:');
   lines.push('1. Whether this is a good plant selection and arrangement');
   lines.push('2. Any concerns about plant spacing, compatibility, or growth requirements');
   lines.push('3. Suggestions for improvement or additional considerations');
   lines.push('4. Any specific care instructions or tips for these native plants');
+  lines.push('5. Whether I should consider adding any of my other favorite plants that are not currently placed');
 
   return lines.join('\n');
 };
 
-const openChatGPT = () => {
+const copyTextToClipboard = async (text: string): Promise<boolean> => {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const openChatGPT = async () => {
   const prompt = generateChatGPTPrompt();
   if (!prompt) return;
-  
-  const encodedPrompt = encodeURIComponent(prompt);
-  const url = `https://chatgpt.com/?q=${encodedPrompt}`;
-  window.open(url, '_blank', 'noopener,noreferrer');
+
+  // Prefer opening ChatGPT with a pre-filled prompt, but fall back to clipboard for long prompts.
+  // (ChatGPT URLs can fail silently if too long.)
+  const encoded = encodeURIComponent(prompt);
+  const urlWithQuery = `https://chatgpt.com/?q=${encoded}`;
+
+  // Conservative length limit to avoid browser/proxy URL limits.
+  const canUseQuery = urlWithQuery.length <= 7000;
+  const copied = await copyTextToClipboard(prompt);
+
+  if (canUseQuery) {
+    window.open(urlWithQuery, '_blank', 'noopener,noreferrer');
+    // No alert needed; prompt should be visible in ChatGPT.
+    return;
+  }
+
+  window.open('https://chatgpt.com/', '_blank', 'noopener,noreferrer');
+  if (copied) {
+    window.alert(
+      'ChatGPT prompt copied to clipboard (it was too long to pre-fill automatically). Paste it into ChatGPT to get planting advice.'
+    );
+  } else {
+    window.alert(
+      'The ChatGPT prompt was too long to pre-fill automatically, and clipboard copy failed. Please allow clipboard access and try again.'
+    );
+  }
 };
 </script>
 
