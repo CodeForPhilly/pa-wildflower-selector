@@ -63,6 +63,8 @@ import { computed, shallowRef, onMounted, onUnmounted, ref, watch, nextTick } fr
 // @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
 import * as THREE from 'three';
 // @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+// @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
 import CameraControls from 'camera-controls';
 import { Copy, Trash2 } from 'lucide-vue-next';
 import type { Plant, PlacedPlant } from '../types/garden';
@@ -321,6 +323,9 @@ type PlantInstanceMeta = {
   center: THREE.Vector3;
   heightFeet: number;
   spreadFeet: number;
+  // For GLB models, the scene object is a Group whose position is anchored at ground-level.
+  // We track its "ground Y" separately because `center.y` is used for UI (labels/rings).
+  groundY?: number;
 };
 
 const placedIdToInstance = new Map<string, PlantInstanceMeta>();
@@ -353,6 +358,9 @@ const maxDistance = computed(() => Math.max(25, gridSize.value * 4));
 
 const cylinderGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 12, 1, false);
 const cylinderMaterial = new THREE.MeshStandardMaterial({ vertexColors: true });
+
+// GLTFLoader instance (reused for all model loads)
+let gltfLoader: GLTFLoader | null = null;
 
 const groundColor = new THREE.Color('#ffffff');
 
@@ -896,8 +904,30 @@ watch(
   }
 );
 
-const disposeMeshMaterials = (mesh: THREE.Mesh) => {
-  const mat = /** @type {any} */ (mesh.material);
+const disposeMeshMaterials = (mesh: THREE.Mesh | THREE.Object3D) => {
+  // Handle GLB models (which are typically Groups)
+  if (mesh instanceof THREE.Group || (mesh as any).isGLBModel) {
+    mesh.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        const mat = /** @type {any} */ (child.material);
+        const disposeMat = (m: any) => {
+          if (!m) return;
+          if (m.map && typeof m.map.dispose === 'function') m.map.dispose();
+          if (typeof m.dispose === 'function') m.dispose();
+        };
+        if (Array.isArray(mat)) mat.forEach(disposeMat);
+        else disposeMat(mat);
+      }
+    });
+    // Dispose geometry if it exists on the group itself (unlikely but possible)
+    if ((mesh as any).geometry && typeof (mesh as any).geometry.dispose === 'function') {
+      (mesh as any).geometry.dispose();
+    }
+    return;
+  }
+  
+  // Handle regular meshes (cylinders)
+  const mat = /** @type {any} */ ((mesh as THREE.Mesh).material);
   const disposeMat = (m: any) => {
     if (!m) return;
     if (m.map && typeof m.map.dispose === 'function') m.map.dispose();
@@ -907,20 +937,27 @@ const disposeMeshMaterials = (mesh: THREE.Mesh) => {
   else disposeMat(mat);
   
   // Explicitly dispose cloned top texture if it exists
-  if (mesh.userData?.topTexture && typeof mesh.userData.topTexture.dispose === 'function') {
-    mesh.userData.topTexture.dispose();
-    mesh.userData.topTexture = null;
+  if ((mesh as any).userData?.topTexture && typeof (mesh as any).userData.topTexture.dispose === 'function') {
+    (mesh as any).userData.topTexture.dispose();
+    (mesh as any).userData.topTexture = null;
   }
 };
 
 const clearPlantInstances = () => {
   if (!scene) return;
   for (const meta of placedIdToInstance.values()) {
+    // Remove the mesh (which is the Group for GLB models, or the Mesh for cylinders)
     scene.remove(meta.mesh);
     disposeMeshMaterials(meta.mesh);
+    
+    // Dispose geometry if it exists (only for regular meshes, not Groups)
+    if ((meta.mesh as any).geometry && typeof (meta.mesh as any).geometry.dispose === 'function') {
+      (meta.mesh as any).geometry.dispose();
+    }
+    
     if (meta.label) {
       scene.remove(meta.label);
-    const mat = /** @type {any} */ (meta.label.material);
+      const mat = /** @type {any} */ (meta.label.material);
       if (mat.map) mat.map.dispose();
       mat.dispose();
     }
@@ -973,12 +1010,20 @@ const syncFromProps = () => {
     // Update meta + mesh transform
     existing.placed = placed;
     existing.plant = plant;
-    existing.heightFeet = cappedHeight;
     existing.spreadFeet = spreadFeet;
-    existing.center.set(x, y, z);
-
-    existing.mesh.position.set(x, y, z);
-    existing.mesh.scale.set(spreadFeet, cappedHeight, spreadFeet);
+    const isGLB = existing.mesh instanceof THREE.Group || (existing.mesh as any).isGLBModel;
+    if (isGLB) {
+      // Keep GLB height from the loaded/scaled model; keep its ground anchor.
+      const glbCenterY = Math.max(0.05, existing.heightFeet / 2);
+      existing.center.set(x, glbCenterY, z);
+      const gy = typeof existing.groundY === 'number' ? existing.groundY : existing.mesh.position.y;
+      existing.mesh.position.set(x, gy, z);
+    } else {
+      existing.heightFeet = cappedHeight;
+      existing.center.set(x, y, z);
+      existing.mesh.position.set(x, y, z);
+      existing.mesh.scale.set(spreadFeet, cappedHeight, spreadFeet);
+    }
   }
 
   // Keep selection ring aligned if selection is active
@@ -1004,6 +1049,11 @@ const addPlants = () => {
   // Rebuild: remove any existing plant meshes/labels before re-adding.
   clearPlantInstances();
 
+  // Initialize GLTFLoader if not already done
+  if (!gltfLoader) {
+    gltfLoader = new GLTFLoader();
+  }
+
   props.placedPlants.forEach((placed) => {
     const plant = props.plantById[placed.plantId];
     const spreadFeet = placed.width;
@@ -1019,27 +1069,133 @@ const addPlants = () => {
     const family = plant && typeof plant['Plant Family'] === 'string' ? plant['Plant Family'] : 'Unknown';
     const fallbackColor = hashToColor(String(family || 'Unknown'));
     
-    // Create plant cylinder with image texture
-    if (plant && props.imageUrl) {
-      createPlantWithTexture(plant, cylinderGeometry, x, y, z, spreadFeet, cappedHeight, placed, fallbackColor);
+    // Try to load GLB model first, fall back to cylinder if not available
+    const scientificName = plant?.['Scientific Name'];
+    if (scientificName && typeof scientificName === 'string') {
+      const modelPath = `/assets/models/${scientificName}.glb`;
+      createPlantWithGLB(plant, modelPath, x, y, z, spreadFeet, cappedHeight, placed, fallbackColor);
     } else {
-      // Fallback to colored cylinder
-      const material = new THREE.MeshStandardMaterial({ 
-        color: fallbackColor,
-        roughness: 0.7,
-        metalness: 0.1
-      });
-      const mesh = new THREE.Mesh(cylinderGeometry, material);
-      mesh.position.set(x, y, z);
-      mesh.scale.set(spreadFeet, cappedHeight, spreadFeet);
-      mesh.userData = { plantId: placed.plantId, placedId: placed.id };
-      s.add(mesh);
-
-      registerInstance(mesh, placed, plant, x, y, z, spreadFeet, cappedHeight);
+      // No scientific name, use cylinder fallback
+      createPlantWithCylinder(plant, x, y, z, spreadFeet, cappedHeight, placed, fallbackColor);
     }
-
-    // Labels are handled later (declutter / selected-only)
   });
+};
+
+const createPlantWithGLB = (
+  plant: any,
+  modelPath: string,
+  x: number,
+  y: number,
+  z: number,
+  spreadFeet: number,
+  cappedHeight: number,
+  placed: any,
+  fallbackColor: THREE.Color
+) => {
+  if (!scene || !gltfLoader) return;
+
+  // Try to load GLB model
+  gltfLoader.load(
+    modelPath,
+    (gltf) => {
+      // Model loaded successfully
+      const model = gltf.scene.clone(); // Clone to allow multiple instances
+      
+      // Calculate bounding box to scale model appropriately (before scaling)
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const min = box.min; // Get minimum point (bottom-left-front corner)
+      
+      // Skip if model has invalid dimensions
+      if (size.x < 0.001 && size.y < 0.001 && size.z < 0.001) {
+        console.warn(`GLB model has invalid dimensions for ${plant?.['Scientific Name'] || placed.plantId}, using cylinder fallback`);
+        createPlantWithCylinder(plant, x, y, z, spreadFeet, cappedHeight, placed, fallbackColor);
+        return;
+      }
+      
+      // Calculate scale factors to match plant dimensions
+      // Scale to fit both spread (x/z) and height (y) constraints
+      const targetSpread = spreadFeet;
+      const targetHeight = cappedHeight;
+      const scaleX = targetSpread / Math.max(size.x, 0.001);
+      const scaleY = targetHeight / Math.max(size.y, 0.001);
+      const scaleZ = targetSpread / Math.max(size.z, 0.001);
+      
+      // Use uniform scaling based on the most constrained dimension to maintain aspect ratio
+      const uniformScale = Math.min(scaleX, scaleY, scaleZ);
+      
+      // Apply scaling
+      model.scale.set(uniformScale, uniformScale, uniformScale);
+      
+      // Position model: center horizontally (x, z), place bottom at ground level (y=0)
+      // The min.y is the bottom of the model in local space (before scaling)
+      // After scaling, the bottom will be at min.y * uniformScale
+      // To place the bottom at y=0, we need to offset by -min.y * uniformScale
+      model.position.set(x, -min.y * uniformScale, z);
+      // Persist ground anchor so later sync/drag doesn't "center-lift" the model.
+      model.userData = { ...(model.userData || {}), groundY: model.position.y };
+      
+      // Set up user data for selection/interaction on the root model
+      model.userData = { ...(model.userData || {}), plantId: placed.plantId, placedId: placed.id, isGLBModel: true };
+      
+      // Disable shadows to match cylinder behavior
+      model.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = false;
+          child.receiveShadow = false;
+          // Also set userData on individual meshes for raycasting
+          child.userData = { ...child.userData, plantId: placed.plantId, placedId: placed.id, isGLBModel: true };
+        }
+      });
+      
+      if (scene) {
+        scene.add(model);
+        
+        // Register the Group (model) itself for GLB models, not a child mesh
+        // This ensures all lookups and operations work correctly
+        // Use the actual height of the scaled model for registration
+        const scaledHeight = size.y * uniformScale;
+        registerInstance(model as any, placed, plant, x, scaledHeight / 2, z, spreadFeet, scaledHeight);
+      }
+    },
+    undefined,
+    (error) => {
+      // Model failed to load (404 or other error), fall back to cylinder
+      createPlantWithCylinder(plant, x, y, z, spreadFeet, cappedHeight, placed, fallbackColor);
+    }
+  );
+};
+
+const createPlantWithCylinder = (
+  plant: any,
+  x: number,
+  y: number,
+  z: number,
+  spreadFeet: number,
+  cappedHeight: number,
+  placed: any,
+  fallbackColor: THREE.Color
+) => {
+  if (!scene) return;
+
+  // Create plant cylinder with image texture if available
+  if (plant && props.imageUrl) {
+    createPlantWithTexture(plant, cylinderGeometry, x, y, z, spreadFeet, cappedHeight, placed, fallbackColor);
+  } else {
+    // Fallback to colored cylinder
+    const material = new THREE.MeshStandardMaterial({ 
+      color: fallbackColor,
+      roughness: 0.7,
+      metalness: 0.1
+    });
+    const mesh = new THREE.Mesh(cylinderGeometry, material);
+    mesh.position.set(x, y, z);
+    mesh.scale.set(spreadFeet, cappedHeight, spreadFeet);
+    mesh.userData = { plantId: placed.plantId, placedId: placed.id };
+    scene.add(mesh);
+
+    registerInstance(mesh, placed, plant, x, y, z, spreadFeet, cappedHeight);
+  }
 };
 
 const createPlantWithTexture = (
@@ -1149,7 +1305,7 @@ const createPlantWithTexture = (
 };
 
 const registerInstance = (
-  mesh: THREE.Mesh,
+  mesh: THREE.Mesh | THREE.Object3D,
   placed: PlacedPlant,
   plant: Plant | undefined,
   x: number,
@@ -1159,7 +1315,12 @@ const registerInstance = (
   heightFeet: number
 ) => {
   const center = new THREE.Vector3(x, y, z);
-  const meta: PlantInstanceMeta = { placed, plant, mesh, center, heightFeet, spreadFeet };
+  const meshAny = mesh as any;
+  const groundY =
+    typeof meshAny?.userData?.groundY === 'number'
+      ? meshAny.userData.groundY
+      : y - heightFeet / 2;
+  const meta: PlantInstanceMeta = { placed, plant, mesh: mesh as THREE.Mesh, center, heightFeet, spreadFeet, groundY };
   placedIdToInstance.set(placed.id, meta);
   const arr = plantIdToPlacedIds.get(placed.plantId) ?? [];
   arr.push(placed.id);
@@ -1605,17 +1766,38 @@ const updateHover = (obj: THREE.Object3D | null) => {
   if (hoveredObject === obj) return;
   const setEmissive = (o: any, on: boolean) => {
     if (!o) return;
-    const mat = o.material;
-    if (Array.isArray(mat)) {
-      for (const m of mat) {
-        if (m && 'emissive' in m) {
-          m.emissive = new THREE.Color(on ? 0x111827 : 0x000000);
-          m.emissiveIntensity = on ? 0.25 : 0.0;
+    // For GLB models (groups), traverse and update all meshes
+    if (o instanceof THREE.Group || (o as any).isGLBModel) {
+      o.traverse((child: THREE.Object3D) => {
+        if (child instanceof THREE.Mesh) {
+          const mat = child.material;
+          if (Array.isArray(mat)) {
+            for (const m of mat) {
+              if (m && 'emissive' in m) {
+                m.emissive = new THREE.Color(on ? 0x111827 : 0x000000);
+                m.emissiveIntensity = on ? 0.25 : 0.0;
+              }
+            }
+          } else if (mat && 'emissive' in mat) {
+            mat.emissive = new THREE.Color(on ? 0x111827 : 0x000000);
+            mat.emissiveIntensity = on ? 0.25 : 0.0;
+          }
         }
+      });
+    } else {
+      // Regular mesh
+      const mat = o.material;
+      if (Array.isArray(mat)) {
+        for (const m of mat) {
+          if (m && 'emissive' in m) {
+            m.emissive = new THREE.Color(on ? 0x111827 : 0x000000);
+            m.emissiveIntensity = on ? 0.25 : 0.0;
+          }
+        }
+      } else if (mat && 'emissive' in mat) {
+        mat.emissive = new THREE.Color(on ? 0x111827 : 0x000000);
+        mat.emissiveIntensity = on ? 0.25 : 0.0;
       }
-    } else if (mat && 'emissive' in mat) {
-      mat.emissive = new THREE.Color(on ? 0x111827 : 0x000000);
-      mat.emissiveIntensity = on ? 0.25 : 0.0;
     }
   };
   setEmissive(hoveredObject, false);
@@ -1636,7 +1818,18 @@ const pickObjectUnderPointer = (ev: PointerEvent) => {
   mouseNdc.y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
   raycaster.setFromCamera(mouseNdc, camera);
   const meshes: THREE.Object3D[] = [];
-  for (const meta of placedIdToInstance.values()) meshes.push(meta.mesh);
+  for (const meta of placedIdToInstance.values()) {
+    // For GLB models, add all meshes in the group for raycasting
+    if (meta.mesh instanceof THREE.Group || (meta.mesh as any).isGLBModel) {
+      meta.mesh.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          meshes.push(child);
+        }
+      });
+    } else {
+      meshes.push(meta.mesh);
+    }
+  }
   const hits = raycaster.intersectObjects(meshes, false);
   return hits.length > 0 ? hits[0].object : null;
 };
@@ -1677,7 +1870,10 @@ const onPointerMove = (ev: PointerEvent) => {
         const newCenterZ = clampedY + meta.placed.height / 2;
         meta.center.set(newCenterX, meta.center.y, newCenterZ);
 
-        meta.mesh.position.set(newCenterX, meta.center.y, newCenterZ);
+        // Keep GLB models anchored to the ground while moving.
+        const isGLB = meta.mesh instanceof THREE.Group || (meta.mesh as any).isGLBModel;
+        const nextY = isGLB ? (typeof meta.groundY === 'number' ? meta.groundY : meta.mesh.position.y) : meta.center.y;
+        meta.mesh.position.set(newCenterX, nextY, newCenterZ);
 
         if (selected.value?.placedId === meta.placed.id) setSelectionRing(meta);
       }
@@ -1796,7 +1992,20 @@ const onPointerUp = (ev: PointerEvent) => {
   }
   const obj = pickObjectUnderPointer(ev);
   if (obj) {
-    const placedIdRaw = /** @type {any} */ (obj)?.userData?.placedId;
+    // For GLB models, the clicked object might be a child mesh
+    // We set userData.placedId on all child meshes, so we can get it directly
+    let placedIdRaw = /** @type {any} */ (obj)?.userData?.placedId;
+    
+    // If not found on the object itself, try traversing up to find the parent Group
+    if (!placedIdRaw && obj.parent) {
+      let parent: THREE.Object3D | null = obj.parent;
+      while (parent && parent !== scene) {
+        placedIdRaw = (parent as any)?.userData?.placedId;
+        if (placedIdRaw) break;
+        parent = parent.parent;
+      }
+    }
+    
     const placedId = typeof placedIdRaw === 'string' ? placedIdRaw : null;
     if (placedId) selectPlacedId(placedId);
   } else if (selectedPlantId.value && raycaster && mouseNdc && camera && renderer) {
