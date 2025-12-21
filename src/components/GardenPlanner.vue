@@ -3,132 +3,59 @@
     <Header h1="Garden Planner" :large-h1="false" />
 
     <main class="planner-main">
-      <section class="toolbar" aria-label="Planner toolbar">
-        <div class="toolbar-container">
-          <div class="toolbar-left">
-            <button 
-              class="toolbar-button icon-only" 
-              @click="undo"
-              :disabled="!canUndo"
-              title="Undo"
-            >
-              <Undo2 :size="16" class="icon" />
-              <span class="button-text">Undo</span>
-            </button>
-            <button 
-              class="toolbar-button icon-only" 
-              @click="redo"
-              :disabled="!canRedo"
-              title="Redo"
-            >
-              <Redo2 :size="16" class="icon" />
-              <span class="button-text">Redo</span>
-            </button>
-            <button 
-              class="toolbar-button clear-button icon-only" 
-              @click="clearLayout"
-              :disabled="placedPlants.length === 0"
-            >
-              <Trash2 :size="16" class="icon" />
-              <span class="button-text">Clear</span>
-            </button>
-            <button
-              class="toolbar-button icon-only"
-              @click="showDesignExport = true"
-              title="Export Design"
-            >
-              <Download :size="16" class="icon" />
-              <span class="button-text">Export</span>
-            </button>
-            <button
-              class="toolbar-button icon-only"
-              @click="showDesignImport = true"
-              title="Import Design"
-            >
-              <Upload :size="16" class="icon" />
-              <span class="button-text">Import</span>
-            </button>
-            <button 
-              class="toolbar-button summary-button icon-only" 
-              :class="{ 'active': showSummary }"
-              @click="handleSummaryToggle"
-              title="View Summary"
-            >
-              <Info :size="16" class="icon" />
-              <span class="button-text">Summary</span>
-            </button>
-            <button
-              class="toolbar-button icon-only"
-              @click="open3D"
-              title="View in 3D"
-            >
-              <Box :size="16" class="icon" />
-              <span class="button-text">View in 3D</span>
-            </button>
-          </div>
-
-          <div class="toolbar-right">
-            <div class="toolbar-zoom">
-              <button
-                class="toolbar-button icon-only"
-                @click="zoom = Math.max(zoom - 0.1, 0.5)"
-                :disabled="zoom <= 0.5"
-                title="Zoom Out (Ctrl+-)"
-              >
-                <ZoomOut :size="16" class="icon" />
-              </button>
-              <span class="zoom-value">{{ Math.round(zoom * 100) }}%</span>
-              <button
-                class="toolbar-button icon-only"
-                @click="zoom = Math.min(zoom + 0.1, 2)"
-                :disabled="zoom >= 2"
-                title="Zoom In (Ctrl+=)"
-              >
-                <ZoomIn :size="16" class="icon" />
-              </button>
-              <button
-                class="toolbar-button icon-only"
-                @click="zoom = 1"
-                :disabled="zoom === 1"
-                title="Reset Zoom"
-              >
-                <RotateCcw :size="16" class="icon" />
-              </button>
-            </div>
-            <button
-              class="toolbar-button grid-dimensions-button"
-              @click="showGridEditor = true"
-              :title="`Current grid: ${gridWidth}ft × ${gridHeight}ft`"
-            >
-              Grid: <strong>{{ gridWidth }}</strong>ft × <strong>{{ gridHeight }}</strong>ft
-            </button>
-            <button
-              class="toolbar-button snap-toggle-button"
-              @click="toggleSnapIncrement"
-              :title="`Toggle grid snap size (currently ${snapIncrement}ft)`"
-            >
-              <svg
-                class="icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                style="width: 16px; height: 16px;"
-              >
-                <rect x="3" y="3" width="18" height="18" />
-                <line x1="12" y1="3" x2="12" y2="21" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-              </svg>
-              <span class="snap-value">{{ snapIncrement }}ft</span>
-            </button>
-          </div>
-        </div>
-      </section>
+      <PlannerToolbar
+        :is3-d="show3D"
+        :can-undo="canUndo"
+        :can-redo="canRedo"
+        :can-clear="placedPlants.length > 0"
+        :summary-active="showSummary"
+        :zoom="zoom"
+        :grid-width="gridWidth"
+        :grid-height="gridHeight"
+        :snap-increment="snapIncrement"
+        :label-mode="labelMode"
+        @undo="undo"
+        @redo="redo"
+        @clear="clearLayout"
+        @export="showDesignExport = true"
+        @import="showDesignImport = true"
+        @toggle-summary="handleSummaryToggle"
+        @toggle-3d="toggle3D"
+        @open-grid-editor="showGridEditor = true"
+        @toggle-snap="toggleSnapIncrement"
+        @zoom-out="zoom = Math.max(zoom - 0.1, 0.5)"
+        @zoom-in="zoom = Math.min(zoom + 0.1, 2)"
+        @zoom-reset="zoom = 1"
+        @cycle-labels="cycleLabelMode"
+      />
 
       <section class="workspace">
-        <template v-if="!showSummary">
+        <template v-if="show3D">
+          <Garden3DView
+            v-if="isClient"
+            :placed-plants="placedPlants"
+            :plant-by-id="plantById"
+            :grid-width="gridWidth"
+            :grid-height="gridHeight"
+            :snap-increment="snapIncrement"
+            :image-url="imageUrl"
+            :favorite-plants="favoritePlants"
+            :selected-plant-id="selectedPlantId"
+            :is-mobile="isMobile"
+            :loading="loading"
+            :spread-feet-label="spreadFeetLabel"
+            :spread-cells="spreadCells"
+            :plant-counts="plantCounts"
+            :label-mode="labelMode"
+            :zoom="zoom"
+            @update:zoom="zoom = $event"
+            @move-placed="movePlant"
+            @remove-placed="removePlaced"
+            @select-plant="selectPlant"
+            @place-plant="placePlant"
+          />
+        </template>
+        <template v-else-if="!showSummary">
           <FavoritesTray
             :favorite-plants="favoritePlants"
             :selected-plant-id="selectedPlantId"
@@ -161,6 +88,7 @@
             :snap-increment="snapIncrement"
             :zoom="zoom"
             @update:zoom="zoom = $event"
+            :label-mode="labelMode"
             :add-row-top="addRowTop"
             :remove-row-top="removeRowTop"
             :add-row-bottom="addRowBottom"
@@ -194,38 +122,6 @@
       @fit-to-plants="handleGridSizeFit"
     />
 
-    <!-- Client-only 3D viewer overlay -->
-    <Garden3DView
-      v-if="isClient && show3D"
-      :placed-plants="placedPlants"
-      :plant-by-id="plantById"
-      :grid-width="gridWidth"
-      :grid-height="gridHeight"
-      :snap-increment="snapIncrement"
-      :can-undo="canUndo"
-      :can-redo="canRedo"
-      :can-clear="placedPlants.length > 0"
-      :image-url="imageUrl"
-      :favorite-plants="favoritePlants"
-      :selected-plant-id="selectedPlantId"
-      :is-mobile="isMobile"
-      :loading="loading"
-      :spread-feet-label="spreadFeetLabel"
-      :spread-cells="spreadCells"
-      :plant-counts="plantCounts"
-      @close="show3D = false"
-      @undo="undo"
-      @redo="redo"
-      @clear="clearLayout"
-      @set-grid-size="handleGridSizeApply"
-      @fit-grid-to-plants="handleGridSizeFit"
-      @toggle-snap-increment="toggleSnapIncrement"
-      @move-placed="movePlant"
-      @remove-placed="removePlaced"
-      @select-plant="selectPlant"
-      @place-plant="placePlant"
-    />
-
     <DesignIOEditor
       :is-open="showDesignExport"
       mode="export"
@@ -245,7 +141,6 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, defineAsyncComponent, watch } from 'vue';
-import { Undo2, Redo2, Trash2, Info, ZoomIn, ZoomOut, RotateCcw, Box, Download, Upload } from 'lucide-vue-next';
 import { useGardenPlanner } from '../composables/useGardenPlanner';
 import { useViewport } from '../composables/useViewport';
 import Header from './Header.vue';
@@ -254,6 +149,7 @@ import GardenCanvas from './GardenCanvas.vue';
 import GardenSummary from './GardenSummary.vue';
 import GridSizeEditor from './GridSizeEditor.vue';
 import DesignIOEditor from './DesignIOEditor.vue';
+import PlannerToolbar from './PlannerToolbar.vue';
 import type { PlacedPlant, Plant } from '../types/garden';
 import { GARDEN_DESIGN_SCHEMA, GARDEN_DESIGN_VERSION } from '../lib/gardenDesign';
 
@@ -288,6 +184,9 @@ const show3D = ref(false);
 const isClient = ref(false);
 const showDesignExport = ref(false);
 const showDesignImport = ref(false);
+type LabelMode = 'off' | 'selected' | 'all';
+const labelMode = ref<LabelMode>('selected');
+const lastNonSummary3D = ref(false);
 
 const {
   loading,
@@ -403,13 +302,27 @@ const handlePaletteDragStart = (event: PointerEvent, plantId: string) => {
 };
 
 const handleSummaryToggle = () => {
-  showSummary.value = !showSummary.value;
+  if (showSummary.value) {
+    // Turning summary off: restore the last non-summary mode
+    showSummary.value = false;
+    show3D.value = lastNonSummary3D.value;
+    return;
+  }
+  // Turning summary on: remember current mode and switch to summary (always exits 3D)
+  lastNonSummary3D.value = show3D.value;
+  show3D.value = false;
+  showSummary.value = true;
 };
 
-const open3D = () => {
-  console.log('Opening 3D view', { isClient: isClient.value, show3D_before: show3D.value });
-  show3D.value = true;
-  console.log('3D view state updated', { isClient: isClient.value, show3D_after: show3D.value });
+const toggle3D = () => {
+  // Switching modes should always exit Summary (so the toolbar state matches the view).
+  showSummary.value = false;
+  show3D.value = !show3D.value;
+  lastNonSummary3D.value = show3D.value;
+};
+
+const cycleLabelMode = () => {
+  labelMode.value = labelMode.value === 'selected' ? 'off' : labelMode.value === 'off' ? 'all' : 'selected';
 };
 
 // Calculate center-point coordinates for a placed plant
@@ -704,7 +617,10 @@ onUnmounted(() => {
   height: 100%;
   margin-left: 16px;
   margin-right: 16px;
+  position: relative;
 }
+
+/* Summary overlay removed: summary is a full view (same as 2D mode) */
 
 /* Only apply flex to GardenSummary when shown, not to FavoritesTray */
 .workspace > .garden-summary {

@@ -14,7 +14,7 @@
     @dblclick="handleDoubleClick"
     @keydown="handleKeyDown"
   >
-    <div class="placed-label">
+    <div v-if="showLabel" class="placed-label">
       <!-- Coordinate badge above common name -->
       <div class="coordinate-badge">
         {{ centerPosition }}
@@ -67,6 +67,7 @@ interface Props {
   isOverlapping: boolean;
   isDragging?: boolean;
   isSelected?: boolean;
+  showLabel?: boolean;
   cellSize: number;
   imageUrl: (plant: Plant | undefined, preview: boolean) => string;
   isMobile: boolean;

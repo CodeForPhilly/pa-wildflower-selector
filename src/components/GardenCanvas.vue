@@ -1,6 +1,14 @@
 <template>
   <div class="grid-area" ref="gridAreaRef">
-      <div class="grid-scroll" @wheel.prevent="handleWheel">
+      <div 
+        class="grid-scroll"
+        :class="{ 'pan-mode': isSpacebarHeld }"
+        @wheel.prevent="handleWheel"
+        @pointerdown="handleGridPointerDown"
+        @pointermove="handleGridPointerMove"
+        @pointerup="handleGridPointerUp"
+        @pointercancel="handleGridPointerUp"
+      >
         <div class="grid-scroll-inner">
           <div class="grid-wrapper" :style="gridWrapperStyle">
           <div
@@ -9,6 +17,9 @@
             :style="gridStyle"
           @click="handleGridClick"
           @pointerdown="handleGridPointerDown"
+          @pointermove="handleGridPointerMove"
+          @pointerup="handleGridPointerUp"
+          @pointercancel="handleGridPointerUp"
           aria-label="Garden planner grid"
           role="application"
         >
@@ -20,6 +31,10 @@
           :is-overlapping="overlapIds.has(p.id)"
           :is-dragging="dragState.isDragging && dragState.plantId === p.id && dragState.dragType === 'move'"
           :is-selected="selectedPlacedPlantId === p.id"
+          :show-label="
+            (labelModeResolved !== 'off') &&
+            (labelModeResolved === 'all' || (labelModeResolved === 'selected' && selectedPlacedPlantId === p.id))
+          "
           :cell-size="dynamicCellSize"
           :image-url="imageUrl"
           :is-mobile="isMobile"
@@ -158,7 +173,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Copy } from 'lucide-vue-next';
 import { usePointerDrag } from '../composables/usePointerDrag';
 import PlantCircle from './PlantCircle.vue';
@@ -181,6 +196,7 @@ interface Props {
   gridHeight: number;
   snapIncrement: number;
   zoom?: number;
+  labelMode?: 'off' | 'selected' | 'all';
   addRowTop: () => void;
   removeRowTop: () => void;
   addRowBottom: () => void;
@@ -200,6 +216,14 @@ const emit = defineEmits<{
 const gridRef = ref<HTMLElement | null>(null);
 const gridAreaRef = ref<HTMLElement | null>(null);
 const activeDrag = ref<{ type: 'place' | 'move'; plantId: string } | null>(null);
+
+// Pan state (spacebar + left click drag)
+const isSpacebarHeld = ref(false);
+const isPanning = ref(false);
+const panStart = ref<{ x: number; y: number } | null>(null);
+const panOffset = ref({ x: 0, y: 0 });
+
+const labelModeResolved = computed(() => props.labelMode ?? 'selected');
 
 const dynamicCellSize = computed(() => {
   if (typeof window === 'undefined') return 36;
@@ -239,7 +263,7 @@ const gridStyle = computed(() => {
 const gridWrapperStyle = computed(() => {
   const zoomValue = props.zoom ?? 1;
   return {
-    transform: `scale(${zoomValue})`,
+    transform: `translate(${panOffset.value.x}px, ${panOffset.value.y}px) scale(${zoomValue})`,
     transformOrigin: 'center center',
   };
 });
@@ -371,6 +395,56 @@ const handleGridPointerDown = (event: PointerEvent) => {
     if (coords) {
       handleDragEnd(coords, activeDrag.value.type, activeDrag.value.plantId);
     }
+    return;
+  }
+  
+  // Don't pan if a plant drag is active
+  if (dragState.value.isDragging) {
+    return;
+  }
+  
+  // Check if clicking on a plant - if so, don't pan
+  const target = event.target as HTMLElement;
+  if (target.closest('.placed')) {
+    return;
+  }
+  
+  // Start panning only if spacebar is held and left button is pressed
+  if (isSpacebarHeld.value && event.isPrimary && event.button === 0) {
+    isPanning.value = true;
+    panStart.value = { x: event.clientX - panOffset.value.x, y: event.clientY - panOffset.value.y };
+    const element = event.currentTarget as HTMLElement;
+    if (element) {
+      element.setPointerCapture(event.pointerId);
+    }
+    event.preventDefault();
+  }
+};
+
+const handleGridPointerMove = (event: PointerEvent) => {
+  // Don't pan if a plant drag is active
+  if (dragState.value.isDragging) {
+    return;
+  }
+  
+  if (isPanning.value && panStart.value && event.isPrimary && isSpacebarHeld.value) {
+    panOffset.value = {
+      x: event.clientX - panStart.value.x,
+      y: event.clientY - panStart.value.y,
+    };
+    event.preventDefault();
+  }
+};
+
+const handleGridPointerUp = (event: PointerEvent) => {
+  if (isPanning.value && event.isPrimary) {
+    isPanning.value = false;
+    panStart.value = null;
+    const element = event.currentTarget as HTMLElement;
+    if (element) {
+      element.releasePointerCapture(event.pointerId);
+    }
+    event.preventDefault();
   }
 };
 
@@ -442,6 +516,36 @@ const handleWheel = (event: WheelEvent) => {
   // Emit zoom update
   emit('update:zoom', newZoom);
 };
+
+// Track spacebar state
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (event.code === 'Space' && !event.repeat) {
+    isSpacebarHeld.value = true;
+    event.preventDefault();
+  }
+};
+
+const handleKeyUp = (event: KeyboardEvent) => {
+  if (event.code === 'Space') {
+    isSpacebarHeld.value = false;
+    // Stop panning if spacebar is released
+    if (isPanning.value) {
+      isPanning.value = false;
+      panStart.value = null;
+    }
+    event.preventDefault();
+  }
+};
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown);
+  window.removeEventListener('keyup', handleKeyUp);
+});
 
 // Drag preview - transparent plant image following cursor
 const dragPreviewPlant = computed(() => {
@@ -561,6 +665,14 @@ const gridHighlightStyle = computed(() => {
   justify-content: center;
   min-height: 400px;
   padding: 12px;
+}
+
+.grid-scroll.pan-mode {
+  cursor: grab;
+}
+
+.grid-scroll.pan-mode:active {
+  cursor: grabbing;
 }
 
 .grid-scroll-inner {

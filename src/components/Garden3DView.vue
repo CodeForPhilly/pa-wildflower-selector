@@ -1,96 +1,5 @@
 <template>
   <div class="garden-3d" ref="rootRef">
-    <div class="overlay-top">
-      <div class="overlay-left">
-        <button
-          class="overlay-button"
-          type="button"
-          :disabled="!canUndo"
-          @click="emit('undo')"
-          aria-label="Undo"
-          title="Undo"
-        >
-          <Undo2 :size="16" class="icon" />
-          Undo
-        </button>
-        <button
-          class="overlay-button"
-          type="button"
-          :disabled="!canRedo"
-          @click="emit('redo')"
-          aria-label="Redo"
-          title="Redo"
-        >
-          <Redo2 :size="16" class="icon" />
-          Redo
-        </button>
-        <button
-          class="overlay-button danger"
-          type="button"
-          :disabled="!canClear"
-          @click="emit('clear')"
-          aria-label="Clear layout"
-          title="Clear layout"
-        >
-          <Trash2 :size="16" class="icon" />
-          Clear
-        </button>
-        <button class="overlay-button" type="button" @click="resetView" aria-label="Reset camera view">
-          Reset view
-        </button>
-        <button class="overlay-button" type="button" @click="setViewPreset('top')" aria-label="Top-down view">
-          Top
-        </button>
-        <button class="overlay-button" type="button" @click="cycleSideView" aria-label="Side view (cycle)">
-          Side
-        </button>
-        <button class="overlay-button" type="button" @click="cycleLabelMode" aria-label="Toggle labels">
-          Labels: {{ labelModeLabel }}
-        </button>
-        <button class="overlay-button" type="button" @click="$emit('close')" aria-label="Back to 2D view">
-          <Grid3x3 :size="16" class="icon" />
-          Back to 2D
-        </button>
-      </div>
-
-      <!-- Match the 2D planner controls: grid size and snap increment toggle -->
-      <div class="overlay-right" aria-label="3D view toolbar">
-        <button
-          class="toolbar-button grid-dimensions-button"
-          type="button"
-          @click="showGridEditor = true"
-          :title="`Current grid: ${gridWidth}ft × ${gridHeight}ft`"
-        >
-          Grid: <strong>{{ gridWidth }}</strong>ft × <strong>{{ gridHeight }}</strong>ft
-        </button>
-        <button
-          class="toolbar-button snap-toggle-button"
-          type="button"
-          @click="emit('toggle-snap-increment')"
-          :title="`Toggle grid snap size (currently ${snapIncrement}ft)`"
-        >
-          <svg
-            class="icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            style="width: 16px; height: 16px;"
-            aria-hidden="true"
-          >
-            <rect x="3" y="3" width="18" height="18" />
-            <line x1="12" y1="3" x2="12" y2="21" />
-            <line x1="3" y1="12" x2="21" y2="12" />
-          </svg>
-          <span class="snap-value">{{ snapIncrement }}ft</span>
-        </button>
-      </div>
-      
-      <!-- Plant legend removed (Favorites tray now serves as the left-side plant list) -->
-    </div>
-
     <div class="favorites-overlay" v-if="favoritePlants && favoritePlants.length">
       <FavoritesTray
         :favorite-plants="favoritePlants"
@@ -104,6 +13,19 @@
         :interaction-hint="(isMobile ?? false) ? 'tap' : 'click'"
         @select="(id) => emit('select-plant', id)"
       />
+
+      <!-- 3D-only controls (shared toolbar lives in GardenPlanner) -->
+      <div class="overlay-3d-controls" aria-label="3D view controls">
+        <button class="overlay-button" type="button" @click="resetView" aria-label="Reset camera view">
+          Reset view
+        </button>
+        <button class="overlay-button" type="button" @click="setViewPreset('top')" aria-label="Top-down view">
+          Top
+        </button>
+        <button class="overlay-button" type="button" @click="cycleSideView" aria-label="Side view (cycle)">
+          Side
+        </button>
+      </div>
 
       <div v-if="selectedPlantId && (isMobile ?? false) === false" class="place-hint" aria-live="polite">
         Placement mode: click the ground to add another
@@ -154,17 +76,6 @@
 
     <div ref="threeContainer" class="canvas"></div>
   </div>
-
-  <GridSizeEditor
-    :is-open="showGridEditor"
-    :current-width="gridWidth"
-    :current-height="gridHeight"
-    :min-size="minGridSize"
-    :placed-plants-count="placedPlants.length"
-    @close="showGridEditor = false"
-    @apply="handleGridSizeApply"
-    @fit-to-plants="handleGridSizeFit"
-  />
 </template>
 
 <script setup lang="ts">
@@ -173,9 +84,7 @@ import { computed, shallowRef, onMounted, onUnmounted, ref, watch } from 'vue';
 import * as THREE from 'three';
 // @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
 import CameraControls from 'camera-controls';
-import { Undo2, Redo2, Trash2, Grid3x3 } from 'lucide-vue-next';
 import type { Plant, PlacedPlant } from '../types/garden';
-import GridSizeEditor from './GridSizeEditor.vue';
 import FavoritesTray from './FavoritesTray.vue';
 
 // THREE.js classes are now extended globally in main.js
@@ -203,9 +112,6 @@ const props = defineProps<{
   gridWidth: number;
   gridHeight: number;
   snapIncrement: number;
-  canUndo: boolean;
-  canRedo: boolean;
-  canClear: boolean;
   imageUrl?: (plant: Plant | undefined, preview: boolean) => string;
   favoritePlants?: Plant[];
   selectedPlantId?: string | null;
@@ -214,20 +120,16 @@ const props = defineProps<{
   spreadFeetLabel?: (plant: Plant | undefined) => string;
   spreadCells?: (plant: Plant | undefined) => number;
   plantCounts?: Record<string, number>;
+  labelMode?: 'off' | 'selected' | 'all';
+  zoom?: number;
 }>();
 
 const emit = defineEmits<{
-  (e: 'close'): void;
-  (e: 'undo'): void;
-  (e: 'redo'): void;
-  (e: 'clear'): void;
   (e: 'move-placed', placedId: string, x: number, y: number): void;
   (e: 'remove-placed', placedId: string): void;
-  (e: 'set-grid-size', width: number, height: number): void;
-  (e: 'fit-grid-to-plants'): void;
-  (e: 'toggle-snap-increment'): void;
   (e: 'select-plant', plantId: string | null): void;
   (e: 'place-plant', plantId: string, x: number, y: number): void;
+  (e: 'update:zoom', value: number): void;
 }>();
 
 const favoritePlants = computed(() => props.favoritePlants ?? []);
@@ -295,6 +197,9 @@ let dragPlacedId: string | null = null;
 let dragOffsetXZ: { dx: number; dz: number } | null = null;
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
+// Spacebar pan state
+const isSpacebarHeld = ref(false);
+
 const gridSize = computed(() => Math.max(props.gridWidth, props.gridHeight));
 const gridDivisions = computed(() => Math.max(1, Math.round(gridSize.value)));
 
@@ -331,25 +236,6 @@ const selectedImageSrc = computed(() => {
 
 const instanceCount = computed(() => props.placedPlants.length);
 
-// 2D-like grid editor + snap controls
-const showGridEditor = ref(false);
-const minGridSize = computed(() => {
-  if (props.placedPlants.length === 0) return { width: 1, height: 1 };
-  const minX = Math.min(...props.placedPlants.map(p => p.x));
-  const maxX = Math.max(...props.placedPlants.map(p => p.x + p.width));
-  const minY = Math.min(...props.placedPlants.map(p => p.y));
-  const maxY = Math.max(...props.placedPlants.map(p => p.y + p.height));
-  return { width: maxX - minX, height: maxY - minY };
-});
-
-const handleGridSizeApply = (width: number, height: number) => {
-  emit('set-grid-size', width, height);
-};
-
-const handleGridSizeFit = () => {
-  emit('fit-grid-to-plants');
-};
-
 // 2D-like zoom controls for 3D camera (based on camera distance to target)
 const baseDistance = ref<number | null>(null);
 type ViewMode = 'top' | 'side';
@@ -373,6 +259,21 @@ const getCameraDistance = (): number | null => {
   const d = curPos.distanceTo(curTarget);
   return Number.isFinite(d) ? d : null;
 };
+
+// When shared zoom changes (2D zoom scale), convert to camera distance (3D dolly)
+watch(
+  () => props.zoom,
+  (z) => {
+    if (!controls) return;
+    const current = getCameraDistance();
+    if (!baseDistance.value && current) baseDistance.value = current;
+    const base = baseDistance.value;
+    if (!base) return;
+    const zoomVal = typeof z === 'number' ? z : 1;
+    const nextDistance = base / clamp(zoomVal, 0.5, 2);
+    setCameraDistance(nextDistance, true);
+  }
+);
 
 const setCameraDistance = (nextDistance: number, smooth = true) => {
   if (!controls || !camera) return;
@@ -403,17 +304,14 @@ const setCameraDistance = (nextDistance: number, smooth = true) => {
 // Plant legend removed (Favorites tray now serves as the left-side plant list)
 
 type LabelMode = 'off' | 'selected' | 'all';
-const labelMode = ref<LabelMode>('selected');
+const labelMode = computed<LabelMode>(() => props.labelMode ?? 'selected');
 const labelModeLabel = computed(() => {
   if (labelMode.value === 'off') return 'Off';
   if (labelMode.value === 'all') return 'All';
   return 'Selected';
 });
 
-const cycleLabelMode = () => {
-  labelMode.value = labelMode.value === 'selected' ? 'off' : labelMode.value === 'off' ? 'all' : 'selected';
-  applyLabelMode();
-};
+watch(() => props.labelMode, () => applyLabelMode());
 
 const parseFeet = (v: unknown): number | null => {
   if (v === null || v === undefined) return null;
@@ -588,6 +486,14 @@ const initThreeJS = () => {
     controls.smoothTime = 0.22;
     controls.draggingSmoothTime = 0.14;
 
+    // Set up mouse button mappings
+    const ACTION = /** @type {any} */ (CameraControls).ACTION;
+    if (ACTION && controls.mouseButtons) {
+      controls.mouseButtons.left = ACTION.ROTATE; // Default: left click rotates/orbits
+      controls.mouseButtons.right = ACTION.NONE; // Right click disabled
+      controls.mouseButtons.wheel = ACTION.DOLLY; // Scroll wheel zooms
+    }
+
     // Lock so the user cannot orbit under the scene (no "under plants" view).
     // Camera-controls uses the same polar-angle concept as OrbitControls.
     controls.minPolarAngle = 0.05; // allow nearly-top-down
@@ -609,6 +515,10 @@ const initThreeJS = () => {
   renderer.domElement.addEventListener('pointermove', onPointerMove, { passive: true });
   renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: true });
   renderer.domElement.addEventListener('pointerup', onPointerUp, { passive: true });
+  
+  // Track spacebar for panning
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
 
   // Resize handling
   const handleResize = () => {
@@ -961,6 +871,17 @@ const animate = () => {
   const dt = clock?.getDelta?.() ?? 1 / 60;
   if (controls?.update) controls.update(dt);
 
+  // Sync 3D zoom back to shared toolbar (2D uses zoom scale, 3D uses camera distance)
+  if (controls && baseDistance.value && typeof emit === 'function') {
+    const d = getCameraDistance();
+    if (d && d > 0) {
+      const z = clamp(baseDistance.value / d, 0.5, 2);
+      if (Math.abs((props.zoom ?? 1) - z) > 0.03) {
+        emit('update:zoom', z);
+      }
+    }
+  }
+
   // Keep labels readable (scale by distance; smaller than previous defaults).
   if (camera) {
     for (const meta of placedIdToInstance.values()) {
@@ -985,8 +906,39 @@ onMounted(() => {
   setTimeout(initThreeJS, 0);
 });
 
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (event.code === 'Space' && !event.repeat) {
+    isSpacebarHeld.value = true;
+    event.preventDefault();
+    // Update cursor to indicate pan mode
+    if (renderer) {
+      renderer.domElement.style.cursor = 'grab';
+    }
+  }
+};
+
+const handleKeyUp = (event: KeyboardEvent) => {
+  if (event.code === 'Space') {
+    isSpacebarHeld.value = false;
+    event.preventDefault();
+    // Restore normal cursor
+    if (renderer) {
+      renderer.domElement.style.cursor = hoveredObject ? 'pointer' : '';
+    }
+    // Restore normal camera controls
+    if (controls) {
+      const ACTION = /** @type {any} */ (CameraControls).ACTION;
+      if (ACTION && controls.mouseButtons) {
+        controls.mouseButtons.left = ACTION.ROTATE;
+      }
+    }
+  }
+};
+
 onUnmounted(() => {
   // Clean up Three.js resources
+  window.removeEventListener('keydown', handleKeyDown);
+  window.removeEventListener('keyup', handleKeyUp);
   if (renderer) {
     renderer.domElement.removeEventListener('pointermove', onPointerMove);
     renderer.domElement.removeEventListener('pointerdown', onPointerDown);
@@ -1246,7 +1198,10 @@ const updateHover = (obj: THREE.Object3D | null) => {
   hoveredObject = obj;
   setEmissive(hoveredObject, true);
   if (renderer) {
-    renderer.domElement.style.cursor = hoveredObject ? 'pointer' : '';
+    // Don't override cursor if spacebar is held (pan mode)
+    if (!isSpacebarHeld.value) {
+      renderer.domElement.style.cursor = hoveredObject ? 'pointer' : '';
+    }
   }
 };
 
@@ -1325,6 +1280,18 @@ const onPointerDown = (ev: PointerEvent) => {
   pointerDownAt = { x: ev.clientX, y: ev.clientY };
   pointerDragging = false;
 
+  // If spacebar is held, enable panning (truck) mode
+  if (isSpacebarHeld.value && ev.isPrimary && ev.button === 0 && controls) {
+    // Enable truck (pan) mode for CameraControls
+    const ACTION = /** @type {any} */ (CameraControls).ACTION;
+    if (ACTION && controls.mouseButtons) {
+      // Temporarily change left button to truck (pan) when spacebar is held
+      controls.mouseButtons.left = ACTION.TRUCK;
+    }
+    // Don't process plant selection/dragging when panning
+    return;
+  }
+
   // If pointer is down on a plant, prepare for ground-plane drag
   const obj = pickObjectUnderPointer(ev);
   const placedIdRaw = /** @type {any} */ (obj)?.userData?.placedId;
@@ -1350,6 +1317,14 @@ const onPointerDown = (ev: PointerEvent) => {
 };
 
 const onPointerUp = (ev: PointerEvent) => {
+  // Restore normal camera controls if spacebar pan was active
+  if (isSpacebarHeld.value && controls) {
+    const ACTION = /** @type {any} */ (CameraControls).ACTION;
+    if (ACTION && controls.mouseButtons) {
+      controls.mouseButtons.left = ACTION.ROTATE;
+    }
+  }
+  
   // Finish plant drag: commit to planner state (single history entry)
   if (dragPlacedId) {
     const meta = placedIdToInstance.get(dragPlacedId);
@@ -1568,20 +1543,10 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
 
 <style scoped>
 .garden-3d {
-  position: fixed;
-  top: 80px; /* Start below header - mobile header height (nav with padding/margin, since large-h1=false) */
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
+  width: 100%;
+  height: 100%;
   background: #f8fafc;
-  z-index: 1000;
-}
-
-/* Desktop: header nav is 120px (since large-h1=false, no h1 is shown) */
-@media all and (min-width: 1280px) {
-  .garden-3d {
-    top: 120px; /* Desktop header height (nav only) */
-  }
 }
 
 .canvas {
@@ -1591,23 +1556,19 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
   touch-action: none;
 }
 
-.overlay-top {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  right: 12px;
+.overlay-3d-controls {
   display: flex;
   gap: 8px;
   align-items: center;
-  z-index: 1001;
-  pointer-events: none;
+  margin-top: 10px;
+  pointer-events: auto;
 }
 
 .favorites-overlay {
   position: absolute;
-  top: 56px;
-  left: 12px;
-  right: 12px;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 1001;
   pointer-events: auto;
 }
@@ -1931,9 +1892,9 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
   }
 
   .favorites-overlay {
-    top: 58px;
-    left: 10px;
-    right: 10px;
+    top: 0;
+    left: 0;
+    right: 0;
   }
 }
 </style>
