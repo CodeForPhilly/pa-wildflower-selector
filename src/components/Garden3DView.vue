@@ -866,6 +866,12 @@ const disposeMeshMaterials = (mesh: THREE.Mesh) => {
   };
   if (Array.isArray(mat)) mat.forEach(disposeMat);
   else disposeMat(mat);
+  
+  // Explicitly dispose cloned top texture if it exists
+  if (mesh.userData?.topTexture && typeof mesh.userData.topTexture.dispose === 'function') {
+    mesh.userData.topTexture.dispose();
+    mesh.userData.topTexture = null;
+  }
 };
 
 const clearPlantInstances = () => {
@@ -1069,19 +1075,30 @@ const createPlantWithTexture = (
       const topMatAny: any = materials[1];
 
       // Dispose any previous maps safely (avoid leaking GPU memory).
-      // Note: since we set SIDE and TOP to the same `texture`, we only dispose
-      // old maps that are different from the new one.
       const oldMaps = new Set<any>();
       const sideOld = sideMatAny.map;
       const topOld = topMatAny.map;
       if (sideOld && sideOld !== texture) oldMaps.add(sideOld);
-      if (topOld && topOld !== texture) oldMaps.add(topOld);
+      if (topOld && topOld !== texture && topOld !== sideOld) oldMaps.add(topOld);
 
+      // Use original texture for side material
       sideMatAny.map = texture;
       sideMatAny.needsUpdate = true;
 
-      topMatAny.map = texture;
+      // Clone texture for top material and rotate to match 2D orientation
+      // The top face of a cylinder in Three.js may be oriented differently,
+      // so we rotate 90 degrees to match the 2D view orientation
+      const topTexture = texture.clone();
+      topTexture.center.set(0.5, 0.5); // Rotate around center
+      topTexture.rotation = Math.PI / 2; // 90 degrees rotation to match 2D view
+      
+      topMatAny.map = topTexture;
       topMatAny.needsUpdate = true;
+
+      // Store reference to cloned texture for cleanup
+      if (!mesh.userData.topTexture) {
+        mesh.userData.topTexture = topTexture;
+      }
 
       for (const old of oldMaps) old.dispose();
     },
