@@ -321,6 +321,7 @@ let raycaster: THREE.Raycaster | null = null;
 let mouseNdc: THREE.Vector2 | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let groundMesh: THREE.Mesh | null = null;
+let gridMesh: THREE.Mesh | null = null;
 let gridHelperObj: THREE.GridHelper | null = null;
 
 type PlantInstanceMeta = {
@@ -365,6 +366,61 @@ const cylinderGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 12, 1, false);
 const cylinderMaterial = new THREE.MeshStandardMaterial({ vertexColors: true });
 
 const groundColor = new THREE.Color('#ffffff');
+
+const GRID_OUTSIDE_BG = '#f5f5f5'; // matches 2D .grid-scroll background
+const GRID_LINE_COLOR = 'rgba(0, 0, 0, 0.15)'; // matches 2D gridline color
+
+const make2DStyleGridTexture = (widthFt: number, heightFt: number): THREE.CanvasTexture => {
+  const maxCanvas = 2048;
+  const maxDimFt = Math.max(1, Math.max(widthFt, heightFt));
+  const pxPerFt = clamp(Math.floor(maxCanvas / maxDimFt), 16, 64);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(256, Math.round(widthFt * pxPerFt));
+  canvas.height = Math.max(256, Math.round(heightFt * pxPerFt));
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    const fallback = new THREE.CanvasTexture(canvas);
+    fallback.colorSpace = THREE.SRGBColorSpace;
+    return fallback;
+  }
+
+  // White background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Grid lines every 1ft
+  ctx.strokeStyle = GRID_LINE_COLOR;
+  ctx.lineWidth = 1;
+
+  // Crisp 1px lines
+  const xStep = pxPerFt;
+  const yStep = pxPerFt;
+
+  for (let x = 0; x <= canvas.width; x += xStep) {
+    const xx = Math.round(x) + 0.5;
+    ctx.beginPath();
+    ctx.moveTo(xx, 0);
+    ctx.lineTo(xx, canvas.height);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= canvas.height; y += yStep) {
+    const yy = Math.round(y) + 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, yy);
+    ctx.lineTo(canvas.width, yy);
+    ctx.stroke();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.anisotropy = Math.min(8, renderer?.capabilities.getMaxAnisotropy?.() ?? 1);
+  texture.needsUpdate = true;
+  return texture;
+};
 
 type SelectedInfo = {
   placedId: string;
@@ -527,7 +583,7 @@ const initThreeJS = () => {
   // Scene
   scene = new THREE.Scene();
   // Match the planner's neutral canvas so this feels like a true "3D mode"
-  scene.background = new THREE.Color('#f8fafc');
+  scene.background = new THREE.Color(GRID_OUTSIDE_BG);
 
   // Camera - positioned based on garden size and plant heights
   const maxHeight = Math.max(...props.placedPlants.map(placed => {
@@ -553,11 +609,11 @@ const initThreeJS = () => {
   renderer.setSize(rect.width, rect.height);
   // Color management for correct texture appearance
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  // Gentle filmic tone mapping helps photos look less flat / washed out
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  // Match 2D "true white" UI: disable tone mapping so white stays white.
+  renderer.toneMapping = THREE.NoToneMapping;
   renderer.toneMappingExposure = 1.0;
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // No shadows (match 2D flat look)
+  renderer.shadowMap.enabled = false;
   container.appendChild(renderer.domElement);
   clock = new THREE.Clock();
 
@@ -574,7 +630,7 @@ const initThreeJS = () => {
 
   const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
   directionalLight.position.set(10, 20, 10);
-  directionalLight.castShadow = true;
+  directionalLight.castShadow = false;
   scene.add(directionalLight);
 
 
@@ -590,6 +646,19 @@ const initThreeJS = () => {
       groundMesh = null;
     }
 
+    if (gridMesh) {
+      scene.remove(gridMesh);
+      gridMesh.geometry?.dispose?.();
+      const matAny = /** @type {any} */ (gridMesh.material);
+      const disposeMat = (m: any) => {
+        if (m?.map && typeof m.map.dispose === 'function') m.map.dispose();
+        m?.dispose?.();
+      };
+      if (Array.isArray(matAny)) matAny.forEach(disposeMat);
+      else disposeMat(matAny);
+      gridMesh = null;
+    }
+
     if (gridHelperObj) {
       scene.remove(gridHelperObj);
       gridHelperObj.geometry?.dispose?.();
@@ -599,18 +668,21 @@ const initThreeJS = () => {
       gridHelperObj = null;
     }
 
-    // Ground
-    const groundGeometry = new THREE.PlaneGeometry(props.gridWidth, props.gridHeight);
-    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 1.0, metalness: 0.0 });
-    groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
-    groundMesh.rotation.x = -Math.PI / 2;
-    groundMesh.position.set(props.gridWidth / 2, 0, props.gridHeight / 2);
-    scene.add(groundMesh);
+    // No separate "background slab" mesh. Outside-of-grid area is just the scene background color.
+    groundMesh = null;
 
-    // Grid
-    gridHelperObj = new THREE.GridHelper(gridSize.value, gridDivisions.value, 0x94a3b8, 0xd1d5db);
-    gridHelperObj.position.set(props.gridWidth / 2, 0.001, props.gridHeight / 2);
-    scene.add(gridHelperObj);
+    // Grid plane: pure white + subtle grey lines (matches 2D)
+    const gridGeometry = new THREE.PlaneGeometry(props.gridWidth, props.gridHeight);
+    const gridTexture = make2DStyleGridTexture(props.gridWidth, props.gridHeight);
+    const gridMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      map: gridTexture,
+      toneMapped: false,
+    });
+    gridMesh = new THREE.Mesh(gridGeometry, gridMaterial);
+    gridMesh.rotation.x = -Math.PI / 2;
+    gridMesh.position.set(props.gridWidth / 2, 0.001, props.gridHeight / 2);
+    scene.add(gridMesh);
   };
 
   // Ground + Grid
@@ -708,6 +780,18 @@ watch(
       else matAny?.dispose?.();
       groundMesh = null;
     }
+    if (gridMesh) {
+      scene.remove(gridMesh);
+      gridMesh.geometry?.dispose?.();
+      const matAny = /** @type {any} */ (gridMesh.material);
+      const disposeMat = (m: any) => {
+        if (m?.map && typeof m.map.dispose === 'function') m.map.dispose();
+        m?.dispose?.();
+      };
+      if (Array.isArray(matAny)) matAny.forEach(disposeMat);
+      else disposeMat(matAny);
+      gridMesh = null;
+    }
     if (gridHelperObj) {
       scene.remove(gridHelperObj);
       gridHelperObj.geometry?.dispose?.();
@@ -716,17 +800,22 @@ watch(
       else matAny?.dispose?.();
       gridHelperObj = null;
     }
-    // Re-create using the latest computed values
-    const groundGeometry = new THREE.PlaneGeometry(props.gridWidth, props.gridHeight);
-    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 1.0, metalness: 0.0 });
-    groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
-    groundMesh.rotation.x = -Math.PI / 2;
-    groundMesh.position.set(props.gridWidth / 2, 0, props.gridHeight / 2);
-    scene.add(groundMesh);
 
-    gridHelperObj = new THREE.GridHelper(gridSize.value, gridDivisions.value, 0x94a3b8, 0xd1d5db);
-    gridHelperObj.position.set(props.gridWidth / 2, 0.001, props.gridHeight / 2);
-    scene.add(gridHelperObj);
+    // Re-create using the latest values (2D-matching visuals)
+    // No separate "background slab" mesh. Outside-of-grid area is just the scene background color.
+    groundMesh = null;
+
+    const gridGeometry = new THREE.PlaneGeometry(props.gridWidth, props.gridHeight);
+    const gridTexture = make2DStyleGridTexture(props.gridWidth, props.gridHeight);
+    const gridMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      map: gridTexture,
+      toneMapped: false,
+    });
+    gridMesh = new THREE.Mesh(gridGeometry, gridMaterial);
+    gridMesh.rotation.x = -Math.PI / 2;
+    gridMesh.position.set(props.gridWidth / 2, 0.001, props.gridHeight / 2);
+    scene.add(gridMesh);
 
     // Keep 3D edge resize controls in sync with the new dimensions
     buildResizeControls();
@@ -941,8 +1030,8 @@ const createPlantWithTexture = (
   mesh.position.set(x, y, z);
   mesh.scale.set(spreadFeet, cappedHeight, spreadFeet);
   mesh.userData = { plantId: placed.plantId, placedId: placed.id };
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
+  mesh.castShadow = false;
+  mesh.receiveShadow = false;
 
   scene.add(mesh);
   registerInstance(mesh, placed, plant, x, y, z, spreadFeet, cappedHeight);
@@ -1721,7 +1810,7 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
   position: relative;
   width: 100%;
   height: 100%;
-  background: #f8fafc;
+  background: #f5f5f5;
 }
 
 .canvas {
