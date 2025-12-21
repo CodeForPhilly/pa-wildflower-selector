@@ -184,8 +184,9 @@ type ResizeAction =
 
 const makeResizeButtonTexture = (label: string) => {
   const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 256;
+  // Higher resolution helps keep +/- crisp in 3D (especially at slight angles).
+  canvas.width = 512;
+  canvas.height = 512;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
@@ -193,20 +194,27 @@ const makeResizeButtonTexture = (label: string) => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = 'rgba(255,255,255,0.98)';
   ctx.strokeStyle = '#d1d5db';
-  ctx.lineWidth = 10;
-  drawRoundedRect(ctx, 18, 18, canvas.width - 36, canvas.height - 36, 38);
+  ctx.lineWidth = 16;
+  drawRoundedRect(ctx, 28, 28, canvas.width - 56, canvas.height - 56, 56);
   ctx.fill();
   ctx.stroke();
 
   // Label
   ctx.fillStyle = '#374151';
-  ctx.font = 'bold 140px Roboto, sans-serif';
+  ctx.font = 'bold 280px Roboto, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(label, canvas.width / 2, canvas.height / 2 + 6);
+  ctx.fillText(label, canvas.width / 2, canvas.height / 2 + 10);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
+  // Sharpen sampling (avoid mipmap blur on tiny UI glyphs)
+  texture.generateMipmaps = false;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.NearestFilter;
+  // Improves crispness at grazing angles when the camera isn't perfectly top-down.
+  const maxAniso = renderer?.capabilities.getMaxAnisotropy?.() ?? 1;
+  texture.anisotropy = Math.min(16, Math.max(1, maxAniso));
   texture.needsUpdate = true;
   return texture;
 };
