@@ -1174,6 +1174,64 @@ const handleKeyDown = (event: KeyboardEvent) => {
     if (renderer) {
       renderer.domElement.style.cursor = 'grab';
     }
+    return;
+  }
+
+  // Only handle keyboard events if a plant is selected
+  // Don't handle if user is typing in an input field
+  if (!selected.value) return;
+  const target = event.target as HTMLElement;
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+    return;
+  }
+
+  // Handle arrow keys for movement
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+    event.preventDefault();
+    
+    const meta = placedIdToInstance.get(selected.value.placedId);
+    if (!meta) return;
+    
+    let newX = meta.placed.x;
+    let newY = meta.placed.y;
+    const moveDistance = props.snapIncrement;
+    
+    switch (event.key) {
+      case 'ArrowUp':
+        newY = Math.max(0, meta.placed.y - moveDistance);
+        break;
+      case 'ArrowDown':
+        newY = Math.min(props.gridHeight - meta.placed.height, meta.placed.y + moveDistance);
+        break;
+      case 'ArrowLeft':
+        newX = Math.max(0, meta.placed.x - moveDistance);
+        break;
+      case 'ArrowRight':
+        newX = Math.min(props.gridWidth - meta.placed.width, meta.placed.x + moveDistance);
+        break;
+    }
+    
+    // Only move if position actually changed
+    if (newX !== meta.placed.x || newY !== meta.placed.y) {
+      emit('move-placed', meta.placed.id, newX, newY);
+    }
+    return;
+  }
+  
+  // Handle delete key
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    event.preventDefault();
+    handleDelete();
+    return;
+  }
+  
+  // Handle Enter/Esc to deselect
+  if (event.key === 'Enter' || event.key === 'Escape') {
+    event.preventDefault();
+    selected.value = null;
+    actionButtonsPosition.value = null;
+    selectedObject = null;
+    setSelectionRing(null);
   }
 };
 

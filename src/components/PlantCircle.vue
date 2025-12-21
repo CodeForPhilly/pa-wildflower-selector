@@ -57,6 +57,7 @@ interface Emits {
   (e: 'drag-start', event: PointerEvent, placedId: string): void;
   (e: 'delete', placedId: string): void;
   (e: 'select', placedId: string): void;
+  (e: 'deselect'): void;
   (e: 'move', placedId: string, x: number, y: number): void;
   (e: 'duplicate', placedId: string): void;
 }
@@ -310,6 +311,12 @@ const handleKeyDown = (event: KeyboardEvent) => {
   if (event.key === 'Delete' || event.key === 'Backspace') {
     event.preventDefault();
     emit('delete', props.placed.id);
+  }
+  
+  // Handle Enter/Esc to deselect
+  if (event.key === 'Enter' || event.key === 'Escape') {
+    event.preventDefault();
+    emit('deselect');
   }
 };
 

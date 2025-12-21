@@ -41,6 +41,7 @@
           @drag-start="handlePlantDragStart"
           @delete="handleDelete"
           @select="handlePlantSelect"
+          @deselect="handlePlantDeselect"
           @move="handlePlantMove"
           @duplicate="handleDuplicate"
         />
@@ -487,6 +488,10 @@ const handleDelete = (placedId: string) => {
 
 const handlePlantSelect = (placedId: string) => {
   props.selectPlacedPlant(placedId);
+};
+
+const handlePlantDeselect = () => {
+  props.selectPlacedPlant(null);
 };
 
 const handlePlantMove = (placedId: string, x: number, y: number) => {
