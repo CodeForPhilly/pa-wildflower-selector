@@ -132,7 +132,6 @@
       :is-open="showDesignImport"
       mode="import"
       initial-text=""
-      :ask-chat-gpt-prompt="optimizedLayoutPrompt"
       @close="showDesignImport = false"
       @import="handleImportDesign"
     />
@@ -231,53 +230,6 @@ const {
 } = useGardenPlanner();
 
 const exportDesignText = computed(() => getExportDesignText());
-
-const optimizedLayoutPrompt = computed(() => {
-  const lines: string[] = [];
-  lines.push('You are optimizing a native plant garden layout for a grid-based planner.');
-  lines.push('');
-  lines.push('Goal: return an optimized layout as IMPORTABLE JSON for the planner.');
-  lines.push('');
-  lines.push('IMPORTANT OUTPUT RULES:');
-  lines.push('- Return ONLY valid JSON (raw text).');
-  lines.push('- Do NOT use Markdown.');
-  lines.push('- Do NOT wrap the JSON in triple backticks (```), even if you label it as json.');
-  lines.push('- The first character must be "{" and the last character must be "}".');
-  lines.push(`- JSON must match schema "${GARDEN_DESIGN_SCHEMA}" version ${GARDEN_DESIGN_VERSION}.`);
-  lines.push('');
-  lines.push('Grid:');
-  lines.push(`- widthFt: ${gridWidth.value}`);
-  lines.push(`- heightFt: ${gridHeight.value}`);
-  lines.push(`- snapIncrementFt: ${snapIncrement.value}`);
-  lines.push('');
-  lines.push('Coordinate system:');
-  lines.push('- Use CENTER coordinates in feet from the TOP-LEFT corner.');
-  lines.push('- All coordinates must align to snapIncrementFt.');
-  lines.push('- Keep all plants fully inside the grid.');
-  lines.push('- Avoid overlaps (treat spread as circle diameter).');
-  lines.push('');
-  lines.push('Allowed plants (favorites):');
-  if (favoritePlants.value.length) {
-    for (const p of favoritePlants.value) {
-      const spreadNum = parseFloat(String(p['Spread (feet)']));
-      const spread = Number.isFinite(spreadNum) && spreadNum > 0 ? spreadNum : 1;
-      const common = p['Common Name'] ? String(p['Common Name']) : p._id;
-      lines.push(`- ${p._id}: ${common}; spreadFt=${spread}`);
-    }
-  } else if (favoriteIds.value.length) {
-    for (const id of favoriteIds.value) lines.push(`- ${id}`);
-  } else {
-    lines.push('- (none)');
-  }
-  lines.push('');
-  lines.push('You may choose ANY quantity per species (including zero).');
-  lines.push('');
-  lines.push('Current design JSON (optional reference):');
-  lines.push(exportDesignText.value);
-  lines.push('');
-  lines.push('Return the final JSON now.');
-  return lines.join('\n');
-});
 
 const handleImportDesign = (text: string) => {
   const result = importDesignFromText(text);

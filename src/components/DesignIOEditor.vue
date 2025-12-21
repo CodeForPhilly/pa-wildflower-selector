@@ -59,15 +59,6 @@
             </button>
           </template>
           <template v-else>
-            <button
-              type="button"
-              class="btn"
-              @click="askChatGPT"
-              :disabled="!(askChatGPTPrompt && askChatGPTPrompt.trim())"
-              title="Copies a prompt and opens ChatGPT so you can generate an importable layout JSON from your Favorites."
-            >
-              Ask ChatGPT (Importable Layout)
-            </button>
             <button type="button" class="btn danger" :disabled="!text.trim()" @click="confirmAndImport">
               Import (overwrite)
             </button>
@@ -88,7 +79,6 @@ interface Props {
   isOpen: boolean;
   mode: 'export' | 'import';
   initialText?: string;
-  askChatGPTPrompt?: string;
 }
 
 interface Emits {
@@ -134,34 +124,6 @@ const copyToClipboard = async () => {
   }
 };
 
-const askChatGPT = async () => {
-  const prompt = (props.askChatGPTPrompt ?? '').trim();
-  if (!prompt) {
-    errorMessage.value = 'No ChatGPT prompt is available yet (try again after favorites load).';
-    return;
-  }
-  errorMessage.value = '';
-
-  let copied = false;
-  try {
-    await navigator.clipboard.writeText(prompt);
-    copied = true;
-  } catch {
-    copied = false;
-  }
-
-  window.open('https://chatgpt.com/', '_blank', 'noopener,noreferrer');
-  if (copied) {
-    window.alert(
-      'ChatGPT prompt copied to clipboard. Paste it into ChatGPT to get an optimized layout JSON, then copy ChatGPT\'s JSON response and paste it into this Import box to apply the suggested layout.'
-    );
-  } else {
-    window.alert(
-      'Could not copy the ChatGPT prompt automatically. Please allow clipboard access and try again.'
-    );
-  }
-};
-
 const downloadJson = () => {
   try {
     const blob = new Blob([text.value], { type: 'application/json' });
@@ -201,7 +163,7 @@ const confirmAndImport = () => {
   background: white;
   border-radius: 12px;
   padding: 18px;
-  max-width: 820px;
+  max-width: 410px;
   width: 95%;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   max-height: 90vh;
@@ -328,6 +290,17 @@ const confirmAndImport = () => {
 .btn.danger:hover:not(:disabled) {
   background: #8f0019;
   border-color: #8f0019;
+}
+
+.btn.switch-btn {
+  background: #4caf50;
+  border-color: #4caf50;
+  color: #fff;
+}
+
+.btn.switch-btn:hover {
+  background: #45a049;
+  border-color: #45a049;
 }
 </style>
 
