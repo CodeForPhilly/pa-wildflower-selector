@@ -1145,6 +1145,31 @@ const createPlantWithGLB = (
           child.receiveShadow = false;
           // Also set userData on individual meshes for raycasting
           child.userData = { ...child.userData, plantId: placed.plantId, placedId: placed.id, isGLBModel: true };
+
+          // Make GLB look like the rest of the planner (flat/unlit, no shading).
+          // This also reduces render cost vs PBR materials.
+          const makeUnlit = (mat: any): THREE.Material => {
+            const map = mat?.map;
+            if (map) {
+              // Ensure correct color appearance
+              map.colorSpace = THREE.SRGBColorSpace;
+              map.needsUpdate = true;
+            }
+            return new THREE.MeshBasicMaterial({
+              map: map ?? undefined,
+              color: 0xffffff,
+              transparent: !!mat?.transparent,
+              opacity: typeof mat?.opacity === 'number' ? mat.opacity : 1,
+              alphaTest: typeof mat?.alphaTest === 'number' ? mat.alphaTest : 0
+            });
+          };
+
+          const curMat: any = child.material;
+          if (Array.isArray(curMat)) {
+            child.material = curMat.map((m) => makeUnlit(m));
+          } else {
+            child.material = makeUnlit(curMat);
+          }
         }
       });
       
