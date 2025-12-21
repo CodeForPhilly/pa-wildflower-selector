@@ -32,27 +32,6 @@
       </div>
     </div>
 
-    <div class="overlay-scale" aria-hidden="true">
-      <div class="scale-row">
-        <span class="scale-label">Scale:</span>
-        <span class="scale-value">1 grid square = 1 ft</span>
-      </div>
-      <div class="scale-bar" aria-hidden="true">
-        <div class="scale-bar-seg" />
-        <div class="scale-bar-seg" />
-      </div>
-      <div class="scale-bar-labels">
-        <span>0</span><span>5ft</span><span>10ft</span>
-      </div>
-      <div class="orientation-cue">
-        <div class="orientation-title">Axes</div>
-        <div class="orientation-axes">
-          <span class="axis x">X →</span>
-          <span class="axis z">Z ↓</span>
-        </div>
-      </div>
-    </div>
-
     <div v-if="selected" class="overlay-info" role="status" aria-live="polite">
       <div v-if="selectedImageSrc" class="info-image">
         <img :src="selectedImageSrc" :alt="`${selected.commonName} photo`" loading="lazy" />
@@ -2000,94 +1979,6 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
   backdrop-filter: blur(6px);
 }
 
-.overlay-scale {
-  position: absolute;
-  right: 12px;
-  bottom: 14px;
-  width: min(260px, 44vw);
-  border: 1px solid #e5e7eb;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 12px;
-  padding: 10px;
-  z-index: 1001;
-  backdrop-filter: blur(6px);
-}
-
-.scale-row {
-  display: flex;
-  gap: 6px;
-  align-items: baseline;
-  margin-bottom: 8px;
-  font-family: Roboto, sans-serif;
-}
-
-.scale-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #374151;
-}
-
-.scale-value {
-  font-size: 12px;
-  color: #374151;
-}
-
-.scale-bar {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  height: 10px;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid rgba(17, 24, 39, 0.12);
-}
-
-.scale-bar-seg {
-  background: rgba(17, 24, 39, 0.18);
-}
-
-.scale-bar-seg + .scale-bar-seg {
-  background: rgba(17, 24, 39, 0.08);
-  border-left: 1px solid rgba(17, 24, 39, 0.18);
-}
-
-.scale-bar-labels {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 4px;
-  font-family: Roboto, sans-serif;
-  font-size: 11px;
-  color: #6b7280;
-}
-
-.orientation-cue {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(229, 231, 235, 0.9);
-}
-
-.orientation-title {
-  font-family: Roboto, sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 4px;
-}
-
-.orientation-axes {
-  display: flex;
-  gap: 10px;
-  font-family: Roboto, sans-serif;
-  font-size: 11px;
-  color: #374151;
-}
-
-.axis {
-  padding: 2px 6px;
-  border-radius: 999px;
-  border: 1px solid rgba(17, 24, 39, 0.10);
-  background: rgba(17, 24, 39, 0.04);
-}
-
 .info-image {
   width: 100%;
   margin-bottom: 10px;
@@ -2156,12 +2047,6 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
 
   .overlay-legend {
     display: none;
-  }
-
-  .overlay-scale {
-    right: 10px;
-    bottom: 10px;
-    width: min(240px, 70vw);
   }
 
   .favorites-overlay {
