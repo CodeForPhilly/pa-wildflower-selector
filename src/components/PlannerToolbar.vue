@@ -95,7 +95,7 @@
           @click="$emit('open-grid-editor')"
           :title="`Current grid: ${gridWidth}ft × ${gridHeight}ft`"
         >
-          Grid: <strong>{{ gridWidth }}</strong>ft × <strong>{{ gridHeight }}</strong>ft
+          Grid<span class="grid-dimensions-text">: <strong>{{ gridWidth }}</strong>ft × <strong>{{ gridHeight }}</strong>ft</span>
         </button>
 
         <button class="toolbar-button snap-toggle-button" @click="$emit('toggle-snap')" :title="`Toggle grid snap size (currently ${snapIncrement}ft)`">
@@ -320,21 +320,31 @@ const labelsLabel = computed(() => {
 
   .toolbar-container {
     padding: 6px;
-    gap: 6px;
-    flex-wrap: wrap;
+    gap: 4px;
+    flex-wrap: nowrap;
     align-items: center;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+
+  .toolbar-container::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
   }
 
   .toolbar-left {
-    flex-wrap: wrap;
-    gap: 6px;
+    flex-wrap: nowrap;
+    gap: 4px;
+    flex-shrink: 0;
   }
 
   .toolbar-right {
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-left: 0;
-    text-align: left;
+    flex-wrap: nowrap;
+    gap: 4px;
+    margin-left: auto;
+    text-align: right;
+    flex-shrink: 0;
   }
 
   .toolbar-zoom {
@@ -345,14 +355,14 @@ const labelsLabel = computed(() => {
   }
 
   .toolbar-button {
-    padding: 5px 10px;
+    padding: 5px 8px;
     font-size: 13px;
   }
 
   .toolbar-button.icon-only {
-    padding: 8px;
-    min-width: 44px;
-    min-height: 44px;
+    padding: 6px;
+    min-width: 36px;
+    min-height: 36px;
     justify-content: center;
   }
 
@@ -361,14 +371,17 @@ const labelsLabel = computed(() => {
   }
 
   .zoom-value {
-    font-size: 12px;
-    min-width: 2.5rem;
+    display: none;
   }
 
   .grid-dimensions-button {
-    font-size: 12px;
-    padding: 5px 10px;
+    font-size: 11px;
+    padding: 5px 8px;
     line-height: 1.3;
+  }
+
+  .grid-dimensions-text {
+    display: none;
   }
 }
 </style>
