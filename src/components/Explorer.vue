@@ -3938,6 +3938,10 @@ th {
 .photo--habitat .tile-favorite {
   color: #fff;
 }
+.photo--habitat .tile-favorite .material-icons {
+  /* Help the white outline heart stay visible over bright habitat photos */
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
 .photo--studio .tile-favorite {
   color: #111;
 }
@@ -3977,6 +3981,7 @@ th {
 .name-scrim .common-name,
 .name-scrim .scientific-name {
   color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
 }
 .caption {
   padding: 10px 12px 12px;
