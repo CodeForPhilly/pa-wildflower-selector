@@ -3918,17 +3918,28 @@ th {
 }
 .tile-favorite {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 40px;
-  height: 40px;
+  right: 12px;
+  bottom: 12px;
+  width: 52px;
+  height: 52px;
   padding: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: transparent;
+  border: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  color: #1d2e26; /* studio default (over white) */
+  z-index: 2;
+}
+.tile-favorite .material-icons {
+  font-size: 28px;
+}
+.photo--habitat .tile-favorite {
+  color: #fff;
+}
+.photo--studio .tile-favorite {
+  color: #111;
 }
 .tile-favorite:focus-visible {
   outline: 3px solid rgba(183, 77, 21, 0.35);
