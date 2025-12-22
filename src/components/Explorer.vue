@@ -511,6 +511,40 @@
                   }"
                   :style="imageStyle(result, true)"
                 >
+                  <div class="view-details-hint" aria-hidden="true">
+                    View details
+                  </div>
+
+                  <div v-if="photoMode !== 'studio'" class="name-scrim">
+                    <div class="name-text">
+                      <h4 class="common-name">{{ result["Common Name"] }}</h4>
+                      <h5 class="scientific-name">
+                        {{ result["Scientific Name"] }}
+                      </h5>
+                    </div>
+                    <button
+                      @click.stop.prevent="toggleFavorite(result._id)"
+                      class="tile-favorite text"
+                      :aria-label="
+                        $store.state.favorites.has(result._id)
+                          ? `Remove ${result['Common Name']} from favorites`
+                          : `Add ${result['Common Name']} to favorites`
+                      "
+                    >
+                      <span class="material-icons material-align">{{
+                        renderFavorite(result._id)
+                      }}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="photoMode === 'studio'" class="caption">
+                  <div class="caption-text">
+                    <h4 class="common-name">{{ result["Common Name"] }}</h4>
+                    <h5 class="scientific-name">
+                      {{ result["Scientific Name"] }}
+                    </h5>
+                  </div>
                   <button
                     @click.stop.prevent="toggleFavorite(result._id)"
                     class="tile-favorite text"
@@ -524,24 +558,6 @@
                       renderFavorite(result._id)
                     }}</span>
                   </button>
-
-                  <div class="view-details-hint" aria-hidden="true">
-                    View details
-                  </div>
-
-                  <div v-if="photoMode !== 'studio'" class="name-scrim">
-                    <h4 class="common-name">{{ result["Common Name"] }}</h4>
-                    <h5 class="scientific-name">
-                      {{ result["Scientific Name"] }}
-                    </h5>
-                  </div>
-                </div>
-
-                <div v-if="photoMode === 'studio'" class="caption">
-                  <h4 class="common-name">{{ result["Common Name"] }}</h4>
-                  <h5 class="scientific-name">
-                    {{ result["Scientific Name"] }}
-                  </h5>
                 </div>
               </div>
             </article>
@@ -3917,20 +3933,23 @@ th {
   background: #ffffff;
 }
 .tile-favorite {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
   width: 52px;
   height: 52px;
   padding: 0;
   border-radius: 999px;
   background: transparent;
+  background-color: transparent;
+  box-shadow: none;
   border: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: #1d2e26; /* studio default (over white) */
   z-index: 2;
+  flex: 0 0 auto;
 }
 .tile-favorite .material-icons {
   font-size: 28px;
@@ -3944,6 +3963,8 @@ th {
 }
 .photo--studio .tile-favorite {
   color: #111;
+  background: transparent;
+  background-color: transparent;
 }
 .tile-favorite:focus-visible {
   outline: 3px solid rgba(183, 77, 21, 0.35);
@@ -3971,12 +3992,19 @@ th {
   right: 0;
   bottom: 0;
   padding: 12px 12px 10px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
   background: linear-gradient(
     to top,
     rgba(0, 0, 0, 0.74) 0%,
     rgba(0, 0, 0, 0.34) 55%,
     rgba(0, 0, 0, 0) 100%
   );
+}
+.name-text {
+  min-width: 0;
 }
 .name-scrim .common-name,
 .name-scrim .scientific-name {
@@ -3990,9 +4018,13 @@ th {
   background: #fff;
   min-height: 56px; /* reserve space so grid doesn't jump for short/long names */
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.caption-text {
+  min-width: 0;
 }
 .plant-preview .common-name {
   font-size: 15px;
