@@ -147,13 +147,11 @@ export function useGardenPlanner() {
 
   const imageUrl = (plant: Plant | undefined, preview: boolean): string => {
     if (!plant) return '/assets/images/missing-image.png';
-    if (plant.hasImage) {
-      if (preview) {
-        return `/images/${plant._id}.preview.jpg`;
-      }
-      return `/images/${plant._id}.jpg`;
-    }
-    return '/assets/images/missing-image.png';
+    const id = encodeURIComponent(String(plant._id));
+    const modeRaw = (store && (store.state as any)?.photoMode) || 'habitat';
+    const mode = encodeURIComponent(modeRaw === 'studio' ? 'studio' : 'habitat');
+    const p = preview ? '1' : '0';
+    return `/api/v1/plant-image/${id}?mode=${mode}&preview=${p}`;
   };
 
   const spreadFeetLabel = (plant: Plant | undefined): string => {

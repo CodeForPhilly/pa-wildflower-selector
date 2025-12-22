@@ -465,6 +465,16 @@ mongodb://[username]:[password]@localhost:27017/pa-wildflower-selector?authSourc
 - `npm run check-mongodb` - Verify MongoDB connection (via scripts/check-mongodb.js)
 - `npm run predev:local` - Run development environment checks before starting local dev
 
+### Studio plant images (dev-only)
+
+This repo includes a small **dev-only** pipeline to generate “studio” plant images (single plant, side view, white background) from photos in `images/`.
+
+- Script: `scripts/studio_images/generate_studio_images.py`
+- Installs: `pip install -r scripts/studio_images/requirements.txt`
+- Runs: `python scripts/studio_images/generate_studio_images.py --input-dir images --output-dir images/studio_full`
+
+See `scripts/studio_images/README.md` for details.
+
 ### Project Structure
 
 - **UI Code**: Located in `src/` directory
