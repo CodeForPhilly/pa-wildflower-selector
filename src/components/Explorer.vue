@@ -494,42 +494,54 @@
             <article
               v-for="result in results"
               :key="result._id"
-              @click="this.$router.push(plantLink(result))"
               class="plant-preview-wrapper"
+              role="link"
+              tabindex="0"
+              :aria-label="`View details for ${result['Common Name']}`"
+              @click="onTileActivate(result, $event)"
+              @keydown.enter.prevent="onTileKeyActivate(result, $event)"
+              @keydown.space.prevent="onTileKeyActivate(result, $event)"
             >
               <div class="plant-preview">
-                <div class="photo" :style="imageStyle(result, true)"></div>
-                <div class="names">
+                <div
+                  class="photo"
+                  :class="{
+                    'photo--studio': photoMode === 'studio',
+                    'photo--habitat': photoMode !== 'studio',
+                  }"
+                  :style="imageStyle(result, true)"
+                >
+                  <button
+                    @click.stop.prevent="toggleFavorite(result._id)"
+                    class="tile-favorite text"
+                    :aria-label="
+                      $store.state.favorites.has(result._id)
+                        ? `Remove ${result['Common Name']} from favorites`
+                        : `Add ${result['Common Name']} to favorites`
+                    "
+                  >
+                    <span class="material-icons material-align">{{
+                      renderFavorite(result._id)
+                    }}</span>
+                  </button>
+
+                  <div class="view-details-hint" aria-hidden="true">
+                    View details
+                  </div>
+
+                  <div v-if="photoMode !== 'studio'" class="name-scrim">
+                    <h4 class="common-name">{{ result["Common Name"] }}</h4>
+                    <h5 class="scientific-name">
+                      {{ result["Scientific Name"] }}
+                    </h5>
+                  </div>
+                </div>
+
+                <div v-if="photoMode === 'studio'" class="caption">
                   <h4 class="common-name">{{ result["Common Name"] }}</h4>
                   <h5 class="scientific-name">
                     {{ result["Scientific Name"] }}
                   </h5>
-                </div>
-                <button
-                  @click.stop="toggleFavorite(result._id)"
-                  class="favorite-large text"
-                >
-                  <span class="material-icons material-align">{{
-                    renderFavorite(result._id)
-                  }}</span>
-                </button>
-                <div class="plant-controls-wrapper">
-                  <div class="plant-controls">
-                    <router-link :to="plantLink(result)" class="text">
-                      <span class="material-icons material-align info"
-                        >info_outline</span
-                      >
-                      More Info
-                    </router-link>
-                    <button
-                      @click.stop="toggleFavorite(result._id)"
-                      class="favorite-regular text"
-                    >
-                      <span class="material-icons material-align">{{
-                        renderFavorite(result._id)
-                      }}</span>
-                    </button>
-                  </div>
                 </div>
               </div>
             </article>
@@ -2324,11 +2336,27 @@ export default {
     selectedImageStyle(selected) {
       return `background-image: url("${this.imageUrl(selected, false)}"); background-size: cover`;
     },
+    onTileActivate(result, evt) {
+      // Prevent accidental navigations when clicking nested controls or selecting text.
+      if (evt && evt.defaultPrevented) return;
+      if (typeof window !== "undefined" && window.getSelection) {
+        const selection = window.getSelection();
+        if (selection && String(selection).trim()) return;
+      }
+      this.$router.push(this.plantLink(result));
+    },
+    onTileKeyActivate(result, evt) {
+      // Space should not scroll the page when a tile is focused.
+      if (evt && typeof evt.preventDefault === "function") evt.preventDefault();
+      this.$router.push(this.plantLink(result));
+    },
     imageStyle(image, preview = true) {
-      return `background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.4) 60.94%, rgba(0, 0, 0, 0.4) 100%), url("${this.imageUrl(
-        image,
-        preview
-      )}"); background-size: cover`;
+      const url = this.imageUrl(image, preview);
+      const isStudio = this.photoMode === "studio";
+      // Studio tiles should be clean white with no muddy overlay. Habitat readability comes from CSS scrim.
+      const backgroundSize = isStudio ? "contain" : "cover";
+      const backgroundColor = isStudio ? "#ffffff" : "transparent";
+      return `background-image: url("${url}"); background-size: ${backgroundSize}; background-position: center; background-repeat: no-repeat; background-color: ${backgroundColor};`;
     },
     async fetchSelectedIfNeeded() {
       if (!this.selectedName) {
@@ -3864,69 +3892,136 @@ th {
 }
 .plant-preview-wrapper {
   position: relative;
-  aspect-ratio: 1/1;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
 }
 .plant-preview {
   position: relative;
-  border-radius: 8px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  font-family: Roboto;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 .photo {
   width: 100%;
   aspect-ratio: 1/1;
-  border-radius: 8px 8px 0 0;
+  position: relative;
+  background: #fff;
 }
-.names {
+.photo--studio {
+  background: #ffffff;
+}
+.tile-favorite {
   position: absolute;
-  top: calc(50% - 16px);
-  left: 16px;
+  top: 10px;
+  right: 10px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.tile-favorite:focus-visible {
+  outline: 3px solid rgba(183, 77, 21, 0.35);
+  outline-offset: 2px;
+}
+.view-details-hint {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  pointer-events: none;
+}
+.name-scrim {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 12px 12px 10px;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.74) 0%,
+    rgba(0, 0, 0, 0.34) 55%,
+    rgba(0, 0, 0, 0) 100%
+  );
+}
+.name-scrim .common-name,
+.name-scrim .scientific-name {
+  color: #fff;
+}
+.caption {
+  padding: 10px 12px 12px;
+  background: #fff;
+  min-height: 56px; /* reserve space so grid doesn't jump for short/long names */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+.plant-preview .common-name {
+  font-size: 15px;
   margin: 0;
   padding: 0;
-  font-size: 14px;
-  font-family: Lato;
-  color: white;
+  font-weight: 650;
+  line-height: 1.2;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
-.common-name {
-  font-size: 14px;
-  margin: 0;
-  padding: 0;
-  font-weight: normal;
-}
-.scientific-name {
+.plant-preview .scientific-name {
   font-size: 12px;
   font-style: italic;
   margin: 0;
   padding: 0;
   font-weight: normal;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.9;
 }
-.plant-controls-wrapper {
-  position: absolute;
-  width: 100%;
-  bottom: 0px;
-  background-color: white;
+.caption .common-name,
+.caption .scientific-name {
+  color: #1d2e26;
 }
-.plant-controls {
-  width: 100%;
-  font-family: Lato;
-  font-size: 14px;
-  border: 1px solid #b74d15;
-  border-top: none;
-  border-radius: 0 0 8px 8px;
-  color: #b74d15;
-  padding: 8px 8px 2px;
-  height: 32px;
-  display: flex;
-  justify-content: space-between;
+
+.plant-preview-wrapper:focus-visible .plant-preview {
+  box-shadow: 0 0 0 3px rgba(183, 77, 21, 0.25);
 }
-.plant-controls .text {
-  margin: 0;
-  letter-spacing: 0.1em;
+@media (hover: hover) {
+  .plant-preview-wrapper:hover .plant-preview {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.1);
+  }
+  .plant-preview-wrapper:hover .view-details-hint,
+  .plant-preview-wrapper:focus-within .view-details-hint {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
-.plant-controls a.text {
-  color: inherit;
-  text-decoration: none;
-}
-.favorite-large {
-  display: none;
+@media (hover: none) {
+  .view-details-hint {
+    display: none;
+  }
 }
 .filters {
   flex-direction: column;
