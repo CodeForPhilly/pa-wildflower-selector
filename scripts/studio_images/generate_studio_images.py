@@ -24,11 +24,7 @@ from dotenv import dotenv_values, find_dotenv, load_dotenv
 from PIL import Image
 
 
-DEFAULT_MODEL = "gemini-2.5-flash-image"
-DEFAULT_ENDPOINT = (
-    "https://generativelanguage.googleapis.com/v1beta/models/"
-    f"{DEFAULT_MODEL}:generateContent"
-)
+DEFAULT_MODEL = "gemini-3-pro-image-preview"
 
 
 DEFAULT_PROMPT = """\
