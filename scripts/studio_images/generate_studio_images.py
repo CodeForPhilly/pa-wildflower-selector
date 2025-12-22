@@ -17,20 +17,23 @@ import time
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
+import statistics
 from typing import Any, Dict, Iterable, List, Optional
 
 import requests
 from dotenv import dotenv_values, find_dotenv, load_dotenv
 from PIL import Image
+from PIL import ImageChops
 
 
-DEFAULT_MODEL = "gemini-3-pro-image-preview"
+DEFAULT_MODEL = "gemini-2.5-flash-image"
 
 
 DEFAULT_PROMPT = """\
 Create a clean studio product photo of a single plant.
 
 Requirements:
+- Scientific name (species): {scientific_name}
 - Show ONE plant only, full plant visible from base to top.
 - Side view (not top-down), upright natural posture.
 - Tight framing with minimal whitespace: the plant should fill ~80–90% of the frame while still fully visible.
@@ -172,6 +175,18 @@ def _build_payload(prompt: str, image_mime: str, image_bytes: bytes) -> Dict[str
     }
 
 
+def _render_prompt(prompt_template: str, scientific_name: str) -> str:
+    """
+    Render the prompt for a specific image.
+
+    If the template includes '{scientific_name}', it will be substituted.
+    Otherwise, we append a line to ensure the species name is included.
+    """
+    if "{scientific_name}" in prompt_template:
+        return prompt_template.format(scientific_name=scientific_name)
+    return f"{prompt_template.rstrip()}\n\nScientific name (species): {scientific_name}\n"
+
+
 def _request_with_retries(
     *,
     url: str,
@@ -222,53 +237,96 @@ def _choose_output_path(
 def _autocrop_white_margins(
     img: Image.Image,
     *,
+    mode: str,
     threshold: int,
     pad_px: int,
 ) -> Image.Image:
     """
-    Crop to the bounding box of "non-white" pixels, where a pixel is considered white if
-    all RGB channels >= threshold.
+    Crop to the bounding box of the plant.
 
-    - threshold: 0..255, higher = more aggressive cropping
+    Modes:
+    - bg-diff: estimate background color from corners, then crop based on pixel difference.
+      threshold is a 0..255 difference cutoff; higher keeps more background.
+    - near-white: treat pixels with all RGB >= threshold as background.
+
+    - threshold: meaning depends on mode (see above)
     - pad_px: extra pixels to include around the detected bounding box
     """
-    if img.mode not in ("RGB", "RGBA"):
-        img = img.convert("RGBA")
+    mode = (mode or "").strip().lower()
+    if mode not in ("bg-diff", "near-white"):
+        mode = "bg-diff"
 
-    # Work in RGBA so we can ignore transparent pixels if they exist.
-    rgba = img.convert("RGBA")
-    px = rgba.load()
-    w, h = rgba.size
+    # Work in RGB (we generally expect no alpha). If alpha exists, keep it in original img,
+    # but crop bounds are computed from RGB.
+    rgb = img.convert("RGB")
+    w, h = rgb.size
 
-    min_x, min_y = w, h
-    max_x, max_y = -1, -1
+    def _expand_bbox(bbox: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
+        left, top, right, bottom = bbox
+        left = max(left - pad_px, 0)
+        top = max(top - pad_px, 0)
+        right = min(right + pad_px, w)
+        bottom = min(bottom + pad_px, h)
+        return (left, top, right, bottom)
 
-    for y in range(h):
-        for x in range(w):
-            r, g, b, a = px[x, y]
-            if a == 0:
-                continue
-            if r >= threshold and g >= threshold and b >= threshold:
-                continue
-            if x < min_x:
-                min_x = x
-            if y < min_y:
-                min_y = y
-            if x > max_x:
-                max_x = x
-            if y > max_y:
-                max_y = y
+    if mode == "near-white":
+        rgba = img.convert("RGBA")
+        px = rgba.load()
+        min_x, min_y = w, h
+        max_x, max_y = -1, -1
 
-    # If we didn't find anything non-white, return original.
-    if max_x < 0 or max_y < 0:
+        for y in range(h):
+            for x in range(w):
+                r, g, b, a = px[x, y]
+                if a == 0:
+                    continue
+                if r >= threshold and g >= threshold and b >= threshold:
+                    continue
+                if x < min_x:
+                    min_x = x
+                if y < min_y:
+                    min_y = y
+                if x > max_x:
+                    max_x = x
+                if y > max_y:
+                    max_y = y
+
+        if max_x < 0 or max_y < 0:
+            return img
+        return img.crop(_expand_bbox((min_x, min_y, max_x + 1, max_y + 1)))
+
+    # bg-diff mode (robust to faint vignettes / haze)
+    # Estimate background from 4 corner patches.
+    patch = max(4, min(16, min(w, h) // 20))
+    corners: list[tuple[int, int]] = [(0, 0), (w - patch, 0), (0, h - patch), (w - patch, h - patch)]
+    rs: list[int] = []
+    gs: list[int] = []
+    bs: list[int] = []
+    for cx, cy in corners:
+        crop = rgb.crop((cx, cy, cx + patch, cy + patch))
+        for r, g, b in crop.getdata():
+            rs.append(r)
+            gs.append(g)
+            bs.append(b)
+
+    if not rs:
         return img
 
-    left = max(min_x - pad_px, 0)
-    top = max(min_y - pad_px, 0)
-    right = min(max_x + pad_px + 1, w)
-    bottom = min(max_y + pad_px + 1, h)
+    bg_color = (
+        int(statistics.median(rs)),
+        int(statistics.median(gs)),
+        int(statistics.median(bs)),
+    )
 
-    return img.crop((left, top, right, bottom))
+    bg = Image.new("RGB", rgb.size, bg_color)
+    diff = ImageChops.difference(rgb, bg).convert("L")
+    # Threshold diff into mask; bbox on the mask.
+    mask = diff.point(lambda p: 255 if p > threshold else 0)
+    bbox = mask.getbbox()
+    if not bbox:
+        return img
+
+    return img.crop(_expand_bbox(bbox))
 
 
 def _maybe_autocrop_bytes(
@@ -276,6 +334,7 @@ def _maybe_autocrop_bytes(
     *,
     mime_type: str,
     enabled: bool,
+    crop_mode: str,
     threshold: int,
     pad_px: int,
     output_format: str,
@@ -283,7 +342,7 @@ def _maybe_autocrop_bytes(
 ) -> bytes:
     img = Image.open(BytesIO(img_bytes))
     if enabled:
-        img = _autocrop_white_margins(img, threshold=threshold, pad_px=pad_px)
+        img = _autocrop_white_margins(img, mode=crop_mode, threshold=threshold, pad_px=pad_px)
 
     out = BytesIO()
 
@@ -335,6 +394,11 @@ def main() -> int:
         help="Override full REST endpoint URL (default: derived from --model)",
     )
     parser.add_argument("--prompt-file", default=None, help="Path to a text file containing the prompt.")
+    parser.add_argument(
+        "--scientific-name",
+        default="",
+        help="Override scientific name used in the prompt (default: derived from filename stem).",
+    )
     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing outputs.")
     parser.add_argument(
         "--skip-preview",
@@ -349,10 +413,19 @@ def main() -> int:
         help="Auto-crop white margins on the generated output (default: true). Use --no-autocrop to disable.",
     )
     parser.add_argument(
+        "--crop-mode",
+        choices=["bg-diff", "near-white"],
+        default="bg-diff",
+        help="Cropping algorithm (default: bg-diff). bg-diff handles faint haze/vignettes better.",
+    )
+    parser.add_argument(
         "--crop-threshold",
         type=int,
-        default=250,
-        help="0..255. Higher crops more aggressively by treating near-white as background (default: 250).",
+        default=12,
+        help=(
+            "0..255. For crop-mode=bg-diff: higher keeps more background (default: 12). "
+            "For crop-mode=near-white: higher crops more aggressively (e.g. 250)."
+        ),
     )
     parser.add_argument(
         "--crop-padding",
@@ -416,6 +489,9 @@ def main() -> int:
         return 0
 
     for img_path in inputs:
+        scientific_name = str(args.scientific_name).strip() or _safe_stem(img_path.name)
+        per_image_prompt = _render_prompt(prompt, scientific_name=scientific_name)
+
         existing = [p for p in _candidate_outputs(output_dir, img_path.name) if p.exists()]
         if existing and not args.overwrite:
             skipped += 1
@@ -431,7 +507,7 @@ def main() -> int:
         try:
             image_bytes = img_path.read_bytes()
             image_mime = _guess_mime_type(img_path)
-            payload = _build_payload(prompt=prompt, image_mime=image_mime, image_bytes=image_bytes)
+            payload = _build_payload(prompt=per_image_prompt, image_mime=image_mime, image_bytes=image_bytes)
 
             resp_json = _request_with_retries(
                 url=endpoint,
@@ -459,6 +535,7 @@ def main() -> int:
                 part.bytes(),
                 mime_type=part.mime_type,
                 enabled=bool(args.autocrop),
+                crop_mode=str(args.crop_mode),
                 threshold=int(args.crop_threshold),
                 pad_px=int(args.crop_padding),
                 output_format=str(args.output_format),
