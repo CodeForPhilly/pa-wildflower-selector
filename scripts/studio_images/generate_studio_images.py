@@ -43,6 +43,7 @@ Requirements:
 - Realistic botanical detail: preserve leaf shapes, stem structure, and flower color.
 - No pot, no vase, no soil, no labels, no text, no watermark, no hands, no extra plants.
 - Soft even lighting; avoid harsh shadows and reflections.
+- No shadows at all (including no grounding/contact shadow under the plant).
 """
 
 
@@ -97,6 +98,7 @@ def _candidate_outputs(output_dir: Path, input_filename: str) -> List[Path]:
     """
     stem = _safe_stem(input_filename)
     return [
+        output_dir / f"{stem}.webp",
         output_dir / f"{stem}.jpg",
         output_dir / f"{stem}.jpeg",
         output_dir / f"{stem}.png",
@@ -280,22 +282,45 @@ def _maybe_autocrop_bytes(
     enabled: bool,
     threshold: int,
     pad_px: int,
+    output_format: str,
+    webp_quality: int,
 ) -> bytes:
-    if not enabled:
-        return img_bytes
-
     img = Image.open(BytesIO(img_bytes))
-    cropped = _autocrop_white_margins(img, threshold=threshold, pad_px=pad_px)
+    if enabled:
+        img = _autocrop_white_margins(img, threshold=threshold, pad_px=pad_px)
 
     out = BytesIO()
-    if mime_type == "image/png":
-        cropped.save(out, format="PNG", optimize=True)
+
+    fmt = output_format.lower()
+    if fmt == "keep":
+        # Preserve model output format (best-effort)
+        if mime_type == "image/png":
+            img.save(out, format="PNG", optimize=True)
+            return out.getvalue()
+        if mime_type in ("image/jpeg", "image/jpg"):
+            if img.mode in ("RGBA", "LA"):
+                img = img.convert("RGB")
+            img.save(out, format="JPEG", quality=95, optimize=True)
+            return out.getvalue()
+        # Unknown -> default to WebP
+        fmt = "webp"
+
+    if fmt == "png":
+        img.save(out, format="PNG", optimize=True)
         return out.getvalue()
 
-    # Default to JPEG for everything else.
-    if cropped.mode in ("RGBA", "LA"):
-        cropped = cropped.convert("RGB")
-    cropped.save(out, format="JPEG", quality=95, optimize=True)
+    if fmt == "jpg" or fmt == "jpeg":
+        if img.mode in ("RGBA", "LA"):
+            img = img.convert("RGB")
+        img.save(out, format="JPEG", quality=95, optimize=True)
+        return out.getvalue()
+
+    # Default: webp
+    if img.mode in ("RGBA", "LA"):
+        # Keep alpha if present (shouldn't be, but safe)
+        img.save(out, format="WEBP", quality=webp_quality, method=6)
+        return out.getvalue()
+    img.save(out, format="WEBP", quality=webp_quality, method=6)
     return out.getvalue()
 
 
@@ -338,6 +363,18 @@ def main() -> int:
         type=int,
         default=24,
         help="Extra pixels to keep around the detected plant bounds (default: 24).",
+    )
+    parser.add_argument(
+        "--output-format",
+        choices=["webp", "jpg", "png", "keep"],
+        default="webp",
+        help="Final output image format (default: webp). 'keep' preserves model output type.",
+    )
+    parser.add_argument(
+        "--webp-quality",
+        type=int,
+        default=90,
+        help="WebP quality 0..100 (default: 90). Only used when --output-format=webp.",
     )
     parser.add_argument("--limit", type=int, default=0, help="Process at most N images (0 = no limit).")
     parser.add_argument("--dry-run", action="store_true", help="List planned work but do not call the API/write files.")
@@ -410,7 +447,12 @@ def main() -> int:
             )
 
             part = _extract_image_part(resp_json)
-            out_path = _choose_output_path(output_dir=output_dir, input_filename=img_path.name, out_mime=part.mime_type)
+            if args.output_format == "keep":
+                out_path = _choose_output_path(
+                    output_dir=output_dir, input_filename=img_path.name, out_mime=part.mime_type
+                )
+            else:
+                out_path = output_dir / f"{_safe_stem(img_path.name)}.{args.output_format}"
 
             if out_path.exists() and not args.overwrite:
                 skipped += 1
@@ -423,6 +465,8 @@ def main() -> int:
                 enabled=bool(args.autocrop),
                 threshold=int(args.crop_threshold),
                 pad_px=int(args.crop_padding),
+                output_format=str(args.output_format),
+                webp_quality=int(args.webp_quality),
             )
             out_path.write_bytes(out_bytes)
             processed += 1
