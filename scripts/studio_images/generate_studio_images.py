@@ -34,6 +34,7 @@ Create a clean studio product photo of a single plant.
 
 Requirements:
 - Scientific name (species): {scientific_name}
+- Depict a mature, full-grown specimen for this species (not a seedling, sapling, juvenile, cutting, or sprout).
 - Show ONE plant only, full plant visible from base to top.
 - Side view (not top-down), upright natural posture.
 - Tight framing with minimal whitespace: the plant should fill ~80–90% of the frame while still fully visible.
@@ -42,7 +43,8 @@ Requirements:
 - Realistic botanical detail: preserve leaf shapes, stem structure, and flower color.
 - No pot, no vase, no soil, no labels, no text, no watermark, no hands, no extra plants.
 - Soft even lighting; avoid harsh shadows and reflections.
-- No shadows at all (including no grounding/contact shadow under the plant).
+- Absolutely no shadows of any kind (no grounding/contact shadow, no cast shadow, no ambient occlusion).
+- Background must be perfectly uniform pure white (#FFFFFF) with no gradients, vignetting, haze, halos, or gray under the plant.
 """
 
 
@@ -117,6 +119,115 @@ def iter_input_images(input_dir: Path, output_dir: Path, skip_preview: bool) -> 
         if skip_preview and p.name.lower().endswith(".preview.jpg"):
             continue
         yield p
+
+
+def iter_input_images_from_list(
+    *,
+    list_path: Path,
+    input_dir: Path,
+    output_dir: Path,
+    skip_preview: bool,
+) -> Iterable[Path]:
+    """
+    Iterate input images from a text file list.
+
+    Lines may be:
+    - a filename (e.g. "Acer rubrum.jpg") -> resolved under input_dir
+    - a relative path (e.g. "images/Acer rubrum.jpg") -> resolved from CWD first, then input_dir
+    - an absolute path
+    Blank lines and lines starting with '#' are ignored.
+    """
+    if not list_path.exists():
+        raise FileNotFoundError(f"Input list not found: {list_path}")
+
+    for raw in list_path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        p = Path(line)
+        candidates: list[Path] = []
+        if p.is_absolute():
+            candidates = [p]
+        else:
+            candidates = [
+                Path.cwd() / p,
+                input_dir / p,
+            ]
+
+        chosen: Optional[Path] = None
+        for c in candidates:
+            if c.exists():
+                chosen = c
+                break
+
+        if not chosen:
+            print(f"[WARN] input missing (skipping): {line}")
+            continue
+
+        if chosen.is_dir():
+            print(f"[WARN] input is a directory (skipping): {chosen}")
+            continue
+
+        # Respect the same input rules as iter_input_images()
+        if chosen.suffix.lower() not in (".jpg", ".jpeg", ".png"):
+            print(f"[WARN] not an image file (skipping): {chosen}")
+            continue
+        if skip_preview and chosen.name.lower().endswith(".preview.jpg"):
+            continue
+        # Avoid accidentally processing the output directory contents
+        try:
+            if chosen.resolve().parent == output_dir.resolve():
+                continue
+        except Exception:
+            # If resolve() fails, just proceed; worst-case skip logic later prevents overwrite.
+            pass
+
+        yield chosen
+
+
+def _looks_like_image_path(p: Path) -> bool:
+    return p.suffix.lower() in (".jpg", ".jpeg", ".png")
+
+
+def _resolve_single_input_path(
+    *,
+    raw_path: str,
+    input_dir: Path,
+    output_dir: Path,
+    skip_preview: bool,
+) -> Optional[Path]:
+    """
+    Resolve a single input image path or filename using the same rules as list entries.
+    Returns None if not a valid input image.
+    """
+    line = (raw_path or "").strip()
+    if not line:
+        return None
+    p = Path(line)
+    candidates: list[Path]
+    if p.is_absolute():
+        candidates = [p]
+    else:
+        candidates = [Path.cwd() / p, input_dir / p]
+
+    chosen: Optional[Path] = None
+    for c in candidates:
+        if c.exists():
+            chosen = c
+            break
+    if not chosen or chosen.is_dir():
+        return None
+    if chosen.suffix.lower() not in (".jpg", ".jpeg", ".png"):
+        return None
+    if skip_preview and chosen.name.lower().endswith(".preview.jpg"):
+        return None
+    try:
+        if chosen.resolve().parent == output_dir.resolve():
+            return None
+    except Exception:
+        pass
+    return chosen
 
 
 @dataclass
@@ -296,35 +407,85 @@ def _autocrop_white_margins(
         return img.crop(_expand_bbox((min_x, min_y, max_x + 1, max_y + 1)))
 
     # bg-diff mode (robust to faint vignettes / haze)
-    # Estimate background from 4 corner patches.
-    patch = max(4, min(16, min(w, h) // 20))
+    # Estimate background from the *whitest* corner patch (to avoid cases where a corner includes plant pixels).
+    patch = max(6, min(24, min(w, h) // 18))
     corners: list[tuple[int, int]] = [(0, 0), (w - patch, 0), (0, h - patch), (w - patch, h - patch)]
-    rs: list[int] = []
-    gs: list[int] = []
-    bs: list[int] = []
+
+    best_bg: Optional[tuple[int, int, int]] = None
+    best_luma: float = -1.0
+
     for cx, cy in corners:
         crop = rgb.crop((cx, cy, cx + patch, cy + patch))
-        for r, g, b in crop.getdata():
-            rs.append(r)
-            gs.append(g)
-            bs.append(b)
+        data = list(crop.getdata())
+        if not data:
+            continue
+        rs = [p[0] for p in data]
+        gs = [p[1] for p in data]
+        bs = [p[2] for p in data]
+        bg = (
+            int(statistics.median(rs)),
+            int(statistics.median(gs)),
+            int(statistics.median(bs)),
+        )
+        luma = (bg[0] + bg[1] + bg[2]) / 3.0
+        if luma > best_luma:
+            best_luma = luma
+            best_bg = bg
 
-    if not rs:
+    if not best_bg:
         return img
 
-    bg_color = (
-        int(statistics.median(rs)),
-        int(statistics.median(gs)),
-        int(statistics.median(bs)),
-    )
-
-    bg = Image.new("RGB", rgb.size, bg_color)
+    bg = Image.new("RGB", rgb.size, best_bg)
     diff = ImageChops.difference(rgb, bg).convert("L")
+    # Auto-adapt threshold based on how noisy the background is in the chosen corner patch.
+    # This prevents faint gray haze / gradients from being mistaken as "foreground" and blocking cropping.
+    corner_x, corner_y = corners[0]
+    # Recompute which corner was "best" (whitest) so we sample the same patch for noise stats.
+    # Find the corner whose median color matches best_bg the closest.
+    best_corner = corners[0]
+    best_corner_dist = 10**9
+    for cx, cy in corners:
+        crop = rgb.crop((cx, cy, cx + patch, cy + patch))
+        data = list(crop.getdata())
+        if not data:
+            continue
+        rs = [p[0] for p in data]
+        gs = [p[1] for p in data]
+        bs = [p[2] for p in data]
+        med = (
+            int(statistics.median(rs)),
+            int(statistics.median(gs)),
+            int(statistics.median(bs)),
+        )
+        dist = abs(med[0] - best_bg[0]) + abs(med[1] - best_bg[1]) + abs(med[2] - best_bg[2])
+        if dist < best_corner_dist:
+            best_corner_dist = dist
+            best_corner = (cx, cy)
+
+    corner_x, corner_y = best_corner
+    noise_patch = diff.crop((corner_x, corner_y, corner_x + patch, corner_y + patch))
+    noise_vals = list(noise_patch.getdata())
+    if noise_vals:
+        med = float(statistics.median(noise_vals))
+        mad = float(statistics.median([abs(v - med) for v in noise_vals]))
+        # Robust threshold: median + k * MAD + small buffer, clamped.
+        auto_thr = int(min(80, max(3, med + 8 * mad + 2)))
+        thr = max(int(threshold), auto_thr)
+    else:
+        thr = int(threshold)
+
     # Threshold diff into mask; bbox on the mask.
-    mask = diff.point(lambda p: 255 if p > threshold else 0)
+    mask = diff.point(lambda p: 255 if p > thr else 0)
     bbox = mask.getbbox()
+
+    # If diff-based bbox fails (or is effectively the whole image because bg estimate was wrong),
+    # fall back to near-white cropping.
     if not bbox:
-        return img
+        return _autocrop_white_margins(img, mode="near-white", threshold=250, pad_px=pad_px)
+
+    left, top, right, bottom = bbox
+    if (right - left) >= int(w * 0.98) and (bottom - top) >= int(h * 0.98):
+        return _autocrop_white_margins(img, mode="near-white", threshold=250, pad_px=pad_px)
 
     return img.crop(_expand_bbox(bbox))
 
@@ -382,6 +543,14 @@ def _maybe_autocrop_bytes(
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate studio plant images via Gemini (dev-only).")
     parser.add_argument("--input-dir", default="images", help="Directory containing input photos (default: images)")
+    parser.add_argument(
+        "--input-list",
+        default=None,
+        help=(
+            "Optional path to a text file listing specific input images to process. "
+            "Each line should be a filename or path. Blank lines and lines starting with '#' are ignored."
+        ),
+    )
     parser.add_argument(
         "--output-dir",
         default=str(Path("images") / "studio_full"),
@@ -480,7 +649,28 @@ def main() -> int:
     skipped = 0
     failed = 0
 
-    inputs = list(iter_input_images(input_dir=input_dir, output_dir=output_dir, skip_preview=args.skip_preview))
+    if args.input_list:
+        input_list_path = Path(args.input_list)
+        # Convenience: if --input-list points directly to an image file, treat it as a single input.
+        if _looks_like_image_path(input_list_path):
+            resolved = _resolve_single_input_path(
+                raw_path=str(args.input_list),
+                input_dir=input_dir,
+                output_dir=output_dir,
+                skip_preview=args.skip_preview,
+            )
+            inputs = [resolved] if resolved else []
+        else:
+            inputs = list(
+                iter_input_images_from_list(
+                    list_path=input_list_path,
+                    input_dir=input_dir,
+                    output_dir=output_dir,
+                    skip_preview=args.skip_preview,
+                )
+            )
+    else:
+        inputs = list(iter_input_images(input_dir=input_dir, output_dir=output_dir, skip_preview=args.skip_preview))
     if args.limit and args.limit > 0:
         inputs = inputs[: args.limit]
 

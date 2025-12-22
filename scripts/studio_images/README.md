@@ -24,6 +24,26 @@ Generate studio images into `images/studio_full` (skips ones already present):
 python scripts/studio_images/generate_studio_images.py --input-dir images --output-dir images/studio_full
 ```
 
+Higher quality (still fast model) tips:
+
+- Preserve model output format (often PNG) to avoid extra compression:
+
+```bash
+python scripts/studio_images/generate_studio_images.py --output-format keep
+```
+
+- If using WebP, bump quality (bigger files):
+
+```bash
+python scripts/studio_images/generate_studio_images.py --webp-quality 96
+```
+
+By default, outputs are written as **`.webp`** (smaller + modern for web). You can change this:
+
+```bash
+python scripts/studio_images/generate_studio_images.py --output-format jpg
+```
+
 Dry-run (no API calls, no writes):
 
 ```bash
@@ -41,7 +61,10 @@ python scripts/studio_images/generate_studio_images.py --prompt-file scripts/stu
 By default the script **auto-crops** the generated image by trimming near-white margins, then adds a small padding.
 
 - Disable: `--no-autocrop`
-- Tune aggressiveness: `--crop-threshold 245` (lower keeps more background; higher crops more)
+- Crop algorithm: `--crop-mode bg-diff` (default) or `--crop-mode near-white`
+- Tune aggressiveness:
+  - `--crop-mode bg-diff`: `--crop-threshold 8` (tighter) or `--crop-threshold 16` (looser)
+  - `--crop-mode near-white`: `--crop-threshold 245` (looser) or `--crop-threshold 252` (tighter)
 - Tune padding: `--crop-padding 12`
 
 Example:
@@ -54,5 +77,5 @@ python scripts/studio_images/generate_studio_images.py --overwrite --crop-thresh
 
 - Inputs: `*.jpg`, `*.jpeg`, `*.png` in `images/`.
 - Skips: `*.preview.jpg` (unless you pass `--no-skip-preview`) and anything already generated in `images/studio_full/`.
-- Output file extension follows the model output mime type (typically `.jpg` or `.png`).
+- Output format defaults to `.webp`. Use `--output-format keep` to preserve the model output type.
 
