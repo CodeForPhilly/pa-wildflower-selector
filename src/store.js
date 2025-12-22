@@ -8,6 +8,7 @@ export default ({ favorites }) => {
         sortIsOpen: false,
         monthIsOpen: false,
         selectedIsOpen: false,
+        photoMode: 'habitat', // 'habitat' | 'studio'
         favorites
       }
     },
@@ -23,6 +24,10 @@ export default ({ favorites }) => {
       },
       setMonthIsOpen (state, monthIsOpen) {
         state.monthIsOpen = monthIsOpen;
+      },
+      setPhotoMode (state, photoMode) {
+        // Guard to keep state consistent even if localStorage is corrupted
+        state.photoMode = photoMode === 'studio' ? 'studio' : 'habitat';
       },
       toggleFavorite (state, plantId) {
         if (state.favorites.has(plantId)) {

@@ -33,16 +33,27 @@ if (typeof window !== 'undefined') {
     if (favorites.size > 0) {
       store.commit('setFavorites', favorites);
     }
+
+    // Load photo mode (Habitat/Studio) from localStorage
+    const photoMode = getPhotoModeFromLocalStorage();
+    if (photoMode) {
+      store.commit('setPhotoMode', photoMode);
+    }
     
     // Set up localStorage sync for future changes
     store.subscribe((mutation, state) => {
       if (mutation.type === 'toggleFavorite') {
         localStorage.setItem('favorites', JSON.stringify([...state.favorites]));
       }
+      if (mutation.type === 'setPhotoMode') {
+        localStorage.setItem('photoMode', JSON.stringify(state.photoMode));
+      }
     });
     
     window.addEventListener('storage', () => {
       store.commit('setFavorites', getFavoritesFromLocalStorage());
+      const pm = getPhotoModeFromLocalStorage();
+      if (pm) store.commit('setPhotoMode', pm);
     });
   }, 0);
 }
@@ -54,5 +65,18 @@ function getFavoritesFromLocalStorage() {
   } catch (e) {
     console.error('Error parsing favorites from localStorage:', e);
     return new Set();
+  }
+}
+
+function getPhotoModeFromLocalStorage() {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('photoMode');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed === 'studio' ? 'studio' : 'habitat';
+  } catch (e) {
+    // ignore corrupt storage
+    return null;
   }
 }

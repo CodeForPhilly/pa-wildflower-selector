@@ -277,6 +277,28 @@
             </div>
           </div>
         </div>
+        <div class="photo-mode-row">
+          <div class="photo-mode-toggle" role="group" aria-label="Photos">
+            <button
+              type="button"
+              class="photo-mode-button"
+              :class="{ active: photoMode === 'habitat' }"
+              @click="setPhotoMode('habitat')"
+              :aria-pressed="photoMode === 'habitat'"
+            >
+              Habitat
+            </button>
+            <button
+              type="button"
+              class="photo-mode-button"
+              :class="{ active: photoMode === 'studio' }"
+              @click="setPhotoMode('studio')"
+              :aria-pressed="photoMode === 'studio'"
+            >
+              Studio
+            </button>
+          </div>
+        </div>
         <div v-if="favorites" class="copy-clipboard" aria-live="polite">
           <button 
             class="primary primary-bar copy-button" 
@@ -919,6 +941,9 @@ export default {
     favoritesCount() {
       // Favorites are stored as a Set in Vuex; convert to an array for stable, reactive length tracking.
       return [...this.$store.state.favorites].length;
+    },
+    photoMode() {
+      return this.$store.state.photoMode || "habitat";
     },
     displayFavoritesCount() {
       return this.favoritesCount > 99 ? "99+" : String(this.favoritesCount);
@@ -2297,12 +2322,12 @@ export default {
       return [...chips, ...previewChips];
     },
     selectedImageStyle(selected) {
-      return `background-image: url("${this.imageUrl(selected, false)}")`;
+      return `background-image: url("${this.imageUrl(selected, false)}"); background-size: cover`;
     },
-    imageStyle(image) {
+    imageStyle(image, preview = true) {
       return `background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.4) 60.94%, rgba(0, 0, 0, 0.4) 100%), url("${this.imageUrl(
         image,
-        true
+        preview
       )}"); background-size: cover`;
     },
     async fetchSelectedIfNeeded() {
@@ -2386,15 +2411,14 @@ export default {
       this.initializing = false;
     },
     imageUrl(result, preview) {
-      if (result.hasImage) {
-        if (preview) {
-          return `/images/${result._id}.preview.jpg`;
-        } else {
-          return `/images/${result._id}.jpg`;
-        }
-      } else {
-        return "/assets/images/missing-image.png";
-      }
+      if (!result || !result._id) return "/assets/images/missing-image.png";
+      const id = encodeURIComponent(String(result._id));
+      const mode = encodeURIComponent(this.photoMode);
+      const p = preview ? "1" : "0";
+      return `/api/v1/plant-image/${id}?mode=${mode}&preview=${p}`;
+    },
+    setPhotoMode(mode) {
+      this.$store.commit("setPhotoMode", mode);
     },
     openFilters() {
       this.filtersOpen = true;
@@ -3527,6 +3551,46 @@ button.text {
   display: flex;
   justify-content: space-between;
   margin-bottom: 16px;
+}
+
+.photo-mode-row {
+  max-width: 350px;
+  margin: auto;
+  margin-bottom: 16px;
+}
+
+.photo-mode-toggle {
+  display: flex;
+  width: 100%;
+  border: 1px solid #b74d15;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #fcf9f4;
+}
+
+.photo-mode-button {
+  flex: 1 1 0;
+  border: none;
+  border-radius: 0;
+  padding: 10px 12px;
+  font-size: 16px;
+  font-family: Roboto;
+  background: transparent;
+  color: #b74d15;
+}
+
+.photo-mode-button + .photo-mode-button {
+  border-left: 1px solid #b74d15;
+}
+
+.photo-mode-button.active {
+  background: #b74d15;
+  color: #fcf9f4;
+}
+
+.photo-mode-button:focus-visible {
+  outline: 3px solid rgba(183, 77, 21, 0.35);
+  outline-offset: -3px;
 }
 
 .copy-clipboard {
