@@ -97,7 +97,8 @@
         </button>
         <button
           class="resize-button"
-          @click="removeRowTop"
+          :class="{ 'flash-red': flashRemoveTop }"
+          @click="handleRemoveRowTop"
           title="Remove row from top"
           aria-label="Remove row from top"
         >
@@ -117,7 +118,8 @@
         </button>
         <button
           class="resize-button"
-          @click="removeColumnLeft"
+          :class="{ 'flash-red': flashRemoveLeft }"
+          @click="handleRemoveColumnLeft"
           title="Remove column from left"
           aria-label="Remove column from left"
         >
@@ -137,7 +139,8 @@
         </button>
         <button
           class="resize-button"
-          @click="removeColumnRight"
+          :class="{ 'flash-red': flashRemoveRight }"
+          @click="handleRemoveColumnRight"
           title="Remove column from right"
           aria-label="Remove column from right"
         >
@@ -157,7 +160,8 @@
         </button>
         <button
           class="resize-button"
-          @click="removeRowBottom"
+          :class="{ 'flash-red': flashRemoveBottom }"
+          @click="handleRemoveRowBottom"
           title="Remove row from bottom"
           aria-label="Remove row from bottom"
         >
@@ -196,13 +200,13 @@ interface Props {
   zoom?: number;
   labelMode?: 'off' | 'all';
   addRowTop: () => void;
-  removeRowTop: () => void;
+  removeRowTop: () => boolean;
   addRowBottom: () => void;
-  removeRowBottom: () => void;
+  removeRowBottom: () => boolean;
   addColumnLeft: () => void;
-  removeColumnLeft: () => void;
+  removeColumnLeft: () => boolean;
   addColumnRight: () => void;
-  removeColumnRight: () => void;
+  removeColumnRight: () => boolean;
 }
 
 const props = defineProps<Props>();
@@ -214,6 +218,36 @@ const emit = defineEmits<{
 const gridRef = ref<HTMLElement | null>(null);
 const gridAreaRef = ref<HTMLElement | null>(null);
 const activeDrag = ref<{ type: 'place' | 'move'; plantId: string } | null>(null);
+
+// Flash red when a resize "shrink" is blocked by existing plants
+const flashRemoveTop = ref(false);
+const flashRemoveBottom = ref(false);
+const flashRemoveLeft = ref(false);
+const flashRemoveRight = ref(false);
+
+const flash = (flag: { value: boolean }) => {
+  flag.value = true;
+  window.setTimeout(() => {
+    flag.value = false;
+  }, 300);
+};
+
+const handleRemoveRowTop = () => {
+  const ok = props.removeRowTop();
+  if (!ok) flash(flashRemoveTop);
+};
+const handleRemoveRowBottom = () => {
+  const ok = props.removeRowBottom();
+  if (!ok) flash(flashRemoveBottom);
+};
+const handleRemoveColumnLeft = () => {
+  const ok = props.removeColumnLeft();
+  if (!ok) flash(flashRemoveLeft);
+};
+const handleRemoveColumnRight = () => {
+  const ok = props.removeColumnRight();
+  if (!ok) flash(flashRemoveRight);
+};
 
 // Pan state (spacebar + left click drag)
 const isSpacebarHeld = ref(false);
@@ -612,10 +646,10 @@ const dragPreviewWrapperStyle = computed(() => {
   }
   
   return {
-    position: 'absolute',
+    position: 'absolute' as const,
     left: `${previewX}px`,
     top: `${previewY}px`,
-    pointerEvents: 'none',
+    pointerEvents: 'none' as const,
   };
 });
 
@@ -700,7 +734,9 @@ const gridHighlightStyle = computed(() => {
 @media screen and (max-width: 767px) {
   .grid-scroll {
     border-radius: 0;
-    padding: 8px;
+    /* Add breathing room so resize +/- controls can sit just outside the grid
+       without getting clipped by the scroll container (overflow: hidden). */
+    padding: 44px;
     min-height: 200px;
   }
 }
@@ -943,6 +979,28 @@ button.primary-bar.small.danger {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
+.resize-button.flash-red {
+  animation: flashRed 0.3s ease-in-out;
+}
+
+@keyframes flashRed {
+  0% {
+    background-color: white;
+    border-color: #d1d5db;
+    color: #374151;
+  }
+  50% {
+    background-color: #ffebee;
+    border-color: #d32f2f;
+    color: #d32f2f;
+  }
+  100% {
+    background-color: white;
+    border-color: #d1d5db;
+    color: #374151;
+  }
+}
+
 .resize-button:hover {
   background-color: #f9fafb;
   border-color: #9ca3af;
@@ -960,19 +1018,19 @@ button.primary-bar.small.danger {
 
 @media screen and (max-width: 767px) {
   .resize-controls.top {
-    top: 4px;
+    top: -36px;
   }
 
   .resize-controls.left {
-    left: 4px;
+    left: -36px;
   }
 
   .resize-controls.right {
-    right: 4px;
+    right: -36px;
   }
 
   .resize-controls.bottom {
-    bottom: 4px;
+    bottom: -36px;
   }
 
   .resize-button {

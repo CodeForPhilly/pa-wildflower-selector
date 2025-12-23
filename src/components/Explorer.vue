@@ -8,103 +8,104 @@
       "
       :large-h1="false"
     >
-      <template v-if="!favorites" v-slot:after-bar>
-        <div class="compact-utility-header">
-          <div class="utility-content">
-            <div class="location-section">
-              <button class="location-btn" @click="setLocation()">
-                <span class="material-icons">place</span>
-                <span v-if="zipCode">Change Location [{{ zipCode }}]</span>
-                <span v-else>Set Location</span>
-              </button>
-            </div>
+    </Header>
+    <div class="explorer-column">
+      <div v-if="!favorites" class="compact-utility-header">
+        <div class="utility-content">
+          <div class="location-section">
+            <button class="location-btn" @click="setLocation()">
+              <span class="material-icons">place</span>
+              <span v-if="zipCode">Change Location [{{ zipCode }}]</span>
+              <span v-else>Set Location</span>
+            </button>
           </div>
         </div>
-      </template>
-    </Header>
-    <div class="search-desktop-parent" v-if="!favorites">
-      <div class="search-with-autocomplete">
-        <form class="search-desktop" @submit.prevent="handleSearchSubmit">
-          <span class="material-icons">search</span>
-          <input 
-            v-model="q" 
-            id="q" 
-            placeholder="Search plants or your garden needs"
-            maxlength="200"
-            @keydown.enter.prevent="handleSearchSubmit"
-            @input="handleSearchInput"
-            @focus="showAutocomplete = true"
-            @blur="handleSearchBlur"
-          />
-          <button type="button" class="text" :disabled="q.length == 0" @click.prevent="handleSearchSubmit">
-            <span class="material-icons">chevron_right</span>
-          </button>
-        </form>
-        
-        <!-- Autocomplete Dropdown for Desktop -->
-        <div 
-          v-if="showAutocomplete && autocompleteResults.sections.length > 0 && isDesktop()" 
-          class="autocomplete-dropdown"
-          ref="autocompleteDropdown"
-        >
+      </div>
+      <div class="search-desktop-parent" v-if="!favorites">
+        <div class="search-with-autocomplete">
+          <form class="search-desktop" @submit.prevent="handleSearchSubmit">
+            <span class="material-icons">search</span>
+            <input 
+              v-model="q" 
+              id="q" 
+              placeholder="Search plants or your garden needs"
+              maxlength="200"
+              @keydown.enter.prevent="handleSearchSubmit"
+              @input="handleSearchInput"
+              @focus="showAutocomplete = true"
+              @blur="handleSearchBlur"
+            />
+            <button type="button" class="text" :disabled="q.length == 0" @click.prevent="handleSearchSubmit">
+              <span class="material-icons">chevron_right</span>
+            </button>
+          </form>
+          
+          <!-- Autocomplete Dropdown for Desktop -->
           <div 
-            v-for="section in autocompleteResults.sections" 
-            :key="section.filterName || section.type"
-            class="autocomplete-section"
+            v-if="showAutocomplete && autocompleteResults.sections.length > 0 && isDesktop()" 
+            class="autocomplete-dropdown"
+            ref="autocompleteDropdown"
           >
-            <div class="autocomplete-section-header">
-              <img 
-                v-if="autocompleteSectionHeaderSvg(section)"
-                :src="`/assets/images/${autocompleteSectionHeaderSvg(section)}.svg`"
-                class="section-icon"
-                :alt="section.label"
-              />
-              <span class="section-label">{{ section.label }}</span>
-            </div>
             <div 
-              v-for="item in section.items" 
-              :key="item.value || item.plantId"
-              class="autocomplete-item"
-              @mousedown.prevent="handleAutocompleteSelect(item)"
+              v-for="section in autocompleteResults.sections" 
+              :key="section.filterName || section.type"
+              class="autocomplete-section"
             >
-              <!-- For filter items -->
-              <template v-if="item.action === 'applyFilter'">
+              <div class="autocomplete-section-header">
                 <img 
-                  v-if="item.svg"
-                  :src="`/assets/images/${item.svg}.svg`"
-                  class="autocomplete-item-icon"
-                  :alt="item.value"
+                  v-if="autocompleteSectionHeaderSvg(section)"
+                  :src="`/assets/images/${autocompleteSectionHeaderSvg(section)}.svg`"
+                  class="section-icon"
+                  :alt="section.label"
                 />
-                <span class="autocomplete-item-text">{{ item.displayText }}</span>
-              </template>
-              
-              <!-- For plant items -->
-              <template v-else-if="item.action === 'navigateToPlant'">
-                <span class="autocomplete-item-text">
-                  <template v-if="item.commonName && item.scientificName">
-                    <template v-if="highlightMatch(item.commonName, q).match">
-                      <span>{{ highlightMatch(item.commonName, q).before }}</span><strong>{{ highlightMatch(item.commonName, q).match }}</strong><span>{{ highlightMatch(item.commonName, q).after }}</span>
-                    </template>
-                    <span v-else>{{ item.commonName }}</span>
-                    <span class="autocomplete-item-subtitle">(
-                      <template v-if="highlightMatch(item.scientificName, q).match">
-                        <span>{{ highlightMatch(item.scientificName, q).before }}</span><strong>{{ highlightMatch(item.scientificName, q).match }}</strong><span>{{ highlightMatch(item.scientificName, q).after }}</span>
+                <span class="section-label">{{ section.label }}</span>
+              </div>
+              <div 
+                v-for="item in section.items" 
+                :key="item.value || item.plantId"
+                class="autocomplete-item"
+                @mousedown.prevent="handleAutocompleteSelect(item)"
+              >
+                <!-- For filter items -->
+                <template v-if="item.action === 'applyFilter'">
+                  <img 
+                    v-if="item.svg"
+                    :src="`/assets/images/${item.svg}.svg`"
+                    class="autocomplete-item-icon"
+                    :alt="item.value"
+                  />
+                  <span class="autocomplete-item-text">{{ item.displayText }}</span>
+                </template>
+                
+                <!-- For plant items -->
+                <template v-else-if="item.action === 'navigateToPlant'">
+                  <span class="autocomplete-item-text">
+                    <template v-if="item.commonName && item.scientificName">
+                      <template v-if="highlightMatch(item.commonName, q).match">
+                        <span>{{ highlightMatch(item.commonName, q).before }}</span><strong>{{ highlightMatch(item.commonName, q).match }}</strong><span>{{ highlightMatch(item.commonName, q).after }}</span>
                       </template>
-                      <span v-else>{{ item.scientificName }}</span>
-                    )</span>
-                  </template>
-                  <template v-else>
-                    <strong>{{ item.displayText }}</strong>
-                    <span v-if="item.subtitle" class="autocomplete-item-subtitle">({{ item.subtitle }})</span>
-                  </template>
-                </span>
-              </template>
+                      <span v-else>{{ item.commonName }}</span>
+                      <span class="autocomplete-item-subtitle">(
+                        <template v-if="highlightMatch(item.scientificName, q).match">
+                          <span>{{ highlightMatch(item.scientificName, q).before }}</span><strong>{{ highlightMatch(item.scientificName, q).match }}</strong><span>{{ highlightMatch(item.scientificName, q).after }}</span>
+                        </template>
+                        <span v-else>{{ item.scientificName }}</span>
+                      )</span>
+                    </template>
+                    <template v-else>
+                      <strong>{{ item.displayText }}</strong>
+                      <span v-if="item.subtitle" class="autocomplete-item-subtitle">({{ item.subtitle }})</span>
+                    </template>
+                  </span>
+                </template>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-    <h1 class="large favorites" v-if="favorites">Favorites List</h1>
+    <h1 class="large favorites" v-if="favorites">
+      Favorites <span class="favorites-title-count" v-if="favoritesCount">({{ favoritesCount }})</span>
+    </h1>
     <article v-if="selected" class="selected">
       <div class="modal-bar">
         <span class="title">More Info</span>
@@ -230,99 +231,236 @@
     </article>
     <main :class="mainClasses" ref="mainContent">
         <div class="controls">
-          <div class="filter-toggle-and-sort">
-            <button
-              v-if="!favorites"
-              class="primary primary-bar filter"
-              @click="openFilters"
-            >
-              Filter
-            </button>
-            <div class="sort-and-favorites">
-              <button
-                class="favorites"
-                :disabled="!favoritesAvailable"
-                v-if="!favorites"
-                @click="favoritesAvailable && $router.push('/favorites')"
-                :aria-label="
-                  favoritesCount > 0
-                    ? 'Favorites (' + displayFavoritesCount + ')'
-                    : 'Favorites'
-                "
-              >
-                <span class="material-icons material-align">favorite</span
-                ><span class="favorites-label">&nbsp;Favorites</span>
-                <span
-                  v-if="favoritesCount > 0"
-                  class="favorites-count-badge"
-                  aria-hidden="true"
+          <!-- Favorites toolbar: preferences + actions -->
+          <div v-if="favorites" class="favorites-toolbar">
+            <div class="favorites-toolbar-row">
+              <div class="favorites-sort">
+                <div class="sort">
+                  <button @click.stop="toggleSort" :class="sortButtonClasses">
+                    <span class="label">Sort By</span>
+                    <span class="value">{{ sortLabel(sort) }}</span>
+                    <span class="material-icons">{{
+                      sortIsOpen ? "arrow_drop_up" : "arrow_drop_down"
+                    }}</span>
+                  </button>
+                  <Menu
+                    :open="sortIsOpen"
+                    :choices="sorts"
+                    v-model="sort"
+                    @close="toggleSort"
+                  />
+                </div>
+              </div>
+
+              <div class="favorites-photo-mode">
+                <div class="photo-mode-toggle" role="group" aria-label="Photos">
+                  <button
+                    type="button"
+                    class="photo-mode-button"
+                    :class="{ active: photoMode === 'habitat' }"
+                    @click="setPhotoMode('habitat')"
+                    :aria-pressed="photoMode === 'habitat'"
+                  >
+                    Habitat
+                  </button>
+                  <button
+                    type="button"
+                    class="photo-mode-button"
+                    :class="{ active: photoMode === 'studio' }"
+                    @click="setPhotoMode('studio')"
+                    :aria-pressed="photoMode === 'studio'"
+                  >
+                    Studio
+                  </button>
+                </div>
+              </div>
+
+              <!-- Quick Add (Favorites only): plant autocomplete that adds favorites on select -->
+              <div class="favorites-quick-add">
+                <div class="favorites-quick-add-input">
+                  <span class="material-icons">search</span>
+                  <input
+                    v-model="quickAddQ"
+                    type="text"
+                    class="favorites-quick-add-text"
+                    placeholder="Quick add a plant (e.g., Bloodroot)"
+                    maxlength="200"
+                    @input="handleQuickAddInput"
+                    @focus="quickAddOpen = true"
+                    @blur="handleQuickAddBlur"
+                    @keydown.enter.prevent="handleQuickAddEnter"
+                  />
+                </div>
+                <div
+                  v-if="quickAddOpen && quickAddPlants.length"
+                  class="favorites-quick-add-dropdown"
+                  ref="quickAddDropdown"
                 >
-                  {{ displayFavoritesCount }}
-                </span>
-              </button>
-              <div class="sort">
-                <button @click.stop="toggleSort" :class="sortButtonClasses">
-                  <span class="label">Sort By</span>
-                  <span class="value">{{ sortLabel(sort) }}</span>
-                  <span class="material-icons">{{
-                    sortIsOpen ? "arrow_drop_up" : "arrow_drop_down"
-                  }}</span>
-                </button>
-                <Menu
-                  :open="sortIsOpen"
-                  :choices="sorts"
-                  v-model="sort"
-                  @close="toggleSort"
-                />
+                  <button
+                    v-for="p in quickAddPlants"
+                    :key="p.plantId"
+                    type="button"
+                    class="favorites-quick-add-item"
+                    @mousedown.prevent="selectQuickAddPlant(p)"
+                  >
+                    <div class="favorites-quick-add-item-title">{{ p.commonName || p.displayText }}</div>
+                    <div v-if="p.scientificName || p.subtitle" class="favorites-quick-add-item-subtitle">
+                      {{ p.scientificName || p.subtitle }}
+                    </div>
+                    <div class="favorites-quick-add-item-cta" aria-hidden="true">Add</div>
+                  </button>
+                </div>
+              </div>
+
+              <div class="favorites-actions" aria-label="Actions">
+                <div class="favorites-actions-buttons" aria-live="polite">
+                  <button
+                    type="button"
+                    v-if="favoritesAvailable"
+                    class="secondary action-button copy-button"
+                    :class="{ copied: isCopied }"
+                    @click="copyFavorites"
+                    :disabled="!results.length || isCopied"
+                  >
+                    <span v-if="isCopied">✓ Copied!</span>
+                    <span v-else>Copy</span>
+                  </button>
+                  <button
+                    v-if="favoritesAvailable"
+                    type="button"
+                    class="primary action-button bulk-add-button"
+                    @click="openBulkAdd"
+                  >
+                    Bulk Add
+                  </button>
+                  <button
+                    type="button"
+                    v-if="favoritesAvailable"
+                    class="secondary action-button clear-favorites-button"
+                    @click="clearAllFavorites"
+                    title="Clear"
+                  >
+                    <Trash2 :size="16" class="clear-icon" />
+                    Clear
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="photo-mode-row">
-          <div class="photo-mode-toggle" role="group" aria-label="Photos">
-            <button
-              type="button"
-              class="photo-mode-button"
-              :class="{ active: photoMode === 'habitat' }"
-              @click="setPhotoMode('habitat')"
-              :aria-pressed="photoMode === 'habitat'"
-            >
-              Habitat
-            </button>
-            <button
-              type="button"
-              class="photo-mode-button"
-              :class="{ active: photoMode === 'studio' }"
-              @click="setPhotoMode('studio')"
-              :aria-pressed="photoMode === 'studio'"
-            >
-              Studio
-            </button>
+
+          <!-- Default (browse) toolbar -->
+          <div v-else>
+            <div class="browse-toolbar" aria-label="Browse controls">
+              <!-- Row 1: primary actions -->
+              <div class="browse-toolbar-row browse-toolbar-row--actions">
+                <button
+                  type="button"
+                  class="browse-location-button"
+                  @click="setLocation()"
+                  :aria-label="zipCode ? `Change location (ZIP ${zipCode})` : 'Set location'"
+                  title="Change location"
+                >
+                  <span class="material-icons" aria-hidden="true">place</span>
+                </button>
+
+                <button type="button" class="primary browse-filter-button" @click="openFilters">
+                  <span class="material-icons" aria-hidden="true">tune</span>
+                  <span class="browse-filter-label">Filter</span>
+                </button>
+
+                <div class="sort browse-sort">
+                  <button @click.stop="toggleSort" :class="['browse-sort-button', sortButtonClasses]">
+                    <span class="label">Sort</span>
+                    <span class="value">{{ sortLabel(sort) }}</span>
+                    <span class="material-icons">{{
+                      sortIsOpen ? "arrow_drop_up" : "arrow_drop_down"
+                    }}</span>
+                  </button>
+                  <Menu
+                    :open="sortIsOpen"
+                    :choices="sorts"
+                    v-model="sort"
+                    @close="toggleSort"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  class="favorites browse-favorites"
+                  :disabled="!favoritesAvailable"
+                  @click="favoritesAvailable && $router.push('/favorites')"
+                  :aria-label="
+                    favoritesCount > 0
+                      ? 'Favorites (' + displayFavoritesCount + ')'
+                      : 'Favorites'
+                  "
+                >
+                  <span class="material-icons material-align" aria-hidden="true">favorite</span>
+                  <span class="favorites-label">&nbsp;Favorites</span>
+                  <span
+                    v-if="favoritesCount > 0"
+                    class="favorites-count-badge"
+                    aria-hidden="true"
+                  >
+                    {{ displayFavoritesCount }}
+                  </span>
+                </button>
+              </div>
+
+              <!-- Row 2: secondary mode -->
+              <div class="browse-toolbar-row browse-toolbar-row--mode">
+                <div class="photo-mode-toggle" role="group" aria-label="Photos">
+                  <button
+                    type="button"
+                    class="photo-mode-button"
+                    :class="{ active: photoMode === 'habitat' }"
+                    @click="setPhotoMode('habitat')"
+                    :aria-pressed="photoMode === 'habitat'"
+                  >
+                    Habitat
+                  </button>
+                  <button
+                    type="button"
+                    class="photo-mode-button"
+                    :class="{ active: photoMode === 'studio' }"
+                    @click="setPhotoMode('studio')"
+                    :aria-pressed="photoMode === 'studio'"
+                  >
+                    Studio
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div v-if="favorites" class="copy-clipboard" aria-live="polite">
-          <button 
-            class="primary primary-bar copy-button" 
-            :class="{ 'copied': isCopied }" 
-            @click="copyFavorites"
-            :disabled="isCopied"
+          <div
+            v-if="filtersOpen && !isDesktop()"
+            class="filters-backdrop"
+            @click="closeFilters"
+            aria-hidden="true"
+          ></div>
+          <form
+            v-if="!favorites"
+            class="filters"
+            id="form"
+            @submit.prevent="handleSearchSubmit"
           >
-            <span v-if="isCopied">✓ Copied!</span>
-            <span v-else>Copy to Clipboard</span>
-          </button>
-          <button
-            class="primary primary-bar planner-button"
-            :disabled="!favoritesAvailable"
-            @click="favoritesAvailable && $router.push('/planner')"
-          >
-            Garden Planner
-          </button>
-        </div>
-        <form
-          v-if="!favorites"
-          class="filters"
-          id="form"
-          @submit.prevent="handleSearchSubmit"
-          >
+            <div
+              v-if="filtersOpen && !isDesktop()"
+              class="filters-drawer-header"
+            >
+              <div class="filters-drawer-header-left">
+                <div class="filters-drawer-title">Filter</div>
+                <div class="filters-drawer-subtitle">Apply to update results</div>
+              </div>
+              <button
+                type="button"
+                class="filters-drawer-close"
+                @click="closeFilters"
+                aria-label="Close filters"
+              >
+                <span class="material-icons" aria-hidden="true">close</span>
+              </button>
+            </div>
             <div class="inner-controls">
               <div class="search-mobile-wrapper">
                 <div class="search-mobile-box">
@@ -469,6 +607,22 @@
                 </template>
               </template>
             </fieldset>
+            <div
+              v-if="filtersOpen && !isDesktop()"
+              class="filters-drawer-footer"
+              aria-label="Filter actions"
+            >
+              <button type="button" class="secondary filters-drawer-clear" @click="clearAll">
+                Clear
+              </button>
+              <button
+                type="button"
+                class="primary filters-drawer-apply"
+                @click="applyDrawerFilters"
+              >
+                Apply
+              </button>
+            </div>
           </form>
         </div>
         <div class="chips-and-plants">
@@ -490,11 +644,23 @@
             </button>
             <button class="text clear" @click="clearAll">Clear all</button>
           </div>
-          <article class="plants">
+          <template v-if="favorites && !favoritesCount && !loading">
+            <section class="favorites-empty" aria-live="polite">
+              <h2>No favorites yet</h2>
+              <p>Paste common or scientific names to add many at once.</p>
+              <div class="favorites-empty-actions">
+                <button type="button" class="primary" @click="$router.push('/')">Browse plants</button>
+                <button type="button" class="secondary" @click="openBulkAdd">Bulk Add</button>
+                <button type="button" class="secondary" @click="addStaffPicks">Staff Picks</button>
+              </div>
+            </section>
+          </template>
+          <article v-else class="plants">
             <article
               v-for="result in results"
               :key="result._id"
               class="plant-preview-wrapper"
+              :class="{ 'plant-preview-wrapper--added': recentlyAddedIds.includes(result._id) }"
               role="link"
               tabindex="0"
               :aria-label="`View details for ${result['Common Name']}`"
@@ -515,36 +681,7 @@
                     View details
                   </div>
 
-                  <div v-if="photoMode !== 'studio'" class="name-scrim">
-                    <div class="name-text">
-                      <h4 class="common-name">{{ result["Common Name"] }}</h4>
-                      <h5 class="scientific-name">
-                        {{ result["Scientific Name"] }}
-                      </h5>
-                    </div>
-                    <button
-                      @click.stop.prevent="toggleFavorite(result._id)"
-                      class="tile-favorite text"
-                      :aria-label="
-                        $store.state.favorites.has(result._id)
-                          ? `Remove ${result['Common Name']} from favorites`
-                          : `Add ${result['Common Name']} to favorites`
-                      "
-                    >
-                      <span class="material-icons material-align">{{
-                        renderFavorite(result._id)
-                      }}</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div v-if="photoMode === 'studio'" class="caption">
-                  <div class="caption-text">
-                    <h4 class="common-name">{{ result["Common Name"] }}</h4>
-                    <h5 class="scientific-name">
-                      {{ result["Scientific Name"] }}
-                    </h5>
-                  </div>
+                  <!-- Favorite button: always top-right so it never overlaps the plant name text -->
                   <button
                     @click.stop.prevent="toggleFavorite(result._id)"
                     class="tile-favorite text"
@@ -558,6 +695,24 @@
                       renderFavorite(result._id)
                     }}</span>
                   </button>
+
+                  <div v-if="photoMode !== 'studio'" class="name-scrim">
+                    <div class="name-text">
+                      <h4 class="common-name">{{ result["Common Name"] }}</h4>
+                      <h5 class="scientific-name">
+                        {{ result["Scientific Name"] }}
+                      </h5>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="photoMode === 'studio'" class="caption">
+                  <div class="caption-text">
+                    <h4 class="common-name">{{ result["Common Name"] }}</h4>
+                    <h5 class="scientific-name">
+                      {{ result["Scientific Name"] }}
+                    </h5>
+                  </div>
                 </div>
               </div>
             </article>
@@ -574,6 +729,18 @@
           </article>
         </div>
     </main>
+    <BulkAddFavoritesModal
+      :open="bulkAddOpen"
+      v-model="bulkAddText"
+      :loading="bulkAddLoading"
+      :result="bulkAddResult"
+      @close="closeBulkAdd"
+      @submit="submitBulkAdd"
+    />
+    <div v-if="toastMessage" class="toast" role="status" aria-live="polite">
+      {{ toastMessage }}
+    </div>
+    </div>
   </div>
 </template>
 
@@ -583,6 +750,8 @@ import Range from "./Range.vue";
 import Checkbox from "./Checkbox.vue";
 import Header from "./Header.vue";
 import Menu from "./Menu.vue";
+import BulkAddFavoritesModal from "./BulkAddFavoritesModal.vue";
+import { Trash2 } from "lucide-vue-next";
 
 const twoUpImageCredits = [
   // Order is synced with the public/assets/images/two-up folder filenames,
@@ -624,6 +793,8 @@ export default {
     Checkbox,
     Header,
     Menu,
+    BulkAddFavoritesModal,
+    Trash2,
   },
   props: {
     favorites: {
@@ -849,6 +1020,17 @@ export default {
       monthIsOpen: false,
       twoUpIndex,
       isCopied: false,
+      bulkAddOpen: false,
+      bulkAddText: "",
+      bulkAddLoading: false,
+      bulkAddResult: null,
+      toastMessage: "",
+      toastTimeout: null,
+      recentlyAddedIds: [],
+      quickAddQ: "",
+      quickAddOpen: false,
+      quickAddResults: [],
+      quickAddTimeout: null,
       showAutocomplete: false,
       autocompleteResults: { query: "", sections: [] },
       autocompleteTimeout: null,
@@ -997,6 +1179,9 @@ export default {
       }
       return this.parseNaturalLanguageFromQuery(this.q);
     },
+    quickAddPlants() {
+      return Array.isArray(this.quickAddResults) ? this.quickAddResults : [];
+    },
   },
   watch: {
     selectedName() {
@@ -1012,6 +1197,28 @@ export default {
           this.setupInfiniteScroll();
         }
       });
+    },
+    filtersOpen(newVal) {
+      if (typeof window === "undefined" || typeof document === "undefined") return;
+      // Only treat it as a drawer on non-desktop layouts
+      if (!this.isDesktop() && newVal) {
+        this._prevBodyOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        window.addEventListener("keydown", this.onFiltersKeydown, true);
+        this.$nextTick(() => {
+          const closeButton = this.$el?.querySelector?.(".filters-drawer-close");
+          if (closeButton && typeof closeButton.focus === "function") {
+            closeButton.focus();
+          }
+        });
+      } else {
+        window.removeEventListener("keydown", this.onFiltersKeydown, true);
+        if (this._prevBodyOverflow !== undefined) {
+          document.body.style.overflow = this._prevBodyOverflow;
+        } else {
+          document.body.style.overflow = "";
+        }
+      }
     },
     sortIsOpen() {
       this.$store.commit("setSortIsOpen", this.sortIsOpen);
@@ -1075,6 +1282,10 @@ export default {
         if (this.suppressFilterWatcher) {
           return;
         }
+        // Mobile/tablet drawer: let users make multiple selections, then apply explicitly.
+        if (!this.isDesktop() && this.filtersOpen) {
+          return;
+        }
         // Cancel any ongoing operations to ensure fresh submit with correct sort
         this.checkingLoadMore = false;
         // Wait for Vue to fully update the reactive state before submitting
@@ -1090,6 +1301,13 @@ export default {
       },
       deep: true,
     },
+  },
+  beforeDestroy() {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+    window.removeEventListener("keydown", this.onFiltersKeydown, true);
+    if (this._prevBodyOverflow !== undefined) {
+      document.body.style.overflow = this._prevBodyOverflow;
+    }
   },
   // Server only
   async serverPrefetch() {
@@ -2467,6 +2685,31 @@ export default {
     openFilters() {
       this.filtersOpen = true;
     },
+    closeFilters() {
+      this.filtersOpen = false;
+    },
+    applyDrawerFilters() {
+      // Match desktop behavior: if user typed trigger words / search text, confirm it on Apply.
+      const queryText = (this.q || "").trim();
+      if (queryText) {
+        this.handleSearchSubmit();
+        return;
+      }
+      // Otherwise, apply current filterValues without changing activeSearch semantics.
+      this.showAutocomplete = false;
+      this.submit();
+      if (!this.isDesktop()) {
+        this.filtersOpen = false;
+      }
+    },
+    onFiltersKeydown(event) {
+      if (!this.filtersOpen) return;
+      if (this.isDesktop()) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        this.closeFilters();
+      }
+    },
     handleSearchSubmit() {
       // Only submit search when explicitly triggered (Enter or button click)
       const queryText = this.q.trim();
@@ -2552,6 +2795,9 @@ export default {
       this.showAutocomplete = false;
       
       this.submit();
+      if (!this.isDesktop()) {
+        this.filtersOpen = false;
+      }
     },
     async handleSearchInput() {
       // Debounce autocomplete requests
@@ -2694,9 +2940,7 @@ export default {
 
         // Fetch new data and replace results when it arrives
         this.fetchPage(true);
-        
-        // Close filters drawer
-        this.filtersOpen = false;
+
         this.submitTimeout = null;
         
         // Allow any queued DOM updates to complete
@@ -3364,6 +3608,216 @@ export default {
       // Must match CSS media query below
       return window.innerWidth >= 1280;
     },
+    openBulkAdd() {
+      this.bulkAddOpen = true;
+      this.bulkAddResult = null;
+    },
+    closeBulkAdd() {
+      this.bulkAddOpen = false;
+    },
+    showToast(message) {
+      this.toastMessage = message;
+      if (this.toastTimeout) {
+        clearTimeout(this.toastTimeout);
+        this.toastTimeout = null;
+      }
+      this.toastTimeout = setTimeout(() => {
+        this.toastMessage = "";
+        this.toastTimeout = null;
+      }, 2500);
+    },
+    handleQuickAddInput() {
+      if (this.quickAddTimeout) {
+        clearTimeout(this.quickAddTimeout);
+        this.quickAddTimeout = null;
+      }
+      const q = String(this.quickAddQ || "").trim();
+      if (q.length < 2) {
+        this.quickAddResults = [];
+        return;
+      }
+      this.quickAddTimeout = setTimeout(async () => {
+        try {
+          const response = await fetch(`/api/v1/autocomplete?q=${encodeURIComponent(q)}`);
+          const data = await response.json();
+          const sections = Array.isArray(data?.sections) ? data.sections : [];
+          const plantSection = sections.find((s) => s && s.type === "plant");
+          const items = Array.isArray(plantSection?.items) ? plantSection.items : [];
+          // Plant-only results
+          this.quickAddResults = items
+            .filter((i) => i && (i.plantId || i._id))
+            .map((i) => ({
+              plantId: i.plantId || i._id,
+              commonName: i.commonName || i["Common Name"] || i.displayText,
+              scientificName: i.scientificName || i["Scientific Name"] || i.subtitle,
+              displayText: i.displayText,
+              subtitle: i.subtitle,
+            }))
+            .slice(0, 10);
+        } catch (e) {
+          console.error("Quick add autocomplete error:", e);
+          this.quickAddResults = [];
+        }
+      }, 180);
+    },
+    handleQuickAddBlur() {
+      // Allow click selection via @mousedown; delay close to avoid losing selection
+      setTimeout(() => {
+        this.quickAddOpen = false;
+      }, 120);
+    },
+    async selectQuickAddPlant(p) {
+      const id = p?.plantId;
+      if (!id) return;
+      if (!this.$store.state.favorites.has(id)) {
+        this.$store.commit("addFavorites", [id]);
+        this.recentlyAddedIds = [id];
+        setTimeout(() => {
+          this.recentlyAddedIds = [];
+        }, 1800);
+      }
+      this.quickAddQ = "";
+      this.quickAddResults = [];
+      this.quickAddOpen = false;
+
+      if (this.favorites) {
+        await this.fetchPage(true);
+      }
+    },
+    async handleQuickAddEnter() {
+      // If there's a top suggestion, add it.
+      if (this.quickAddPlants.length) {
+        await this.selectQuickAddPlant(this.quickAddPlants[0]);
+      }
+    },
+    async clearAllFavorites() {
+      if (!this.favoritesAvailable) return;
+      this.$store.commit("clearFavorites");
+      this.results = [];
+      this.loadedAll = true;
+      this.total = 0;
+      this.showToast("Cleared favorites");
+
+      if (this.favorites) {
+        await this.fetchPage(true);
+      }
+    },
+    async addStaffPicks() {
+      // Curated starter set for empty favorites state
+      const staffPicksText = `
+Asclepias tuberosa
+Symphyotrichum novae-angliae
+Diospyros virginiana
+Amelanchier laevis
+Corylus americana
+Vaccinium corymbosum
+Asimina triloba
+Aronia melanocarpa
+Pycnanthemum muticum
+      `.trim();
+
+      try {
+        const response = await fetch("/api/v1/plants/resolve-names", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: staffPicksText }),
+        });
+        const contentType = (response.headers.get("content-type") || "").toLowerCase();
+        const rawBody = await response.text();
+        const data = contentType.includes("application/json") ? JSON.parse(rawBody || "{}") : null;
+        if (!response.ok) {
+          throw new Error((data && data.error) || rawBody || "Failed to add Staff Picks");
+        }
+        const matchedIds = Array.isArray(data?.matchedIds) ? data.matchedIds : [];
+        const toAdd = matchedIds.filter((id) => !this.$store.state.favorites.has(id));
+        if (toAdd.length) {
+          this.$store.commit("addFavorites", toAdd);
+          this.recentlyAddedIds = toAdd;
+          setTimeout(() => {
+            this.recentlyAddedIds = [];
+          }, 1800);
+        }
+        if (this.favorites) {
+          await this.fetchPage(true);
+        }
+        this.showToast(`Added ${toAdd.length} Staff Pick(s)`);
+      } catch (e) {
+        console.error("Staff Picks error:", e);
+        this.showToast(e?.message || "Failed to add Staff Picks");
+      }
+    },
+    async submitBulkAdd(text) {
+      if (this.bulkAddLoading) return;
+      const payload = typeof text === "string" ? text : "";
+      if (!payload.trim()) return;
+
+      this.bulkAddLoading = true;
+      this.bulkAddResult = null;
+      try {
+        const response = await fetch("/api/v1/plants/resolve-names", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: payload }),
+        });
+        const contentType = (response.headers.get("content-type") || "").toLowerCase();
+        const rawBody = await response.text();
+        const data = contentType.includes("application/json") ? JSON.parse(rawBody || "{}") : null;
+        if (!response.ok) {
+          throw new Error((data && data.error) || rawBody || "Bulk add failed");
+        }
+        if (!data) {
+          throw new Error("Bulk add failed: server returned a non-JSON response");
+        }
+
+        const matchedIds = Array.isArray(data?.matchedIds) ? data.matchedIds : [];
+        const notFound = Array.isArray(data?.notFound) ? data.notFound : [];
+
+        const already = [];
+        const toAdd = [];
+        for (const id of matchedIds) {
+          if (this.$store.state.favorites.has(id)) {
+            already.push(id);
+          } else {
+            toAdd.push(id);
+          }
+        }
+
+        if (toAdd.length) {
+          this.$store.commit("addFavorites", toAdd);
+        }
+
+        this.recentlyAddedIds = toAdd;
+        if (this.recentlyAddedIds.length) {
+          setTimeout(() => {
+            this.recentlyAddedIds = [];
+          }, 1800);
+        }
+
+        // Refresh results if we are on the favorites page.
+        if (this.favorites) {
+          await this.fetchPage(true);
+        }
+
+        // One concise toast so users feel the click "did something"
+        let toast = "";
+        if (toAdd.length) toast = `Added ${toAdd.length} favorite(s)`;
+        else if (already.length) toast = "All matches were already in favorites";
+        else toast = "No matches found";
+        if (notFound.length) toast += ` • ${notFound.length} not found`;
+        this.showToast(toast);
+
+        this.bulkAddResult = {
+          addedCount: toAdd.length,
+          alreadyCount: already.length,
+          notFound,
+        };
+      } catch (e) {
+        console.error("Bulk add error:", e);
+        this.showToast(e?.message || "Bulk add failed");
+      } finally {
+        this.bulkAddLoading = false;
+      }
+    },
     toggleFavorite(_id) {
       this.$store.commit("toggleFavorite", _id);
       if (this.favorites) {
@@ -3524,6 +3978,10 @@ function getDefaultFilterValues(filters) {
   padding: 32px;
 }
 
+.explorer-column {
+  width: 100%;
+}
+
 main {
   padding: 0 32px;
 }
@@ -3589,18 +4047,283 @@ button.text {
   margin-bottom: 11px;
 }
 
+.browse-toolbar {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 8px 0 12px;
+}
+
+.browse-toolbar-row--actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(170px, 1.2fr) auto;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.browse-toolbar-row--mode {
+  width: 100%;
+}
+
+.browse-filter-button {
+  width: 100%;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.browse-filter-button .material-icons {
+  font-size: 18px;
+}
+
+.browse-sort {
+  min-width: 0;
+}
+
+.browse-sort-button {
+  width: 100%;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+/* Override legacy list-button styling for this toolbar context */
+.browse-sort-button.list-button {
+  position: relative;
+}
+.browse-sort-button.list-button .label {
+  position: static;
+  background: transparent;
+  padding: 0;
+  font-size: 13px;
+  color: inherit;
+}
+
+/* Favorites: icon-first in toolbar */
+.browse-toolbar .browse-favorites {
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  margin: 0;
+  border-radius: 10px;
+  flex: 0 0 auto;
+}
+
+.browse-toolbar .browse-favorites .favorites-label {
+  display: none;
+}
+
+/* If Favorites is icon-only, don't show the count badge (too crowded). */
+.browse-toolbar .browse-favorites .favorites-count-badge {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .browse-toolbar .browse-favorites .favorites-label {
+    display: inline;
+  }
+  .browse-toolbar .browse-favorites .favorites-count-badge {
+    display: grid;
+  }
+}
+
+.browse-toolbar .browse-favorites .favorites-count-badge {
+  right: 8px;
+  top: 8px;
+}
+
+@media (max-width: 600px) {
+  /* Reduce chrome at phone widths: keep focus on Filter + Sort */
+  .browse-toolbar-row--actions {
+    grid-template-columns: auto minmax(160px, 1fr) auto;
+  }
+  .browse-location-button {
+    display: none;
+  }
+  .browse-sort-button.list-button .label {
+    display: none;
+  }
+  /* When Favorites is icon-only, hide the count badge (too crowded) */
+  .browse-toolbar .browse-favorites .favorites-count-badge {
+    display: none;
+  }
+}
+
+/* Tablet-ish: one-row toolbar (location + filter + sort + favorites + photo mode) */
+@media (min-width: 600px) and (max-width: 1279px) {
+  .compact-utility-header {
+    display: none;
+  }
+
+  /* Flatten the internal rows so we can place controls on a single grid row */
+  .browse-toolbar-row--actions,
+  .browse-toolbar-row--mode {
+    display: contents;
+  }
+
+  .browse-toolbar {
+    display: grid;
+    /* Keep Sort compact and reserve enough space for the photo mode toggle */
+    grid-template-columns: 44px auto minmax(120px, 200px) 44px minmax(180px, 1fr);
+    grid-template-areas: "loc filter sort fav mode";
+    column-gap: 6px;
+    row-gap: 0;
+    align-items: center;
+    margin: 10px 0 12px;
+  }
+
+  .browse-location-button {
+    grid-area: loc;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .browse-filter-button {
+    grid-area: filter;
+    width: auto;
+    padding: 10px 12px;
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .browse-sort {
+    grid-area: sort;
+  }
+  .browse-sort-button {
+    padding: 10px 10px;
+  }
+  /* Make Sort pill no wider than needed and prevent the value from wrapping */
+  .browse-sort-button .label {
+    display: none;
+  }
+  .browse-sort-button .value {
+    display: inline-block;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .browse-favorites {
+    grid-area: fav;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+  /* Keep Favorites icon-only across tablet widths for a clean one-line toolbar */
+  .browse-toolbar .browse-favorites .favorites-label,
+  .browse-toolbar .browse-favorites .favorites-count-badge {
+    display: none !important;
+  }
+
+  .browse-toolbar-row--mode .photo-mode-toggle {
+    grid-area: mode;
+    width: 100%;
+    margin: 0;
+    max-width: none;
+    min-width: 180px;
+  }
+  .browse-toolbar-row--mode .photo-mode-button {
+    padding: 8px 8px;
+    font-size: 13px;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Narrow tablet: prioritize keeping the photo-mode toggle fully visible */
+@media (min-width: 600px) and (max-width: 720px) {
+  .browse-toolbar {
+    grid-template-columns: 44px 44px minmax(0, 1fr) 44px minmax(200px, 240px);
+    column-gap: 6px;
+  }
+  /* Filter becomes icon-only here to save width */
+  .browse-filter-button {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+  .browse-filter-label {
+    display: none;
+  }
+  /* Let sort shrink aggressively (ellipsis already applied) */
+  .browse-sort-button {
+    padding: 10px 8px;
+  }
+  .browse-toolbar-row--mode .photo-mode-button {
+    padding: 7px 6px;
+    font-size: 12px;
+  }
+}
+
 .sort-and-favorites {
   max-width: 350px;
   margin: auto;
   display: flex;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .photo-mode-row {
   max-width: 350px;
   margin: auto;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+}
+
+/* Mobile/tablet spacing: keep sort + photo toggle closer together */
+@media all and (max-width: 1279px) {
+  .explorer-column {
+    /* Shared alignment column for location + toolbar + chips + results */
+    --results-max-width: 1120px;
+    max-width: min(100%, var(--results-max-width));
+    margin-inline: auto;
+    padding-inline: 16px;
+  }
+  main {
+    /* Let the shared column manage horizontal padding at these sizes */
+    padding: 0;
+  }
+  .primary-bar,
+  .sort-and-favorites,
+  .photo-mode-row,
+  .copy-clipboard,
+  .filters {
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+  }
+  .primary-bar {
+    width: 100%;
+  }
+  .sort-and-favorites {
+    width: 100%;
+  }
+  .photo-mode-row {
+    width: 100%;
+  }
+  .sort-and-favorites {
+    margin-bottom: 8px;
+  }
+  .photo-mode-row {
+    margin-bottom: 10px;
+  }
+  .favorites-prefs-stack {
+    gap: 6px;
+  }
 }
 
 .photo-mode-toggle {
@@ -3728,9 +4451,6 @@ button.favorites[disabled], button.copy-button[disabled] {
   gap: 10px;
 }
 
-.planner-button {
-  white-space: nowrap;
-}
 
 .list-button {
   position: relative;
@@ -3893,6 +4613,273 @@ th {
   flex-grow: 1;
   min-width: 0;
 }
+.favorites-toolbar {
+  max-width: 1000px;
+  margin: 0 auto 16px;
+}
+.favorites-toolbar-row {
+  display: grid;
+  gap: 12px 16px;
+  align-items: start;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "sort"
+    "toggle"
+    "quickadd"
+    "actions";
+}
+
+.favorites-sort {
+  grid-area: sort;
+  min-width: 0;
+}
+
+.favorites-photo-mode {
+  grid-area: toggle;
+  min-width: 0;
+}
+
+.favorites-quick-add {
+  grid-area: quickadd;
+}
+
+.favorites-actions {
+  grid-area: actions;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.favorites-actions-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+.favorites-quick-add {
+  position: relative;
+  width: min(420px, 100%);
+}
+
+/* Tablet: two-row layout */
+@media (min-width: 600px) {
+  .favorites-toolbar-row {
+    grid-template-columns: minmax(260px, 1fr) auto;
+    grid-template-areas:
+      "sort toggle"
+      "quickadd actions";
+    align-items: center;
+  }
+  .favorites-photo-mode {
+    justify-self: end;
+  }
+  .favorites-actions {
+    align-items: flex-end;
+    justify-self: end;
+  }
+  /* Keep action buttons as one cluster on tablet sizes */
+  .favorites-actions-buttons {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+  }
+  .favorites-actions-buttons .action-button {
+    white-space: nowrap;
+  }
+}
+
+/* iPad Pro-ish widths: single-row toolbar when there is room */
+@media (min-width: 1024px) {
+  .favorites-toolbar-row {
+    grid-template-columns: minmax(260px, 1fr) auto minmax(180px, 360px) auto;
+    grid-template-areas: "sort toggle quickadd actions";
+    align-items: center;
+  }
+  .favorites-photo-mode {
+    justify-self: start;
+  }
+  .favorites-quick-add {
+    width: 100%;
+  }
+}
+
+/* Desktop: Favorites controls live in the left sidebar (320px), so keep it stacked to avoid clipping */
+@media (min-width: 1280px) {
+  .favorites-toolbar-row {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "sort"
+      "toggle"
+      "quickadd"
+      "actions";
+    align-items: start;
+  }
+  .favorites-actions {
+    align-items: flex-start;
+    justify-self: start;
+  }
+  .favorites-actions-buttons {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  /* Desktop: keep the empty-state aligned with the content column (not centered) */
+  .favorites-empty {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+.favorites-quick-add-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+}
+.favorites-quick-add-input .material-icons {
+  color: #555;
+  font-size: 18px;
+}
+.favorites-quick-add-text {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-family: Roboto;
+  font-size: 14px;
+  background: transparent;
+  color: #1d2e26;
+}
+.favorites-quick-add-text::placeholder {
+  color: #777;
+}
+.favorites-quick-add-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.18);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+  max-height: 280px;
+  overflow: auto;
+  z-index: 1000;
+}
+.favorites-quick-add-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 10px 12px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+}
+.favorites-quick-add-item:hover {
+  background: rgba(183, 77, 21, 0.06);
+}
+.favorites-quick-add-item-title {
+  font-family: Roboto;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1d2e26;
+  grid-column: 1 / 2;
+  grid-row: 1 / 2;
+}
+.favorites-quick-add-item-subtitle {
+  font-family: Roboto;
+  font-size: 12px;
+  color: #555;
+  margin-top: 2px;
+  grid-column: 1 / 2;
+  grid-row: 2 / 3;
+}
+.favorites-quick-add-item-cta {
+  grid-column: 2 / 3;
+  grid-row: 1 / 3;
+  align-self: center;
+  justify-self: end;
+  font-family: Roboto;
+  font-size: 12px;
+  font-weight: 700;
+  color: #b74d15;
+  border: 1px solid rgba(183, 77, 21, 0.45);
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(183, 77, 21, 0.06);
+}
+.action-button {
+  padding: 10px 12px;
+  font-size: 14px;
+  border-radius: 10px;
+  width: auto;
+}
+.clear-favorites-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-color: rgba(183, 77, 21, 0.65);
+  color: #b74d15;
+}
+.clear-favorites-button:hover:not(:disabled) {
+  background: rgba(183, 77, 21, 0.06);
+  border-color: rgba(183, 77, 21, 0.85);
+  color: #c85d25;
+}
+.clear-favorites-button .clear-icon {
+  color: currentColor;
+}
+.favorites-empty {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 16px;
+  padding: 20px;
+  max-width: 740px;
+  width: min(740px, 100%);
+  margin: 0 auto;
+}
+.favorites-empty h2 {
+  margin: 0 0 6px;
+  font-family: Arvo;
+  font-size: 20px;
+  color: #1d2e26;
+}
+.favorites-title-count {
+  font-family: Roboto;
+  font-weight: 700;
+  font-size: 16px;
+  color: #555;
+}
+.favorites-empty p {
+  margin: 0 0 14px;
+  font-family: Roboto;
+  color: #444;
+}
+.favorites-empty-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  background: rgba(29, 46, 38, 0.95);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-family: Roboto;
+  font-size: 13px;
+  z-index: 10000;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.25);
+  max-width: min(92vw, 720px);
+  text-align: center;
+}
 .plants {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(248px, 1fr));
@@ -3911,6 +4898,10 @@ th {
   cursor: pointer;
   user-select: none;
   outline: none;
+}
+.plant-preview-wrapper--added .plant-preview {
+  box-shadow: 0 0 0 3px rgba(56, 161, 105, 0.28), 0 6px 18px rgba(0,0,0,0.12);
+  transform: translateY(-1px);
 }
 .plant-preview {
   position: relative;
@@ -3937,8 +4928,10 @@ th {
   height: 52px;
   padding: 0;
   border-radius: 999px;
+  position: absolute;
+  top: 10px;
+  right: 10px;
   background: transparent;
-  background-color: transparent;
   box-shadow: none;
   border: none;
   appearance: none;
@@ -3947,12 +4940,26 @@ th {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #1d2e26; /* studio default (over white) */
+  color: #1d2e26; /* readable over both studio + habitat */
   z-index: 2;
   flex: 0 0 auto;
 }
 .tile-favorite .material-icons {
   font-size: 28px;
+  /* Make the icon readable on photos without adding a visible button background */
+  text-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.35),
+    0 0 2px rgba(255, 255, 255, 0.85);
+}
+
+/* Studio photos are already high-contrast on white; remove shadow for a cleaner look */
+.photo--studio .tile-favorite .material-icons {
+  text-shadow: none;
+}
+
+.tile-favorite:focus-visible {
+  outline: 3px solid rgba(183, 77, 21, 0.35);
+  outline-offset: 2px;
 }
 .photo--habitat .tile-favorite {
   color: #fff;
@@ -4172,14 +5179,113 @@ th {
   padding-left: 8px;
   user-select: none;
 }
-.filters {
-  display: none;
+.filters-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 1180;
 }
-.filters-open .filter-toggle-and-sort {
-  display: none;
-}
-.filters-open .filters {
+
+.filters-drawer-header {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0 10px;
+  background: #fcf9f4;
+}
+.filters-drawer-header-left {
+  min-width: 0;
+}
+.filters-drawer-title {
+  font-family: Arvo;
+  font-size: 18px;
+  line-height: 1.2;
+  color: #1d2e26;
+}
+.filters-drawer-subtitle {
+  margin-top: 2px;
+  font-family: Roboto;
+  font-size: 12px;
+  color: rgba(29, 46, 38, 0.72);
+}
+.filters-drawer-close {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filters-drawer-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  gap: 10px;
+  padding: 12px 0 0;
+  margin-top: 16px;
+  background: #fcf9f4;
+  box-shadow: 0 -10px 18px rgba(252, 249, 244, 0.95);
+}
+.filters-drawer-footer button {
+  flex: 1 1 0;
+  border-radius: 12px;
+}
+
+/* Mobile/tablet: filters become an overlay drawer */
+@media all and (max-width: 1279px) {
+  .filters {
+    display: none;
+  }
+  .filters-open .filters {
+    display: flex;
+    position: fixed;
+    z-index: 1190;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(420px, 92vw);
+    max-width: none;
+    margin: 0;
+    padding: 12px 16px 96px;
+    background: #fcf9f4;
+    overflow: auto;
+    box-shadow: 12px 0 28px rgba(0, 0, 0, 0.18);
+    border-right: 1px solid rgba(0, 0, 0, 0.08);
+  }
+  .filters-open .filters-drawer-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .filters-open .filters .inner-controls {
+    position: static;
+    top: auto;
+    z-index: auto;
+    background: transparent;
+  }
+  .filters-open .filters .go {
+    display: none;
+  }
+}
+
+/* Phone: bottom sheet */
+@media all and (max-width: 600px) {
+  .filters-open .filters {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    width: 100vw;
+    height: min(86vh, 720px);
+    border-left: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -14px 34px rgba(0, 0, 0, 0.22);
+  }
 }
 @media all and (max-width: 480px) {
   #app {
@@ -4506,6 +5612,27 @@ th {
   .sort-and-favorites {
     margin-bottom: 0;
     display: block;
+  }
+  /* Desktop: use the full location bar; hide the compact icon in the toolbar */
+  .browse-location-button {
+    display: none;
+  }
+  /* Desktop: filters are always visible in the sidebar, so hide the Filter button */
+  .browse-filter-button {
+    display: none;
+  }
+  .browse-toolbar-row--actions {
+    grid-template-columns: 1fr;
+  }
+  .browse-toolbar .browse-favorites {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .browse-toolbar .browse-favorites .favorites-label {
+    display: inline;
+  }
+  .browse-sort-button.list-button .label {
+    display: inline;
   }
   button.favorites .favorites-label {
     display: inline;
@@ -4903,8 +6030,9 @@ th {
 .compact-utility-header {
   background: transparent;
   border-bottom: none;
-  padding: 8px 16px 0;
-  margin-bottom: 11px; /* match other primary controls spacing */
+  /* Horizontal padding comes from `.explorer-column` at <=1279px */
+  padding: 8px 0 0;
+  margin-bottom: 8px;
 }
 
 .utility-content {
@@ -4940,6 +6068,20 @@ th {
   .location-btn {
     font-size: 13px;
     padding: 8px 12px;
+  }
+}
+
+/* Phone: location selector should be icon-only to save vertical space */
+@media (max-width: 600px) {
+  .location-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 12px;
+    justify-content: center;
+  }
+  .location-btn span:not(.material-icons) {
+    display: none;
   }
 }
 

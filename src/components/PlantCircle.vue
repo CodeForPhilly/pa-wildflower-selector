@@ -11,7 +11,6 @@
     tabindex="0"
     @click="handleClick"
     @pointerdown="handlePointerDown"
-    @dblclick="handleDoubleClick"
     @keydown="handleKeyDown"
   >
     <div v-if="showLabel" class="placed-label">
@@ -30,6 +29,8 @@
       <button
         class="action-button duplicate-button"
         @click.stop="handleDuplicate"
+        @pointerdown.stop
+        @pointerup.stop
         title="Duplicate plant"
         aria-label="Duplicate plant"
       >
@@ -38,6 +39,8 @@
       <button
         class="action-button delete-button"
         @click.stop="handleDeleteClick"
+        @pointerdown.stop
+        @pointerup.stop
         title="Delete plant"
         aria-label="Delete plant"
       >
@@ -132,9 +135,6 @@ const placedStyle = computed(() => {
   };
 });
 
-// Track for double-tap on mobile
-let lastTapTime = 0;
-let tapTimeout: number | null = null;
 let dragStartTime = 0;
 let dragStartPos: { x: number; y: number } | null = null;
 let hasMoved = false;
@@ -143,70 +143,55 @@ let isClicking = false;
 const handlePointerDown = (event: PointerEvent) => {
   if (event.isPrimary) {
     // Don't preventDefault here - let click events fire
-    // On mobile, detect double-tap or drag
+    // On mobile, detect drag vs tap-to-select
     if (props.isMobile) {
-      const currentTime = Date.now();
-      const tapLength = currentTime - lastTapTime;
-      
-      if (tapLength < 300 && tapLength > 0 && !hasMoved) {
-        // Double tap detected (only if no movement occurred)
-        if (tapTimeout) {
-          clearTimeout(tapTimeout);
-          tapTimeout = null;
-        }
-        event.preventDefault();
-        emit('delete', props.placed.id);
-        lastTapTime = 0;
-        hasMoved = false;
-        dragStartPos = null;
-      } else {
-        // Single tap - track for potential drag or double-tap
-        lastTapTime = currentTime;
-        dragStartTime = currentTime;
-        dragStartPos = { x: event.clientX, y: event.clientY };
-        hasMoved = false;
-        
-        // Set up listeners to detect drag vs tap
-        const handleMove = (moveEvent: PointerEvent) => {
-          if (!dragStartPos) return;
-          
-          const moveDistance = Math.sqrt(
-            Math.pow(moveEvent.clientX - dragStartPos.x, 2) + 
-            Math.pow(moveEvent.clientY - dragStartPos.y, 2)
-          );
-          
-          // If moved more than 5px, it's a drag
-          if (moveDistance > 5) {
-            hasMoved = true;
-            if (tapTimeout) {
-              clearTimeout(tapTimeout);
-              tapTimeout = null;
-            }
-            // Start drag
-            emit('drag-start', event, props.placed.id);
-            document.removeEventListener('pointermove', handleMove);
-            document.removeEventListener('pointerup', handleUp);
-          }
-        };
-        
-        const handleUp = () => {
+      dragStartTime = Date.now();
+      dragStartPos = { x: event.clientX, y: event.clientY };
+      hasMoved = false;
+
+      // Set up listeners to detect drag vs tap
+      const handleMove = (moveEvent: PointerEvent) => {
+        if (!dragStartPos) return;
+
+        const moveDistance = Math.sqrt(
+          Math.pow(moveEvent.clientX - dragStartPos.x, 2) +
+          Math.pow(moveEvent.clientY - dragStartPos.y, 2)
+        );
+
+        // If moved more than 5px, it's a drag
+        if (moveDistance > 5) {
+          hasMoved = true;
+          // Start drag
+          emit('drag-start', event, props.placed.id);
           document.removeEventListener('pointermove', handleMove);
           document.removeEventListener('pointerup', handleUp);
-          
-          // If no movement, wait for potential second tap
-          if (!hasMoved) {
-            tapTimeout = window.setTimeout(() => {
-              // Single tap completed, do nothing
-              tapTimeout = null;
-            }, 300);
-          }
-          
-          dragStartPos = null;
-        };
-        
-        document.addEventListener('pointermove', handleMove);
-        document.addEventListener('pointerup', handleUp);
-      }
+        }
+      };
+
+      const handleUp = (upEvent: PointerEvent) => {
+        document.removeEventListener('pointermove', handleMove);
+        document.removeEventListener('pointerup', handleUp);
+
+        // If no movement, treat as a tap-to-select (mobile)
+        if (!hasMoved) {
+          // Prevent the grid click/placement behavior from also firing.
+          upEvent.preventDefault();
+          upEvent.stopPropagation();
+
+          // Toggle selection; selected state controls showing duplicate/trash buttons.
+          emit('select', props.placed.id);
+
+          // Focus the plant element for accessibility (safe no-op if not focusable on mobile).
+          nextTick(() => {
+            plantRef.value?.focus();
+          });
+        }
+
+        dragStartPos = null;
+      };
+
+      document.addEventListener('pointermove', handleMove);
+      document.addEventListener('pointerup', handleUp);
     } else {
       // Desktop: detect drag vs click
       dragStartTime = Date.now();
@@ -317,14 +302,6 @@ const handleKeyDown = (event: KeyboardEvent) => {
   if (event.key === 'Enter' || event.key === 'Escape') {
     event.preventDefault();
     emit('deselect');
-  }
-};
-
-const handleDoubleClick = (event: MouseEvent) => {
-  // Desktop: double-click to delete
-  if (!props.isMobile) {
-    event.preventDefault();
-    emit('delete', props.placed.id);
   }
 };
 

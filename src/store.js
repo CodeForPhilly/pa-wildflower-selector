@@ -30,11 +30,26 @@ export default ({ favorites }) => {
         state.photoMode = photoMode === 'studio' ? 'studio' : 'habitat';
       },
       toggleFavorite (state, plantId) {
-        if (state.favorites.has(plantId)) {
-          state.favorites.delete(plantId);
+        // NOTE: mutate via replacement so Vue/Vuex reactivity reliably notices Set changes
+        const next = new Set(state.favorites);
+        if (next.has(plantId)) {
+          next.delete(plantId);
         } else {
-          state.favorites.add(plantId);
+          next.add(plantId);
         }
+        state.favorites = next;
+      },
+      addFavorites (state, plantIds) {
+        if (!plantIds) return;
+        const ids = Array.isArray(plantIds) ? plantIds : [plantIds];
+        const next = new Set(state.favorites);
+        for (const id of ids) {
+          if (id) next.add(id);
+        }
+        state.favorites = next;
+      },
+      clearFavorites (state) {
+        state.favorites = new Set();
       },
       setFavorites (state, favorites) {
         state.favorites = favorites;

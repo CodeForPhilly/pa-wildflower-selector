@@ -106,13 +106,13 @@ const props = defineProps<{
   labelMode?: 'off' | 'all';
   zoom?: number;
   addRowTop: () => void;
-  removeRowTop: () => void;
+  removeRowTop: () => boolean;
   addRowBottom: () => void;
-  removeRowBottom: () => void;
+  removeRowBottom: () => boolean;
   addColumnLeft: () => void;
-  removeColumnLeft: () => void;
+  removeColumnLeft: () => boolean;
   addColumnRight: () => void;
-  removeColumnRight: () => void;
+  removeColumnRight: () => boolean;
 }>();
 
 const emit = defineEmits<{
@@ -154,6 +154,8 @@ const rootRef = ref<HTMLElement | null>(null);
 const threeContainer = ref<HTMLElement | null>(null);
 let resizeControlsGroup: THREE.Group | null = null;
 let resizeControlMeshes: THREE.Mesh[] = [];
+const resizeActionToMesh = new Map<ResizeAction, THREE.Mesh>();
+const resizeFlashTimeout = new Map<ResizeAction, number>();
 
 type ResizeAction =
   | 'addRowTop'
@@ -224,6 +226,47 @@ const disposeResizeControls = () => {
   }
   resizeControlMeshes = [];
   resizeControlsGroup = null;
+  resizeActionToMesh.clear();
+  for (const t of resizeFlashTimeout.values()) {
+    try {
+      clearTimeout(t);
+    } catch {
+      // ignore
+    }
+  }
+  resizeFlashTimeout.clear();
+};
+
+const flashResizeControl = (action: ResizeAction) => {
+  const mesh = resizeActionToMesh.get(action);
+  if (!mesh) return;
+  const matAny = mesh.material as any;
+  // We only ever assign a single MeshBasicMaterial in mkButton(), but be defensive.
+  const mat = Array.isArray(matAny) ? matAny[0] : matAny;
+  if (!mat || !mat.color || typeof mat.color.getHex !== 'function') return;
+
+  const prev = mat.color.getHex();
+  mat.color.set(0xffebee);
+  mat.needsUpdate = true;
+
+  const existing = resizeFlashTimeout.get(action);
+  if (existing) {
+    try {
+      clearTimeout(existing);
+    } catch {
+      // ignore
+    }
+  }
+
+  const t = window.setTimeout(() => {
+    try {
+      mat.color.set(prev);
+      mat.needsUpdate = true;
+    } finally {
+      resizeFlashTimeout.delete(action);
+    }
+  }, 300);
+  resizeFlashTimeout.set(action, t);
 };
 
 const buildResizeControls = () => {
@@ -254,6 +297,7 @@ const buildResizeControls = () => {
     mesh.position.y = y;
     mesh.userData = { ...(mesh.userData || {}), resizeAction: action };
     resizeControlMeshes.push(mesh);
+    resizeActionToMesh.set(action, mesh);
     group.add(mesh);
     return mesh;
   };
@@ -2001,13 +2045,25 @@ const onPointerUp = (ev: PointerEvent) => {
   const resizeAction = pickResizeActionUnderPointer(ev);
   if (resizeAction) {
     if (resizeAction === 'addRowTop') props.addRowTop();
-    else if (resizeAction === 'removeRowTop') props.removeRowTop();
+    else if (resizeAction === 'removeRowTop') {
+      const ok = props.removeRowTop();
+      if (!ok) flashResizeControl(resizeAction);
+    }
     else if (resizeAction === 'addRowBottom') props.addRowBottom();
-    else if (resizeAction === 'removeRowBottom') props.removeRowBottom();
+    else if (resizeAction === 'removeRowBottom') {
+      const ok = props.removeRowBottom();
+      if (!ok) flashResizeControl(resizeAction);
+    }
     else if (resizeAction === 'addColumnLeft') props.addColumnLeft();
-    else if (resizeAction === 'removeColumnLeft') props.removeColumnLeft();
+    else if (resizeAction === 'removeColumnLeft') {
+      const ok = props.removeColumnLeft();
+      if (!ok) flashResizeControl(resizeAction);
+    }
     else if (resizeAction === 'addColumnRight') props.addColumnRight();
-    else if (resizeAction === 'removeColumnRight') props.removeColumnRight();
+    else if (resizeAction === 'removeColumnRight') {
+      const ok = props.removeColumnRight();
+      if (!ok) flashResizeControl(resizeAction);
+    }
 
     pointerDownAt = null;
     pointerDragging = false;
