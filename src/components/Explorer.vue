@@ -4320,18 +4320,45 @@ th {
   }
 }
 
-/* Desktop: actions stay to the right, spanning all preference rows */
+/* iPad Pro-ish widths: single-row toolbar when there is room */
 @media (min-width: 1024px) {
   .favorites-toolbar-row {
-    grid-template-columns: minmax(320px, 1fr) auto;
-    grid-template-areas:
-      "sort actions"
-      "toggle actions"
-      "quickadd actions";
-    align-items: start;
+    grid-template-columns: minmax(260px, 1fr) auto minmax(180px, 360px) auto;
+    grid-template-areas: "sort toggle quickadd actions";
+    align-items: center;
   }
   .favorites-photo-mode {
     justify-self: start;
+  }
+  .favorites-quick-add {
+    width: 100%;
+  }
+}
+
+/* Desktop: Favorites controls live in the left sidebar (320px), so keep it stacked to avoid clipping */
+@media (min-width: 1280px) {
+  .favorites-toolbar-row {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "sort"
+      "toggle"
+      "quickadd"
+      "actions";
+    align-items: start;
+  }
+  .favorites-actions {
+    align-items: flex-start;
+    justify-self: start;
+  }
+  .favorites-actions-buttons {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  /* Desktop: keep the empty-state aligned with the content column (not centered) */
+  .favorites-empty {
+    margin-left: 0;
+    margin-right: 0;
   }
 }
 .favorites-quick-add-input {
@@ -4445,6 +4472,8 @@ th {
   border-radius: 16px;
   padding: 20px;
   max-width: 740px;
+  width: min(740px, 100%);
+  margin: 0 auto;
 }
 .favorites-empty h2 {
   margin: 0 0 6px;
