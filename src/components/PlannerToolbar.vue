@@ -91,6 +91,18 @@
         </div>
 
         <button
+          v-if="canFitToPlants"
+          class="toolbar-button fit-button icon-only"
+          type="button"
+          @click="$emit('fit-to-plants')"
+          title="Use minimum grid size (trim whitespace)"
+          aria-label="Use minimum grid size"
+        >
+          <Minimize2 :size="16" class="icon" />
+          <span class="button-text">Use minimum</span>
+        </button>
+
+        <button
           class="toolbar-button grid-dimensions-button"
           @click="$emit('open-grid-editor')"
           :title="`Current grid: ${gridWidth}ft × ${gridHeight}ft`"
@@ -136,6 +148,7 @@ import {
   Upload,
   Grid3x3,
   Tag,
+  Minimize2,
 } from 'lucide-vue-next';
 
 type LabelMode = 'off' | 'all';
@@ -145,6 +158,7 @@ const props = defineProps<{
   canUndo: boolean;
   canRedo: boolean;
   canClear: boolean;
+  canFitToPlants?: boolean;
   summaryActive?: boolean;
   zoom: number;
   gridWidth: number;
@@ -161,6 +175,7 @@ defineEmits<{
   (e: 'import'): void;
   (e: 'toggle-summary'): void;
   (e: 'toggle-3d'): void;
+  (e: 'fit-to-plants'): void;
   (e: 'open-grid-editor'): void;
   (e: 'toggle-snap'): void;
   (e: 'zoom-in'): void;
@@ -297,6 +312,18 @@ const labelsLabel = computed(() => {
 .toolbar-button.summary-button.active:hover {
   background-color: #15803d;
   border-color: #15803d;
+}
+
+.toolbar-button.fit-button {
+  color: #16a34a;
+  border-color: #16a34a;
+  background-color: transparent;
+}
+
+.toolbar-button.fit-button:hover:not(:disabled) {
+  background-color: rgba(22, 163, 74, 0.10);
+  border-color: #15803d;
+  color: #15803d;
 }
 
 .snap-toggle-button {

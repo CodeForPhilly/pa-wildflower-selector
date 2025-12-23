@@ -8,6 +8,7 @@
         :can-undo="canUndo"
         :can-redo="canRedo"
         :can-clear="placedPlants.length > 0"
+        :can-fit-to-plants="canFitToPlants"
         :summary-active="showSummary"
         :zoom="zoom"
         :grid-width="gridWidth"
@@ -21,6 +22,7 @@
         @import="showDesignImport = true"
         @toggle-summary="handleSummaryToggle"
         @toggle-3d="toggle3D"
+        @fit-to-plants="handleGridSizeFit"
         @open-grid-editor="showGridEditor = true"
         @toggle-snap="toggleSnapIncrement"
         @zoom-out="zoom = Math.max(zoom - 0.1, 0.5)"
@@ -377,6 +379,10 @@ const summaryData = computed(() => {
 
 // Grid editor handlers
 const minGridSize = computed(() => getMinGridSize());
+const canFitToPlants = computed(() => {
+  const min = minGridSize.value;
+  return placedPlants.value.length > 0 && (gridWidth.value > min.width || gridHeight.value > min.height);
+});
 
 const handleGridSizeApply = (width: number, height: number) => {
   const result = setGridSize(width, height);
