@@ -30,6 +30,8 @@
       <button
         class="action-button duplicate-button"
         @click.stop="handleDuplicate"
+        @pointerdown.stop
+        @pointerup.stop
         title="Duplicate plant"
         aria-label="Duplicate plant"
       >
@@ -38,6 +40,8 @@
       <button
         class="action-button delete-button"
         @click.stop="handleDeleteClick"
+        @pointerdown.stop
+        @pointerup.stop
         title="Delete plant"
         aria-label="Delete plant"
       >
@@ -155,6 +159,7 @@ const handlePointerDown = (event: PointerEvent) => {
           tapTimeout = null;
         }
         event.preventDefault();
+        event.stopPropagation();
         emit('delete', props.placed.id);
         lastTapTime = 0;
         hasMoved = false;
@@ -189,16 +194,23 @@ const handlePointerDown = (event: PointerEvent) => {
           }
         };
         
-        const handleUp = () => {
+        const handleUp = (upEvent: PointerEvent) => {
           document.removeEventListener('pointermove', handleMove);
           document.removeEventListener('pointerup', handleUp);
           
-          // If no movement, wait for potential second tap
+          // If no movement, treat as a tap-to-select (mobile)
           if (!hasMoved) {
-            tapTimeout = window.setTimeout(() => {
-              // Single tap completed, do nothing
-              tapTimeout = null;
-            }, 300);
+            // Prevent the grid click/placement behavior from also firing.
+            upEvent.preventDefault();
+            upEvent.stopPropagation();
+
+            // Toggle selection; selected state controls showing duplicate/trash buttons.
+            emit('select', props.placed.id);
+
+            // Focus the plant element for accessibility (safe no-op if not focusable on mobile).
+            nextTick(() => {
+              plantRef.value?.focus();
+            });
           }
           
           dragStartPos = null;
