@@ -235,7 +235,7 @@
           <!-- Favorites toolbar: preferences + actions -->
           <div v-if="favorites" class="favorites-toolbar">
             <div class="favorites-toolbar-row">
-              <div class="favorites-prefs">
+              <div class="favorites-sort">
                 <div class="sort">
                   <button @click.stop="toggleSort" :class="sortButtonClasses">
                     <span class="label">Sort By</span>
@@ -251,65 +251,65 @@
                     @close="toggleSort"
                   />
                 </div>
+              </div>
 
-                <div class="favorites-prefs-stack">
-                  <div class="photo-mode-toggle" role="group" aria-label="Photos">
-                    <button
-                      type="button"
-                      class="photo-mode-button"
-                      :class="{ active: photoMode === 'habitat' }"
-                      @click="setPhotoMode('habitat')"
-                      :aria-pressed="photoMode === 'habitat'"
-                    >
-                      Habitat
-                    </button>
-                    <button
-                      type="button"
-                      class="photo-mode-button"
-                      :class="{ active: photoMode === 'studio' }"
-                      @click="setPhotoMode('studio')"
-                      :aria-pressed="photoMode === 'studio'"
-                    >
-                      Studio
-                    </button>
-                  </div>
+              <div class="favorites-photo-mode">
+                <div class="photo-mode-toggle" role="group" aria-label="Photos">
+                  <button
+                    type="button"
+                    class="photo-mode-button"
+                    :class="{ active: photoMode === 'habitat' }"
+                    @click="setPhotoMode('habitat')"
+                    :aria-pressed="photoMode === 'habitat'"
+                  >
+                    Habitat
+                  </button>
+                  <button
+                    type="button"
+                    class="photo-mode-button"
+                    :class="{ active: photoMode === 'studio' }"
+                    @click="setPhotoMode('studio')"
+                    :aria-pressed="photoMode === 'studio'"
+                  >
+                    Studio
+                  </button>
+                </div>
+              </div>
 
-                  <!-- Quick Add (Favorites only): plant autocomplete that adds favorites on select -->
-                  <div class="favorites-quick-add">
-                    <div class="favorites-quick-add-input">
-                      <span class="material-icons">search</span>
-                      <input
-                        v-model="quickAddQ"
-                        type="text"
-                        class="favorites-quick-add-text"
-                        placeholder="Quick add a plant (e.g., Bloodroot)"
-                        maxlength="200"
-                        @input="handleQuickAddInput"
-                        @focus="quickAddOpen = true"
-                        @blur="handleQuickAddBlur"
-                        @keydown.enter.prevent="handleQuickAddEnter"
-                      />
+              <!-- Quick Add (Favorites only): plant autocomplete that adds favorites on select -->
+              <div class="favorites-quick-add">
+                <div class="favorites-quick-add-input">
+                  <span class="material-icons">search</span>
+                  <input
+                    v-model="quickAddQ"
+                    type="text"
+                    class="favorites-quick-add-text"
+                    placeholder="Quick add a plant (e.g., Bloodroot)"
+                    maxlength="200"
+                    @input="handleQuickAddInput"
+                    @focus="quickAddOpen = true"
+                    @blur="handleQuickAddBlur"
+                    @keydown.enter.prevent="handleQuickAddEnter"
+                  />
+                </div>
+                <div
+                  v-if="quickAddOpen && quickAddPlants.length"
+                  class="favorites-quick-add-dropdown"
+                  ref="quickAddDropdown"
+                >
+                  <button
+                    v-for="p in quickAddPlants"
+                    :key="p.plantId"
+                    type="button"
+                    class="favorites-quick-add-item"
+                    @mousedown.prevent="selectQuickAddPlant(p)"
+                  >
+                    <div class="favorites-quick-add-item-title">{{ p.commonName || p.displayText }}</div>
+                    <div v-if="p.scientificName || p.subtitle" class="favorites-quick-add-item-subtitle">
+                      {{ p.scientificName || p.subtitle }}
                     </div>
-                    <div
-                      v-if="quickAddOpen && quickAddPlants.length"
-                      class="favorites-quick-add-dropdown"
-                      ref="quickAddDropdown"
-                    >
-                      <button
-                        v-for="p in quickAddPlants"
-                        :key="p.plantId"
-                        type="button"
-                        class="favorites-quick-add-item"
-                        @mousedown.prevent="selectQuickAddPlant(p)"
-                      >
-                        <div class="favorites-quick-add-item-title">{{ p.commonName || p.displayText }}</div>
-                        <div v-if="p.scientificName || p.subtitle" class="favorites-quick-add-item-subtitle">
-                          {{ p.scientificName || p.subtitle }}
-                        </div>
-                        <div class="favorites-quick-add-item-cta" aria-hidden="true">Add</div>
-                      </button>
-                    </div>
-                  </div>
+                    <div class="favorites-quick-add-item-cta" aria-hidden="true">Add</div>
+                  </button>
                 </div>
               </div>
 
@@ -4251,46 +4251,88 @@ th {
   margin: 0 auto 16px;
 }
 .favorites-toolbar-row {
-  display: flex;
-  gap: 16px;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
+  display: grid;
+  gap: 12px 16px;
+  align-items: start;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "sort"
+    "toggle"
+    "quickadd"
+    "actions";
 }
-.favorites-prefs {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-  min-width: 320px;
-  flex: 1 1 420px;
+
+.favorites-sort {
+  grid-area: sort;
+  min-width: 0;
 }
-.favorites-prefs-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex: 1 1 320px;
+
+.favorites-photo-mode {
+  grid-area: toggle;
+  min-width: 0;
 }
-.favorites-prefs .sort {
-  flex: 1 1 260px;
-  min-width: 260px;
+
+.favorites-quick-add {
+  grid-area: quickadd;
 }
+
 .favorites-actions {
+  grid-area: actions;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 6px;
-  flex: 0 1 520px;
 }
 .favorites-actions-buttons {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 .favorites-quick-add {
   position: relative;
   width: min(420px, 100%);
+}
+
+/* Tablet: two-row layout */
+@media (min-width: 600px) {
+  .favorites-toolbar-row {
+    grid-template-columns: minmax(260px, 1fr) auto;
+    grid-template-areas:
+      "sort toggle"
+      "quickadd actions";
+    align-items: center;
+  }
+  .favorites-photo-mode {
+    justify-self: end;
+  }
+  .favorites-actions {
+    align-items: flex-end;
+    justify-self: end;
+  }
+  /* Keep action buttons as one cluster on tablet sizes */
+  .favorites-actions-buttons {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+  }
+  .favorites-actions-buttons .action-button {
+    white-space: nowrap;
+  }
+}
+
+/* Desktop: actions stay to the right, spanning all preference rows */
+@media (min-width: 1024px) {
+  .favorites-toolbar-row {
+    grid-template-columns: minmax(320px, 1fr) auto;
+    grid-template-areas:
+      "sort actions"
+      "toggle actions"
+      "quickadd actions";
+    align-items: start;
+  }
+  .favorites-photo-mode {
+    justify-self: start;
+  }
 }
 .favorites-quick-add-input {
   display: flex;
