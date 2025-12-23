@@ -529,15 +529,15 @@ onUnmounted(() => {
 }
 
 .toolbar-button.clear-button {
-  color: #dc2626;
-  border-color: #dc2626;
+  color: #b74d15;
+  border-color: #b74d15;
   background-color: transparent;
 }
 
 .toolbar-button.clear-button:hover:not(:disabled) {
-  color: #b91c1c;
-  background-color: #fef2f2;
-  border-color: #b91c1c;
+  color: #c85d25;
+  background-color: rgba(183, 77, 21, 0.08);
+  border-color: #c85d25;
 }
 
 .toolbar-button.summary-button {

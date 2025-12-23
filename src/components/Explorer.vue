@@ -326,16 +326,13 @@
                     <span v-if="isCopied">✓ Copied!</span>
                     <span v-else>Copy</span>
                   </button>
-                  <button type="button" class="primary action-button bulk-add-button" @click="openBulkAdd">
-                    Bulk Add
-                  </button>
                   <button
+                    v-if="favoritesAvailable"
                     type="button"
-                    class="secondary action-button planner-button"
-                    :disabled="!favoritesAvailable"
-                    @click="favoritesAvailable && $router.push('/planner')"
+                    class="primary action-button bulk-add-button"
+                    @click="openBulkAdd"
                   >
-                    Garden Planner
+                    Bulk Add
                   </button>
                   <button
                     type="button"
@@ -4087,9 +4084,6 @@ button.favorites[disabled], button.copy-button[disabled] {
   gap: 10px;
 }
 
-.planner-button {
-  white-space: nowrap;
-}
 
 .list-button {
   position: relative;
@@ -4392,24 +4386,16 @@ th {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border-color: rgba(220, 38, 38, 0.65);
-  color: #b91c1c;
+  border-color: rgba(183, 77, 21, 0.65);
+  color: #b74d15;
 }
 .clear-favorites-button:hover:not(:disabled) {
-  background: rgba(220, 38, 38, 0.06);
+  background: rgba(183, 77, 21, 0.06);
+  border-color: rgba(183, 77, 21, 0.85);
+  color: #c85d25;
 }
 .clear-favorites-button .clear-icon {
   color: currentColor;
-}
-.undo-favorites-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border-color: rgba(55, 65, 81, 0.4);
-  color: #374151;
-}
-.undo-favorites-button:hover:not(:disabled) {
-  background: rgba(55, 65, 81, 0.06);
 }
 .favorites-empty {
   background: #fff;
