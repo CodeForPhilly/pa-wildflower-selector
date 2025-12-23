@@ -252,25 +252,64 @@
                   />
                 </div>
 
-                <div class="photo-mode-toggle" role="group" aria-label="Photos">
-                  <button
-                    type="button"
-                    class="photo-mode-button"
-                    :class="{ active: photoMode === 'habitat' }"
-                    @click="setPhotoMode('habitat')"
-                    :aria-pressed="photoMode === 'habitat'"
-                  >
-                    Habitat
-                  </button>
-                  <button
-                    type="button"
-                    class="photo-mode-button"
-                    :class="{ active: photoMode === 'studio' }"
-                    @click="setPhotoMode('studio')"
-                    :aria-pressed="photoMode === 'studio'"
-                  >
-                    Studio
-                  </button>
+                <div class="favorites-prefs-stack">
+                  <div class="photo-mode-toggle" role="group" aria-label="Photos">
+                    <button
+                      type="button"
+                      class="photo-mode-button"
+                      :class="{ active: photoMode === 'habitat' }"
+                      @click="setPhotoMode('habitat')"
+                      :aria-pressed="photoMode === 'habitat'"
+                    >
+                      Habitat
+                    </button>
+                    <button
+                      type="button"
+                      class="photo-mode-button"
+                      :class="{ active: photoMode === 'studio' }"
+                      @click="setPhotoMode('studio')"
+                      :aria-pressed="photoMode === 'studio'"
+                    >
+                      Studio
+                    </button>
+                  </div>
+
+                  <!-- Quick Add (Favorites only): plant autocomplete that adds favorites on select -->
+                  <div class="favorites-quick-add">
+                    <div class="favorites-quick-add-input">
+                      <span class="material-icons">search</span>
+                      <input
+                        v-model="quickAddQ"
+                        type="text"
+                        class="favorites-quick-add-text"
+                        placeholder="Quick add a plant (e.g., Bloodroot)"
+                        maxlength="200"
+                        @input="handleQuickAddInput"
+                        @focus="quickAddOpen = true"
+                        @blur="handleQuickAddBlur"
+                        @keydown.enter.prevent="handleQuickAddEnter"
+                      />
+                    </div>
+                    <div
+                      v-if="quickAddOpen && quickAddPlants.length"
+                      class="favorites-quick-add-dropdown"
+                      ref="quickAddDropdown"
+                    >
+                      <button
+                        v-for="p in quickAddPlants"
+                        :key="p.plantId"
+                        type="button"
+                        class="favorites-quick-add-item"
+                        @mousedown.prevent="selectQuickAddPlant(p)"
+                      >
+                        <div class="favorites-quick-add-item-title">{{ p.commonName || p.displayText }}</div>
+                        <div v-if="p.scientificName || p.subtitle" class="favorites-quick-add-item-subtitle">
+                          {{ p.scientificName || p.subtitle }}
+                        </div>
+                        <div class="favorites-quick-add-item-cta" aria-hidden="true">Add</div>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -936,6 +975,10 @@ export default {
       toastMessage: "",
       toastTimeout: null,
       recentlyAddedIds: [],
+      quickAddQ: "",
+      quickAddOpen: false,
+      quickAddResults: [],
+      quickAddTimeout: null,
       showAutocomplete: false,
       autocompleteResults: { query: "", sections: [] },
       autocompleteTimeout: null,
@@ -1083,6 +1126,9 @@ export default {
         return {};
       }
       return this.parseNaturalLanguageFromQuery(this.q);
+    },
+    quickAddPlants() {
+      return Array.isArray(this.quickAddResults) ? this.quickAddResults : [];
     },
   },
   watch: {
@@ -3469,6 +3515,70 @@ export default {
         this.toastTimeout = null;
       }, 2500);
     },
+    handleQuickAddInput() {
+      if (this.quickAddTimeout) {
+        clearTimeout(this.quickAddTimeout);
+        this.quickAddTimeout = null;
+      }
+      const q = String(this.quickAddQ || "").trim();
+      if (q.length < 2) {
+        this.quickAddResults = [];
+        return;
+      }
+      this.quickAddTimeout = setTimeout(async () => {
+        try {
+          const response = await fetch(`/api/v1/autocomplete?q=${encodeURIComponent(q)}`);
+          const data = await response.json();
+          const sections = Array.isArray(data?.sections) ? data.sections : [];
+          const plantSection = sections.find((s) => s && s.type === "plant");
+          const items = Array.isArray(plantSection?.items) ? plantSection.items : [];
+          // Plant-only results
+          this.quickAddResults = items
+            .filter((i) => i && (i.plantId || i._id))
+            .map((i) => ({
+              plantId: i.plantId || i._id,
+              commonName: i.commonName || i["Common Name"] || i.displayText,
+              scientificName: i.scientificName || i["Scientific Name"] || i.subtitle,
+              displayText: i.displayText,
+              subtitle: i.subtitle,
+            }))
+            .slice(0, 10);
+        } catch (e) {
+          console.error("Quick add autocomplete error:", e);
+          this.quickAddResults = [];
+        }
+      }, 180);
+    },
+    handleQuickAddBlur() {
+      // Allow click selection via @mousedown; delay close to avoid losing selection
+      setTimeout(() => {
+        this.quickAddOpen = false;
+      }, 120);
+    },
+    async selectQuickAddPlant(p) {
+      const id = p?.plantId;
+      if (!id) return;
+      if (!this.$store.state.favorites.has(id)) {
+        this.$store.commit("addFavorites", [id]);
+        this.recentlyAddedIds = [id];
+        setTimeout(() => {
+          this.recentlyAddedIds = [];
+        }, 1800);
+      }
+      this.quickAddQ = "";
+      this.quickAddResults = [];
+      this.quickAddOpen = false;
+
+      if (this.favorites) {
+        await this.fetchPage(true);
+      }
+    },
+    async handleQuickAddEnter() {
+      // If there's a top suggestion, add it.
+      if (this.quickAddPlants.length) {
+        await this.selectQuickAddPlant(this.quickAddPlants[0]);
+      }
+    },
     async submitBulkAdd(text) {
       if (this.bulkAddLoading) return;
       const payload = typeof text === "string" ? text : "";
@@ -4089,6 +4199,12 @@ th {
   min-width: 320px;
   flex: 1 1 420px;
 }
+.favorites-prefs-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 320px;
+}
 .favorites-prefs .sort {
   flex: 1 1 260px;
   min-width: 260px;
@@ -4105,6 +4221,94 @@ th {
   gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+.favorites-quick-add {
+  position: relative;
+  width: min(420px, 100%);
+}
+.favorites-quick-add-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+}
+.favorites-quick-add-input .material-icons {
+  color: #555;
+  font-size: 18px;
+}
+.favorites-quick-add-text {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-family: Roboto;
+  font-size: 14px;
+  background: transparent;
+  color: #1d2e26;
+}
+.favorites-quick-add-text::placeholder {
+  color: #777;
+}
+.favorites-quick-add-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.18);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+  max-height: 280px;
+  overflow: auto;
+  z-index: 1000;
+}
+.favorites-quick-add-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 10px 12px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+}
+.favorites-quick-add-item:hover {
+  background: rgba(183, 77, 21, 0.06);
+}
+.favorites-quick-add-item-title {
+  font-family: Roboto;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1d2e26;
+  grid-column: 1 / 2;
+  grid-row: 1 / 2;
+}
+.favorites-quick-add-item-subtitle {
+  font-family: Roboto;
+  font-size: 12px;
+  color: #555;
+  margin-top: 2px;
+  grid-column: 1 / 2;
+  grid-row: 2 / 3;
+}
+.favorites-quick-add-item-cta {
+  grid-column: 2 / 3;
+  grid-row: 1 / 3;
+  align-self: center;
+  justify-self: end;
+  font-family: Roboto;
+  font-size: 12px;
+  font-weight: 700;
+  color: #b74d15;
+  border: 1px solid rgba(183, 77, 21, 0.45);
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(183, 77, 21, 0.06);
 }
 .action-button {
   padding: 10px 12px;
