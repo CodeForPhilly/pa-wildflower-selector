@@ -2689,10 +2689,18 @@ export default {
       this.filtersOpen = false;
     },
     applyDrawerFilters() {
-      // Apply current filterValues without changing activeSearch/q semantics.
+      // Match desktop behavior: if user typed trigger words / search text, confirm it on Apply.
+      const queryText = (this.q || "").trim();
+      if (queryText) {
+        this.handleSearchSubmit();
+        return;
+      }
+      // Otherwise, apply current filterValues without changing activeSearch semantics.
       this.showAutocomplete = false;
       this.submit();
-      this.filtersOpen = false;
+      if (!this.isDesktop()) {
+        this.filtersOpen = false;
+      }
     },
     onFiltersKeydown(event) {
       if (!this.filtersOpen) return;
