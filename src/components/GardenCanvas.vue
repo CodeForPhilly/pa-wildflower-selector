@@ -700,7 +700,9 @@ const gridHighlightStyle = computed(() => {
 @media screen and (max-width: 767px) {
   .grid-scroll {
     border-radius: 0;
-    padding: 8px;
+    /* Add breathing room so resize +/- controls can sit just outside the grid
+       without getting clipped by the scroll container (overflow: hidden). */
+    padding: 44px;
     min-height: 200px;
   }
 }
@@ -960,19 +962,19 @@ button.primary-bar.small.danger {
 
 @media screen and (max-width: 767px) {
   .resize-controls.top {
-    top: 4px;
+    top: -36px;
   }
 
   .resize-controls.left {
-    left: 4px;
+    left: -36px;
   }
 
   .resize-controls.right {
-    right: 4px;
+    right: -36px;
   }
 
   .resize-controls.bottom {
-    bottom: 4px;
+    bottom: -36px;
   }
 
   .resize-button {
