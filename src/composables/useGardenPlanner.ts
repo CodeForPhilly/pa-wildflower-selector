@@ -720,24 +720,25 @@ export function useGardenPlanner() {
       // Create deep copy for history
       undoRedo.addState(placedPlants.value.map(p => ({ ...p })));
     },
-    removeRowTop: () => {
+    removeRowTop: (): boolean => {
       // Check if any plant is in the top row (y < 1)
       // Note: A plant at y=0 has height >= 1, so it occupies row 0.
       const hasPlantAtTop = placedPlants.value.some(p => p.y < 1);
-      if (gridHeight.value > 1 && !hasPlantAtTop) {
-        gridHeight.value -= 1;
-        // Shift all plants up by 1
-        placedPlants.value.forEach(p => p.y -= 1);
+      if (gridHeight.value <= 1 || hasPlantAtTop) return false;
+
+      gridHeight.value -= 1;
+      // Shift all plants up by 1
+      placedPlants.value.forEach(p => p.y -= 1);
       // Trigger update
       placedPlants.value = [...placedPlants.value];
       // Create deep copy for history
       undoRedo.addState(placedPlants.value.map(p => ({ ...p })));
-      }
+      return true;
     },
     addRowBottom: () => {
       gridHeight.value += 1;
     },
-    removeRowBottom: () => {
+    removeRowBottom: (): boolean => {
       // Check if any plant is in the bottom row
       // A plant at y occupies rows [y, y+height-1].
       // We want to remove row index (gridHeight.value - 1).
@@ -746,9 +747,9 @@ export function useGardenPlanner() {
       const limit = gridHeight.value - 1;
       const hasPlantAtBottom = placedPlants.value.some(p => p.y + p.height > limit);
 
-      if (gridHeight.value > 1 && !hasPlantAtBottom) {
-        gridHeight.value -= 1;
-      }
+      if (gridHeight.value <= 1 || hasPlantAtBottom) return false;
+      gridHeight.value -= 1;
+      return true;
     },
     addColumnLeft: () => {
       gridWidth.value += 1;
@@ -759,30 +760,31 @@ export function useGardenPlanner() {
       // Create deep copy for history
       undoRedo.addState(placedPlants.value.map(p => ({ ...p })));
     },
-    removeColumnLeft: () => {
+    removeColumnLeft: (): boolean => {
       // Check if any plant is in the left column (x < 1)
       const hasPlantAtLeft = placedPlants.value.some(p => p.x < 1);
-      if (gridWidth.value > 1 && !hasPlantAtLeft) {
-        gridWidth.value -= 1;
-        // Shift all plants left by 1
-        placedPlants.value.forEach(p => p.x -= 1);
+      if (gridWidth.value <= 1 || hasPlantAtLeft) return false;
+
+      gridWidth.value -= 1;
+      // Shift all plants left by 1
+      placedPlants.value.forEach(p => p.x -= 1);
       // Trigger update
       placedPlants.value = [...placedPlants.value];
       // Create deep copy for history
       undoRedo.addState(placedPlants.value.map(p => ({ ...p })));
-      }
+      return true;
     },
     addColumnRight: () => {
       gridWidth.value += 1;
     },
-    removeColumnRight: () => {
+    removeColumnRight: (): boolean => {
       // Check if any plant is in the rightmost column
       const limit = gridWidth.value - 1;
       const hasPlantAtRight = placedPlants.value.some(p => p.x + p.width > limit);
 
-      if (gridWidth.value > 1 && !hasPlantAtRight) {
-        gridWidth.value -= 1;
-      }
+      if (gridWidth.value <= 1 || hasPlantAtRight) return false;
+      gridWidth.value -= 1;
+      return true;
     },
 
     // Grid size management methods
