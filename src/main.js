@@ -42,7 +42,7 @@ if (typeof window !== 'undefined') {
     
     // Set up localStorage sync for future changes
     store.subscribe((mutation, state) => {
-      if (mutation.type === 'toggleFavorite') {
+      if (mutation.type === 'toggleFavorite' || mutation.type === 'addFavorites') {
         localStorage.setItem('favorites', JSON.stringify([...state.favorites]));
       }
       if (mutation.type === 'setPhotoMode') {

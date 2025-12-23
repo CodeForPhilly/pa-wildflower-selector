@@ -36,6 +36,13 @@ export default ({ favorites }) => {
           state.favorites.add(plantId);
         }
       },
+      addFavorites (state, plantIds) {
+        if (!plantIds) return;
+        const ids = Array.isArray(plantIds) ? plantIds : [plantIds];
+        for (const id of ids) {
+          if (id) state.favorites.add(id);
+        }
+      },
       setFavorites (state, favorites) {
         state.favorites = favorites;
       }

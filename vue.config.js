@@ -8,9 +8,25 @@ module.exports = {
   devServer: {
     // Vue dev server port (defaults to 8080)
     port: process.env.VUE_DEV_PORT || 8080,
-    // Proxy API requests to Node.js server
-    // Uses PORT from .env or defaults to 3000
-    proxy: `http://localhost:${process.env.PORT || 3000}`
+    // Proxy API requests to Node.js server.
+    //
+    // IMPORTANT:
+    // - Do NOT use process.env.PORT here. In many dev setups PORT is set for the *client*
+    //   dev server (e.g. 3001), which would cause the proxy to loop back to itself and
+    //   return index.html ("<!DOCTYPE ...") instead of JSON.
+    // - Use SERVER_PORT if provided, otherwise default to 3000 (Express).
+    proxy: (() => {
+      const serverPort = process.env.SERVER_PORT || 3000;
+      const target = `http://localhost:${serverPort}`;
+      return {
+        // Backend JSON API
+        "^/api(/.*)?": { target, changeOrigin: true },
+        // Backend utility endpoints
+        "^/get-(vendors|city|zip)$": { target, changeOrigin: true },
+        // Optional: images are served by the backend in dev
+        "^/images(/.*)?": { target, changeOrigin: true },
+      };
+    })()
   },
   filenameHashing: false,
   chainWebpack: webpackConfig => {
