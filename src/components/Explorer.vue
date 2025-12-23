@@ -104,7 +104,9 @@
         </div>
       </div>
     </div>
-    <h1 class="large favorites" v-if="favorites">Favorites List</h1>
+    <h1 class="large favorites" v-if="favorites">
+      Favorites <span class="favorites-title-count" v-if="favoritesCount">({{ favoritesCount }})</span>
+    </h1>
     <article v-if="selected" class="selected">
       <div class="modal-bar">
         <span class="title">More Info</span>
@@ -230,98 +232,152 @@
     </article>
     <main :class="mainClasses" ref="mainContent">
         <div class="controls">
-          <div class="filter-toggle-and-sort">
-            <button
-              v-if="!favorites"
-              class="primary primary-bar filter"
-              @click="openFilters"
-            >
-              Filter
-            </button>
-            <div class="sort-and-favorites">
-              <button
-                class="favorites"
-                :disabled="!favoritesAvailable"
-                v-if="!favorites"
-                @click="favoritesAvailable && $router.push('/favorites')"
-                :aria-label="
-                  favoritesCount > 0
-                    ? 'Favorites (' + displayFavoritesCount + ')'
-                    : 'Favorites'
-                "
-              >
-                <span class="material-icons material-align">favorite</span
-                ><span class="favorites-label">&nbsp;Favorites</span>
-                <span
-                  v-if="favoritesCount > 0"
-                  class="favorites-count-badge"
-                  aria-hidden="true"
-                >
-                  {{ displayFavoritesCount }}
-                </span>
-              </button>
-              <div class="sort">
-                <button @click.stop="toggleSort" :class="sortButtonClasses">
-                  <span class="label">Sort By</span>
-                  <span class="value">{{ sortLabel(sort) }}</span>
-                  <span class="material-icons">{{
-                    sortIsOpen ? "arrow_drop_up" : "arrow_drop_down"
-                  }}</span>
-                </button>
-                <Menu
-                  :open="sortIsOpen"
-                  :choices="sorts"
-                  v-model="sort"
-                  @close="toggleSort"
-                />
+          <!-- Favorites toolbar: preferences + actions -->
+          <div v-if="favorites" class="favorites-toolbar">
+            <div class="favorites-toolbar-row">
+              <div class="favorites-prefs">
+                <div class="sort">
+                  <button @click.stop="toggleSort" :class="sortButtonClasses">
+                    <span class="label">Sort By</span>
+                    <span class="value">{{ sortLabel(sort) }}</span>
+                    <span class="material-icons">{{
+                      sortIsOpen ? "arrow_drop_up" : "arrow_drop_down"
+                    }}</span>
+                  </button>
+                  <Menu
+                    :open="sortIsOpen"
+                    :choices="sorts"
+                    v-model="sort"
+                    @close="toggleSort"
+                  />
+                </div>
+
+                <div class="photo-mode-toggle" role="group" aria-label="Photos">
+                  <button
+                    type="button"
+                    class="photo-mode-button"
+                    :class="{ active: photoMode === 'habitat' }"
+                    @click="setPhotoMode('habitat')"
+                    :aria-pressed="photoMode === 'habitat'"
+                  >
+                    Habitat
+                  </button>
+                  <button
+                    type="button"
+                    class="photo-mode-button"
+                    :class="{ active: photoMode === 'studio' }"
+                    @click="setPhotoMode('studio')"
+                    :aria-pressed="photoMode === 'studio'"
+                  >
+                    Studio
+                  </button>
+                </div>
+              </div>
+
+              <div class="favorites-actions" aria-label="Actions">
+                <div class="favorites-actions-buttons" aria-live="polite">
+                  <button
+                    type="button"
+                    class="secondary action-button copy-button"
+                    :class="{ copied: isCopied }"
+                    @click="copyFavorites"
+                    :disabled="!favoritesAvailable || !results.length || isCopied"
+                  >
+                    <span v-if="isCopied">✓ Copied!</span>
+                    <span v-else>Copy</span>
+                  </button>
+                  <button type="button" class="primary action-button bulk-add-button" @click="openBulkAdd">
+                    Bulk Add
+                  </button>
+                  <button
+                    type="button"
+                    class="secondary action-button planner-button"
+                    :disabled="!favoritesAvailable"
+                    @click="favoritesAvailable && $router.push('/planner')"
+                  >
+                    Garden Planner
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="photo-mode-row">
-          <div class="photo-mode-toggle" role="group" aria-label="Photos">
-            <button
-              type="button"
-              class="photo-mode-button"
-              :class="{ active: photoMode === 'habitat' }"
-              @click="setPhotoMode('habitat')"
-              :aria-pressed="photoMode === 'habitat'"
-            >
-              Habitat
-            </button>
-            <button
-              type="button"
-              class="photo-mode-button"
-              :class="{ active: photoMode === 'studio' }"
-              @click="setPhotoMode('studio')"
-              :aria-pressed="photoMode === 'studio'"
-            >
-              Studio
-            </button>
+
+          <!-- Default (browse) toolbar -->
+          <div v-else>
+            <div class="filter-toggle-and-sort">
+              <button
+                class="primary primary-bar filter"
+                @click="openFilters"
+              >
+                Filter
+              </button>
+              <div class="sort-and-favorites">
+                <button
+                  class="favorites"
+                  :disabled="!favoritesAvailable"
+                  @click="favoritesAvailable && $router.push('/favorites')"
+                  :aria-label="
+                    favoritesCount > 0
+                      ? 'Favorites (' + displayFavoritesCount + ')'
+                      : 'Favorites'
+                  "
+                >
+                  <span class="material-icons material-align">favorite</span
+                  ><span class="favorites-label">&nbsp;Favorites</span>
+                  <span
+                    v-if="favoritesCount > 0"
+                    class="favorites-count-badge"
+                    aria-hidden="true"
+                  >
+                    {{ displayFavoritesCount }}
+                  </span>
+                </button>
+                <div class="sort">
+                  <button @click.stop="toggleSort" :class="sortButtonClasses">
+                    <span class="label">Sort By</span>
+                    <span class="value">{{ sortLabel(sort) }}</span>
+                    <span class="material-icons">{{
+                      sortIsOpen ? "arrow_drop_up" : "arrow_drop_down"
+                    }}</span>
+                  </button>
+                  <Menu
+                    :open="sortIsOpen"
+                    :choices="sorts"
+                    v-model="sort"
+                    @close="toggleSort"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="photo-mode-row">
+              <div class="photo-mode-toggle" role="group" aria-label="Photos">
+                <button
+                  type="button"
+                  class="photo-mode-button"
+                  :class="{ active: photoMode === 'habitat' }"
+                  @click="setPhotoMode('habitat')"
+                  :aria-pressed="photoMode === 'habitat'"
+                >
+                  Habitat
+                </button>
+                <button
+                  type="button"
+                  class="photo-mode-button"
+                  :class="{ active: photoMode === 'studio' }"
+                  @click="setPhotoMode('studio')"
+                  :aria-pressed="photoMode === 'studio'"
+                >
+                  Studio
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-        <div v-if="favorites" class="copy-clipboard" aria-live="polite">
-          <button 
-            class="primary primary-bar copy-button" 
-            :class="{ 'copied': isCopied }" 
-            @click="copyFavorites"
-            :disabled="isCopied"
-          >
-            <span v-if="isCopied">✓ Copied!</span>
-            <span v-else>Copy to Clipboard</span>
-          </button>
-          <button
-            class="primary primary-bar planner-button"
-            :disabled="!favoritesAvailable"
-            @click="favoritesAvailable && $router.push('/planner')"
-          >
-            Garden Planner
-          </button>
-        </div>
-        <form
-          v-if="!favorites"
-          class="filters"
-          id="form"
-          @submit.prevent="handleSearchSubmit"
+          <form
+            v-if="!favorites"
+            class="filters"
+            id="form"
+            @submit.prevent="handleSearchSubmit"
           >
             <div class="inner-controls">
               <div class="search-mobile-wrapper">
@@ -490,11 +546,22 @@
             </button>
             <button class="text clear" @click="clearAll">Clear all</button>
           </div>
-          <article class="plants">
+          <template v-if="favorites && !favoritesCount && !loading">
+            <section class="favorites-empty" aria-live="polite">
+              <h2>No favorites yet</h2>
+              <p>Paste common or scientific names to add many at once.</p>
+              <div class="favorites-empty-actions">
+                <button type="button" class="primary" @click="$router.push('/')">Browse plants</button>
+                <button type="button" class="secondary" @click="openBulkAdd">Bulk Add</button>
+              </div>
+            </section>
+          </template>
+          <article v-else class="plants">
             <article
               v-for="result in results"
               :key="result._id"
               class="plant-preview-wrapper"
+              :class="{ 'plant-preview-wrapper--added': recentlyAddedIds.includes(result._id) }"
               role="link"
               tabindex="0"
               :aria-label="`View details for ${result['Common Name']}`"
@@ -574,6 +641,17 @@
           </article>
         </div>
     </main>
+    <BulkAddFavoritesModal
+      :open="bulkAddOpen"
+      v-model="bulkAddText"
+      :loading="bulkAddLoading"
+      :result="bulkAddResult"
+      @close="closeBulkAdd"
+      @submit="submitBulkAdd"
+    />
+    <div v-if="toastMessage" class="toast" role="status" aria-live="polite">
+      {{ toastMessage }}
+    </div>
   </div>
 </template>
 
@@ -583,6 +661,7 @@ import Range from "./Range.vue";
 import Checkbox from "./Checkbox.vue";
 import Header from "./Header.vue";
 import Menu from "./Menu.vue";
+import BulkAddFavoritesModal from "./BulkAddFavoritesModal.vue";
 
 const twoUpImageCredits = [
   // Order is synced with the public/assets/images/two-up folder filenames,
@@ -624,6 +703,7 @@ export default {
     Checkbox,
     Header,
     Menu,
+    BulkAddFavoritesModal,
   },
   props: {
     favorites: {
@@ -849,6 +929,13 @@ export default {
       monthIsOpen: false,
       twoUpIndex,
       isCopied: false,
+      bulkAddOpen: false,
+      bulkAddText: "",
+      bulkAddLoading: false,
+      bulkAddResult: null,
+      toastMessage: "",
+      toastTimeout: null,
+      recentlyAddedIds: [],
       showAutocomplete: false,
       autocompleteResults: { query: "", sections: [] },
       autocompleteTimeout: null,
@@ -3364,6 +3451,96 @@ export default {
       // Must match CSS media query below
       return window.innerWidth >= 1280;
     },
+    openBulkAdd() {
+      this.bulkAddOpen = true;
+      this.bulkAddResult = null;
+    },
+    closeBulkAdd() {
+      this.bulkAddOpen = false;
+    },
+    showToast(message) {
+      this.toastMessage = message;
+      if (this.toastTimeout) {
+        clearTimeout(this.toastTimeout);
+        this.toastTimeout = null;
+      }
+      this.toastTimeout = setTimeout(() => {
+        this.toastMessage = "";
+        this.toastTimeout = null;
+      }, 2500);
+    },
+    async submitBulkAdd(text) {
+      if (this.bulkAddLoading) return;
+      const payload = typeof text === "string" ? text : "";
+      if (!payload.trim()) return;
+
+      this.bulkAddLoading = true;
+      this.bulkAddResult = null;
+      try {
+        const response = await fetch("/api/v1/plants/resolve-names", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: payload }),
+        });
+        const contentType = (response.headers.get("content-type") || "").toLowerCase();
+        const rawBody = await response.text();
+        const data = contentType.includes("application/json") ? JSON.parse(rawBody || "{}") : null;
+        if (!response.ok) {
+          throw new Error((data && data.error) || rawBody || "Bulk add failed");
+        }
+        if (!data) {
+          throw new Error("Bulk add failed: server returned a non-JSON response");
+        }
+
+        const matchedIds = Array.isArray(data?.matchedIds) ? data.matchedIds : [];
+        const notFound = Array.isArray(data?.notFound) ? data.notFound : [];
+
+        const already = [];
+        const toAdd = [];
+        for (const id of matchedIds) {
+          if (this.$store.state.favorites.has(id)) {
+            already.push(id);
+          } else {
+            toAdd.push(id);
+          }
+        }
+
+        if (toAdd.length) {
+          this.$store.commit("addFavorites", toAdd);
+        }
+
+        this.recentlyAddedIds = toAdd;
+        if (this.recentlyAddedIds.length) {
+          setTimeout(() => {
+            this.recentlyAddedIds = [];
+          }, 1800);
+        }
+
+        // Refresh results if we are on the favorites page.
+        if (this.favorites) {
+          await this.fetchPage(true);
+        }
+
+        // One concise toast so users feel the click "did something"
+        let toast = "";
+        if (toAdd.length) toast = `Added ${toAdd.length} favorite(s)`;
+        else if (already.length) toast = "All matches were already in favorites";
+        else toast = "No matches found";
+        if (notFound.length) toast += ` • ${notFound.length} not found`;
+        this.showToast(toast);
+
+        this.bulkAddResult = {
+          addedCount: toAdd.length,
+          alreadyCount: already.length,
+          notFound,
+        };
+      } catch (e) {
+        console.error("Bulk add error:", e);
+        this.showToast(e?.message || "Bulk add failed");
+      } finally {
+        this.bulkAddLoading = false;
+      }
+    },
     toggleFavorite(_id) {
       this.$store.commit("toggleFavorite", _id);
       if (this.favorites) {
@@ -3893,6 +4070,93 @@ th {
   flex-grow: 1;
   min-width: 0;
 }
+.favorites-toolbar {
+  max-width: 1000px;
+  margin: 0 auto 16px;
+}
+.favorites-toolbar-row {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.favorites-prefs {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  min-width: 320px;
+  flex: 1 1 420px;
+}
+.favorites-prefs .sort {
+  flex: 1 1 260px;
+  min-width: 260px;
+}
+.favorites-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex: 0 1 520px;
+}
+.favorites-actions-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.action-button {
+  padding: 10px 12px;
+  font-size: 14px;
+  border-radius: 10px;
+  width: auto;
+}
+.favorites-empty {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 16px;
+  padding: 20px;
+  max-width: 740px;
+}
+.favorites-empty h2 {
+  margin: 0 0 6px;
+  font-family: Arvo;
+  font-size: 20px;
+  color: #1d2e26;
+}
+.favorites-title-count {
+  font-family: Roboto;
+  font-weight: 700;
+  font-size: 16px;
+  color: #555;
+}
+.favorites-empty p {
+  margin: 0 0 14px;
+  font-family: Roboto;
+  color: #444;
+}
+.favorites-empty-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  background: rgba(29, 46, 38, 0.95);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-family: Roboto;
+  font-size: 13px;
+  z-index: 10000;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.25);
+  max-width: min(92vw, 720px);
+  text-align: center;
+}
 .plants {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(248px, 1fr));
@@ -3911,6 +4175,10 @@ th {
   cursor: pointer;
   user-select: none;
   outline: none;
+}
+.plant-preview-wrapper--added .plant-preview {
+  box-shadow: 0 0 0 3px rgba(56, 161, 105, 0.28), 0 6px 18px rgba(0,0,0,0.12);
+  transform: translateY(-1px);
 }
 .plant-preview {
   position: relative;
