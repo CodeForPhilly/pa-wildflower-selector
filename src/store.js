@@ -43,6 +43,9 @@ export default ({ favorites }) => {
           if (id) state.favorites.add(id);
         }
       },
+      clearFavorites (state) {
+        state.favorites = new Set();
+      },
       setFavorites (state, favorites) {
         state.favorites = favorites;
       }

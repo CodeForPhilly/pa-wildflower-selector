@@ -317,10 +317,11 @@
                 <div class="favorites-actions-buttons" aria-live="polite">
                   <button
                     type="button"
+                    v-if="favoritesAvailable"
                     class="secondary action-button copy-button"
                     :class="{ copied: isCopied }"
                     @click="copyFavorites"
-                    :disabled="!favoritesAvailable || !results.length || isCopied"
+                    :disabled="!results.length || isCopied"
                   >
                     <span v-if="isCopied">✓ Copied!</span>
                     <span v-else>Copy</span>
@@ -335,6 +336,16 @@
                     @click="favoritesAvailable && $router.push('/planner')"
                   >
                     Garden Planner
+                  </button>
+                  <button
+                    type="button"
+                    v-if="favoritesAvailable"
+                    class="secondary action-button clear-favorites-button"
+                    @click="clearAllFavorites"
+                    title="Clear"
+                  >
+                    <Trash2 :size="16" class="clear-icon" />
+                    Clear
                   </button>
                 </div>
               </div>
@@ -592,6 +603,7 @@
               <div class="favorites-empty-actions">
                 <button type="button" class="primary" @click="$router.push('/')">Browse plants</button>
                 <button type="button" class="secondary" @click="openBulkAdd">Bulk Add</button>
+                <button type="button" class="secondary" @click="addStaffPicks">Staff Picks</button>
               </div>
             </section>
           </template>
@@ -690,6 +702,7 @@ import Checkbox from "./Checkbox.vue";
 import Header from "./Header.vue";
 import Menu from "./Menu.vue";
 import BulkAddFavoritesModal from "./BulkAddFavoritesModal.vue";
+import { Trash2 } from "lucide-vue-next";
 
 const twoUpImageCredits = [
   // Order is synced with the public/assets/images/two-up folder filenames,
@@ -732,6 +745,7 @@ export default {
     Header,
     Menu,
     BulkAddFavoritesModal,
+    Trash2,
   },
   props: {
     favorites: {
@@ -3568,6 +3582,62 @@ export default {
         await this.selectQuickAddPlant(this.quickAddPlants[0]);
       }
     },
+    async clearAllFavorites() {
+      if (!this.favoritesAvailable) return;
+      this.$store.commit("clearFavorites");
+      this.results = [];
+      this.loadedAll = true;
+      this.total = 0;
+      this.showToast("Cleared favorites");
+
+      if (this.favorites) {
+        await this.fetchPage(true);
+      }
+    },
+    async addStaffPicks() {
+      // Curated starter set for empty favorites state
+      const staffPicksText = `
+Asclepias tuberosa
+Symphyotrichum novae-angliae
+Diospyros virginiana
+Amelanchier laevis
+Corylus americana
+Vaccinium corymbosum
+Asimina triloba
+Aronia melanocarpa
+Pycnanthemum muticum
+      `.trim();
+
+      try {
+        const response = await fetch("/api/v1/plants/resolve-names", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: staffPicksText }),
+        });
+        const contentType = (response.headers.get("content-type") || "").toLowerCase();
+        const rawBody = await response.text();
+        const data = contentType.includes("application/json") ? JSON.parse(rawBody || "{}") : null;
+        if (!response.ok) {
+          throw new Error((data && data.error) || rawBody || "Failed to add Staff Picks");
+        }
+        const matchedIds = Array.isArray(data?.matchedIds) ? data.matchedIds : [];
+        const toAdd = matchedIds.filter((id) => !this.$store.state.favorites.has(id));
+        if (toAdd.length) {
+          this.$store.commit("addFavorites", toAdd);
+          this.recentlyAddedIds = toAdd;
+          setTimeout(() => {
+            this.recentlyAddedIds = [];
+          }, 1800);
+        }
+        if (this.favorites) {
+          await this.fetchPage(true);
+        }
+        this.showToast(`Added ${toAdd.length} Staff Pick(s)`);
+      } catch (e) {
+        console.error("Staff Picks error:", e);
+        this.showToast(e?.message || "Failed to add Staff Picks");
+      }
+    },
     async submitBulkAdd(text) {
       if (this.bulkAddLoading) return;
       const payload = typeof text === "string" ? text : "";
@@ -4317,6 +4387,29 @@ th {
   font-size: 14px;
   border-radius: 10px;
   width: auto;
+}
+.clear-favorites-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-color: rgba(220, 38, 38, 0.65);
+  color: #b91c1c;
+}
+.clear-favorites-button:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.06);
+}
+.clear-favorites-button .clear-icon {
+  color: currentColor;
+}
+.undo-favorites-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-color: rgba(55, 65, 81, 0.4);
+  color: #374151;
+}
+.undo-favorites-button:hover:not(:disabled) {
+  background: rgba(55, 65, 81, 0.06);
 }
 .favorites-empty {
   background: #fff;
