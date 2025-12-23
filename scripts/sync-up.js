@@ -78,6 +78,132 @@ console.log(`Linode Bucket: ${LINODE_BUCKET_NAME}\n`);
 const skipImages = process.argv.includes('--skip-images') || process.argv.includes('--db-only');
 const skipDatabase = process.argv.includes('--images-only') || process.argv.includes('--skip-db');
 
+function getArgValue(flag) {
+  const idx = process.argv.indexOf(flag);
+  if (idx !== -1 && process.argv[idx + 1] && !process.argv[idx + 1].startsWith('--')) {
+    return process.argv[idx + 1];
+  }
+  const prefixed = process.argv.find(a => a.startsWith(`${flag}=`));
+  if (prefixed) return prefixed.slice(flag.length + 1);
+  return undefined;
+}
+
+function createS3Client() {
+  return new S3Client({
+    endpoint: LINODE_ENDPOINT_URL,
+    region: 'us-east-1', // Linode uses us-east-1 as default
+    credentials: {
+      accessKeyId: AWS_ACCESS_KEY_ID,
+      secretAccessKey: AWS_SECRET_ACCESS_KEY,
+    },
+    forcePathStyle: false, // Linode uses virtual-hosted-style
+  });
+}
+
+function walkFilesRecursively(dir) {
+  const out = [];
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...walkFilesRecursively(full));
+    else if (entry.isFile()) out.push(full);
+  }
+  return out;
+}
+
+function guessContentType(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+  if (ext === '.png') return 'image/png';
+  if (ext === '.webp') return 'image/webp';
+  if (ext === '.gif') return 'image/gif';
+  if (ext === '.avif') return 'image/avif';
+  return undefined;
+}
+
+async function uploadImagesToLinode({ imagesDir, bucket, s3Client }) {
+  const allFiles = walkFilesRecursively(imagesDir);
+  const limitRaw = getArgValue('--images-limit');
+  const limit = limitRaw ? Number.parseInt(limitRaw, 10) : undefined;
+  const files = Number.isFinite(limit) ? allFiles.slice(0, limit) : allFiles;
+
+  const concurrencyRaw = getArgValue('--images-concurrency');
+  const concurrency = Math.max(1, Math.min(32, Number.parseInt(concurrencyRaw || '4', 10) || 4));
+
+  if (files.length === 0) {
+    console.log('ℹ️  No files found in images directory, skipping image upload\n');
+    return;
+  }
+
+  console.log(`📤 Uploading ${files.length.toLocaleString()} image files to Linode Object Storage (concurrency=${concurrency})...`);
+  if (Number.isFinite(limit)) {
+    console.log(`   (Limited to first ${limit} files via --images-limit)\n`);
+  } else {
+    console.log('');
+  }
+
+  let uploaded = 0;
+  let failed = 0;
+  const failures = [];
+
+  let i = 0;
+  async function worker() {
+    while (true) {
+      const idx = i++;
+      if (idx >= files.length) return;
+
+      const filePath = files[idx];
+      const rel = path.relative(imagesDir, filePath);
+      const key = `images/${rel.replace(/\\/g, '/')}`;
+
+      try {
+        const stat = fs.statSync(filePath);
+        // Avoid streaming uploads to maximize compatibility with S3-compatible providers
+        // that reject chunked/streaming PUT requests.
+        const body = fs.readFileSync(filePath);
+        const contentType = guessContentType(filePath);
+
+        const put = new PutObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          Body: body,
+          ACL: 'public-read',
+          ContentLength: stat.size, // Explicit to avoid 411 Length Required / streaming issues
+          ...(contentType ? { ContentType: contentType } : {}),
+        });
+
+        await s3Client.send(put);
+        uploaded++;
+
+        if (uploaded % 250 === 0 || uploaded === files.length) {
+          console.log(`   ✅ Uploaded ${uploaded.toLocaleString()}/${files.length.toLocaleString()}`);
+        }
+      } catch (err) {
+        failed++;
+        const msg = err && err.message ? err.message : String(err);
+        const name = err && err.name ? err.name : 'Error';
+        const status = err && err.$metadata && err.$metadata.httpStatusCode ? err.$metadata.httpStatusCode : undefined;
+        failures.push({ key, msg: status ? `${name} (${status}): ${msg}` : `${name}: ${msg}` });
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+
+  if (failed > 0) {
+    console.error(`\n⚠️  Image upload finished with failures: ${failed.toLocaleString()} failed, ${uploaded.toLocaleString()} uploaded`);
+    console.error('   Showing up to first 10 failures:');
+    for (const f of failures.slice(0, 10)) {
+      console.error(`   - ${f.key}: ${f.msg}`);
+    }
+    console.error('');
+    return;
+  }
+
+  console.log(`\n✅ Images uploaded to: s3://${bucket}/images/`);
+  console.log(`   Images available at: https://${bucket}.${LINODE_ENDPOINT_URL.replace('https://', '').split('/')[0]}/images/\n`);
+}
+
 async function syncDatabase() {
   try {
     // Step 0: Verify AWS CLI is available and configured before creating backup
@@ -177,15 +303,7 @@ async function syncDatabase() {
     
     try {
       // Create S3 client configured for Linode Object Storage
-      const s3Client = new S3Client({
-        endpoint: LINODE_ENDPOINT_URL,
-        region: 'us-east-1', // Linode uses us-east-1 as default
-        credentials: {
-          accessKeyId: AWS_ACCESS_KEY_ID,
-          secretAccessKey: AWS_SECRET_ACCESS_KEY,
-        },
-        forcePathStyle: false, // Linode uses virtual-hosted-style
-      });
+      const s3Client = createS3Client();
 
       // Read the file as a buffer
       const fileBuffer = fs.readFileSync(archivePath);
@@ -222,19 +340,12 @@ async function syncDatabase() {
       console.log(`   Images directory: ${imagesDir}\n`);
       
       try {
-        execSync(
-          `aws s3 sync "${imagesDir}/" s3://${LINODE_BUCKET_NAME}/images/ --endpoint-url ${LINODE_ENDPOINT_URL} --acl public-read`,
-          {
-            stdio: 'inherit',
-            env: {
-              ...process.env,
-              AWS_ACCESS_KEY_ID,
-              AWS_SECRET_ACCESS_KEY
-            }
-          }
-        );
-        console.log(`\n✅ Images synced to: s3://${LINODE_BUCKET_NAME}/images/`);
-        console.log(`   Images available at: https://${LINODE_BUCKET_NAME}.${LINODE_ENDPOINT_URL.replace('https://', '').split('/')[0]}/images/\n`);
+        const s3Client = createS3Client();
+        await uploadImagesToLinode({
+          imagesDir,
+          bucket: LINODE_BUCKET_NAME,
+          s3Client,
+        });
       } catch (error) {
         console.error('\n⚠️  Failed to sync images (non-critical)');
         console.error(`   Error: ${error.message}\n`);
