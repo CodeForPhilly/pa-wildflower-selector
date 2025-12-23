@@ -621,36 +621,7 @@
                     View details
                   </div>
 
-                  <div v-if="photoMode !== 'studio'" class="name-scrim">
-                    <div class="name-text">
-                      <h4 class="common-name">{{ result["Common Name"] }}</h4>
-                      <h5 class="scientific-name">
-                        {{ result["Scientific Name"] }}
-                      </h5>
-                    </div>
-                    <button
-                      @click.stop.prevent="toggleFavorite(result._id)"
-                      class="tile-favorite text"
-                      :aria-label="
-                        $store.state.favorites.has(result._id)
-                          ? `Remove ${result['Common Name']} from favorites`
-                          : `Add ${result['Common Name']} to favorites`
-                      "
-                    >
-                      <span class="material-icons material-align">{{
-                        renderFavorite(result._id)
-                      }}</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div v-if="photoMode === 'studio'" class="caption">
-                  <div class="caption-text">
-                    <h4 class="common-name">{{ result["Common Name"] }}</h4>
-                    <h5 class="scientific-name">
-                      {{ result["Scientific Name"] }}
-                    </h5>
-                  </div>
+                  <!-- Favorite button: always top-right so it never overlaps the plant name text -->
                   <button
                     @click.stop.prevent="toggleFavorite(result._id)"
                     class="tile-favorite text"
@@ -664,6 +635,24 @@
                       renderFavorite(result._id)
                     }}</span>
                   </button>
+
+                  <div v-if="photoMode !== 'studio'" class="name-scrim">
+                    <div class="name-text">
+                      <h4 class="common-name">{{ result["Common Name"] }}</h4>
+                      <h5 class="scientific-name">
+                        {{ result["Scientific Name"] }}
+                      </h5>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="photoMode === 'studio'" class="caption">
+                  <div class="caption-text">
+                    <h4 class="common-name">{{ result["Common Name"] }}</h4>
+                    <h5 class="scientific-name">
+                      {{ result["Scientific Name"] }}
+                    </h5>
+                  </div>
                 </div>
               </div>
             </article>
@@ -3881,13 +3870,26 @@ button.text {
   margin: auto;
   display: flex;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .photo-mode-row {
   max-width: 350px;
   margin: auto;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+}
+
+/* Mobile/tablet spacing: keep sort + photo toggle closer together */
+@media all and (max-width: 1280px) {
+  .sort-and-favorites {
+    margin-bottom: 8px;
+  }
+  .photo-mode-row {
+    margin-bottom: 10px;
+  }
+  .favorites-prefs-stack {
+    gap: 6px;
+  }
 }
 
 .photo-mode-toggle {
@@ -4409,8 +4411,10 @@ th {
   height: 52px;
   padding: 0;
   border-radius: 999px;
+  position: absolute;
+  top: 10px;
+  right: 10px;
   background: transparent;
-  background-color: transparent;
   box-shadow: none;
   border: none;
   appearance: none;
@@ -4419,12 +4423,26 @@ th {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #1d2e26; /* studio default (over white) */
+  color: #1d2e26; /* readable over both studio + habitat */
   z-index: 2;
   flex: 0 0 auto;
 }
 .tile-favorite .material-icons {
   font-size: 28px;
+  /* Make the icon readable on photos without adding a visible button background */
+  text-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.35),
+    0 0 2px rgba(255, 255, 255, 0.85);
+}
+
+/* Studio photos are already high-contrast on white; remove shadow for a cleaner look */
+.photo--studio .tile-favorite .material-icons {
+  text-shadow: none;
+}
+
+.tile-favorite:focus-visible {
+  outline: 3px solid rgba(183, 77, 21, 0.35);
+  outline-offset: 2px;
 }
 .photo--habitat .tile-favorite {
   color: #fff;
