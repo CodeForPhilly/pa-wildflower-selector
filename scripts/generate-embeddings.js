@@ -62,14 +62,8 @@ async function generateEmbeddings() {
   console.log(`Updated: ${updated}`);
   console.log(`Skipped: ${skipped}`);
   
-  // Create index on embedding field for better performance
-  try {
-    console.log('\nCreating index on embedding field...');
-    await plants.createIndex({ embedding: '2dsphere' });
-    console.log('Index created successfully');
-  } catch (error) {
-    console.warn('Note: Could not create 2dsphere index (this is okay for vector search)');
-  }
+  // NOTE: Do not create a 2dsphere index on embedding. 2dsphere is for geo, not vector similarity.
+  // If/when we adopt a real vector index (e.g. Atlas Search vector), create that instead.
   
   await close();
   return { processed, updated, skipped };

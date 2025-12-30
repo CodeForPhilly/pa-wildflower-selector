@@ -30,3 +30,9 @@ TODO.MD
 settings.local.json
 
 git@.gitignore
+
+# Windows reserved device names
+nul
+con
+prn
+aux

@@ -17,10 +17,11 @@
         <menu>
           <button @click="closeNav" class="material-icons router-button close-nav">close</button>
           <span class="regular-links">
-            <router-link to="/">Home</router-link>
-            <router-link to="/people-page">People Page</router-link>
-            <router-link to="/how-to-use">How to Use</router-link>
+            <router-link to="/">Plants</router-link>
+            <router-link to="/favorites">Favorites</router-link>
+            <router-link to="/planner">Planner</router-link>
             <router-link to="/map">Nurseries</router-link>
+            <router-link to="/people-page">About</router-link>
           </span>
           <div class="copyright">© 2025 Choose Native Plants - USA</div>
         </menu>
@@ -79,10 +80,9 @@ export default {
 }
 
 .main-nav {
-  padding-bottom: 32px;
+  padding-bottom: 20px;
   border-bottom: 2px solid #d3d3d3;
-  /* TODO reduce this when we have more text to make this space look good */
-  margin-bottom: 32px;
+  margin-bottom: 16px;
 }
 
 .main-nav.seamless {
@@ -251,7 +251,7 @@ menu .copyright {
     border-bottom: none;
     padding: 0;
     margin: 0;
-    height: 140px;
+    height: 120px;
   }
   a.logo-parent h1 {
     display: flex;
@@ -261,7 +261,7 @@ menu .copyright {
     font-size: 24px;
     line-height: 30px;
     font-weight: normal;
-    height: 100px;
+    height: 80px;
     display: flex;
   }
   h1 .text {

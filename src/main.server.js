@@ -1,5 +1,7 @@
 const { createSSRApp } = require('vue');
 const { renderToString } = require('@vue/server-renderer');
+// @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
+import Tres from '@tresjs/core';
 import router from './router';
 import store from './store';
 import { createMemoryHistory } from "vue-router";
@@ -15,6 +17,7 @@ export default async ({ port, url }) => {
   const routerInstance = router({ history: createMemoryHistory() });
   app.use(routerInstance);
   app.use(store({ favorites: new Set() }));
+  app.use(Tres);
   await routerInstance.push(url);
   await routerInstance.isReady();
   return renderToString(app);
