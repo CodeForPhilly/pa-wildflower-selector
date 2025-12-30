@@ -59,15 +59,23 @@ console.log(`Mode: ${mode} (DB_HOST=${host})`);
 console.log(`Database: ${dbName}`);
 console.log(`Linode Bucket: ${LINODE_BUCKET_NAME}\n`);
 
+// Check if flags are passed
+const skipImages = process.argv.includes('--skip-images') || process.argv.includes('--db-only');
+const skipDatabase = process.argv.includes('--images-only') || process.argv.includes('--skip-db');
+
 async function syncDatabase() {
   try {
-    // Create backup directory
-    if (!fs.existsSync(backupDir)) {
-      fs.mkdirSync(backupDir, { recursive: true });
-      console.log(`📁 Created backup directory: ${backupDir}\n`);
-    }
+    // Skip database restore if --images-only flag is set
+    if (skipDatabase) {
+      console.log('ℹ️  Skipping database restore (--images-only flag set)\n');
+    } else {
+      // Create backup directory
+      if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+        console.log(`📁 Created backup directory: ${backupDir}\n`);
+      }
 
-    // Step 1: List available backups
+      // Step 1: List available backups
     console.log('🔍 Finding latest backup...');
     const listCommand = `aws s3 ls s3://${LINODE_BUCKET_NAME}/db_backups/ --endpoint-url ${LINODE_ENDPOINT_URL}`;
     
@@ -186,14 +194,43 @@ async function syncDatabase() {
       }
       process.exit(1);
     }
+    }
+
+    // Step 4: Optionally sync images from Linode Object Storage (skip if --skip-images flag is set)
+    if (skipImages) {
+      console.log('ℹ️  Skipping image sync (--skip-images flag set)\n');
+    } else {
+      const imagesDir = isDockerMode ? '/app/images' : path.join(__dirname, '../images');
+      if (fs.existsSync(imagesDir)) {
+        console.log('📥 Syncing images from Linode Object Storage...');
+        console.log(`   Images directory: ${imagesDir}\n`);
+        
+        try {
+          execSync(
+            `aws s3 sync s3://${LINODE_BUCKET_NAME}/images/ "${imagesDir}/" --endpoint-url ${LINODE_ENDPOINT_URL}`,
+            {
+              stdio: 'inherit',
+              env: {
+                ...process.env,
+                AWS_ACCESS_KEY_ID,
+                AWS_SECRET_ACCESS_KEY
+              }
+            }
+          );
+          console.log(`\n✅ Images synced from: s3://${LINODE_BUCKET_NAME}/images/`);
+          console.log(`   Images available at: ${imagesDir}\n`);
+        } catch (error) {
+          console.error('\n⚠️  Failed to sync images (non-critical)');
+          console.error(`   Error: ${error.message}\n`);
+          // Don't exit on image sync failure, as it's not critical
+        }
+      } else {
+        console.log('ℹ️  Images directory not found, skipping image sync');
+        console.log(`   Expected: ${imagesDir}\n`);
+      }
+    }
 
     console.log('===== Sync Down Process Completed =====\n');
-    console.log('💡 Note: To sync images from Linode, run:');
-    if (isDockerMode) {
-      console.log('   docker compose exec app npm run sync-images\n');
-    } else {
-      console.log('   npm run sync-images\n');
-    }
 
   } catch (error) {
     console.error('\n❌ Sync failed');

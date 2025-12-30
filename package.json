@@ -12,11 +12,20 @@
     "build": "npm run build-ssr && npm run build-browser",
     "deploy-to-staging": "npm run build && sc-deploy staging",
     "sign-secrets": "./script/sign-secrets",
-    "update-data": "node download && node massage",
-    "fast-update-data": "node download --skip-images && node massage",
+    "update-data": "node download && node massage && npm run optimize-plants-db",
+    "fast-update-data": "node download --skip-images && node massage && npm run optimize-plants-db",
     "generate-embeddings": "node scripts/generate-embeddings.js",
+    "enforce-plants-schema": "node scripts/enforce-plants-schema.js",
+    "migrate-plants-clean-data": "node scripts/migrate-plants-clean-data.js",
+    "ensure-plants-indexes": "node scripts/ensure-plants-indexes.js",
+    "optimize-plants-db": "npm run migrate-plants-clean-data && npm run enforce-plants-schema && npm run ensure-plants-indexes",
     "sync-images": "node scripts/sync-images.js",
     "sync:down": "node scripts/sync-down.js",
+    "sync:down:db": "node scripts/sync-down.js --skip-images",
+    "sync:down:images": "node scripts/sync-down.js --images-only",
+    "sync:up": "node scripts/sync-up.js",
+    "sync:up:db": "node scripts/sync-up.js --skip-images",
+    "sync:up:images": "node scripts/sync-up.js --images-only",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
     "predev:local": "node scripts/dev-setup.js",
@@ -26,15 +35,19 @@
     "dev:full": "concurrently --names \"SERVER,CLIENT\" --prefix-colors \"blue,green\" \"npm run dev:server\" \"npm run dev:client\""
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@tresjs/cientos": "^3.2.0",
+    "@tresjs/core": "3.9.0",
     "@vue/cli-plugin-babel": "^4.5.16",
     "@vue/cli-plugin-eslint": "^4.5.16",
     "@vue/cli-service": "^4.5.16",
-    "@vue/compiler-sfc": "^3.2.31",
-    "@vue/server-renderer": "^3.2.31",
+    "@vue/compiler-sfc": "3.3.13",
+    "@vue/server-renderer": "3.3.13",
     "@xenova/transformers": "^2.17.2",
-    "babel-eslint": "^10.1.0",
     "axios": "^1.7.7",
+    "babel-eslint": "^10.1.0",
     "boring": "^1.1.1",
+    "camera-controls": "^2.10.1",
     "cheerio": "^1.0.0-rc.9",
     "core-js": "^3.21.1",
     "csv-parse": "^4.15.4",
@@ -45,13 +58,15 @@
     "google-spreadsheet": "^5.0.2",
     "leaflet": "^1.7.1",
     "limiter": "^2.1.0",
+    "lucide-vue-next": "^0.562.0",
     "mongodb": "^3.6.7",
     "mongodb-mcp-server": "^1.2.0",
     "node-fetch": "^2.6.1",
     "qs": "^6.10.2",
     "regexp-quote": "0.0.0",
     "sluggo": "^0.3.1",
-    "vue": "^3.2.31",
+    "three": "^0.182.0",
+    "vue": "3.3.13",
     "vue-router": "^4.0.14",
     "vuex": "^4.0.2",
     "webpack-manifest-plugin": "^4.0.2",
@@ -59,22 +74,14 @@
     "yaml": "^2.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.0.0",
+    "@types/three": "^0.182.0",
+    "@vue/cli-plugin-typescript": "^4.5.19",
     "concurrently": "^8.2.2",
-    "cross-env": "^7.0.3"
-  },
-  "eslintConfig": {
-    "root": true,
-    "env": {
-      "node": true
-    },
-    "extends": [
-      "plugin:vue/vue3-essential",
-      "eslint:recommended"
-    ],
-    "parserOptions": {
-      "parser": "babel-eslint"
-    },
-    "rules": {}
+    "cross-env": "^7.0.3",
+    "ts-loader": "^8.4.0",
+    "typescript": "^5.0.0"
   },
   "browserslist": [
     "> 1%",

@@ -4,152 +4,108 @@
       :h1="
         favorites
           ? 'Favorites'
-          : questions
-          ? 'Quick Search'
           : 'Choose Native Plants'
       "
       :large-h1="false"
     >
-      <template v-if="!(questions || favorites)" v-slot:after-bar>
-        <p class="not-large-help">
-          <router-link to="/quick-search"
-            >Not sure where to start?<br />Try quick search</router-link
-          >
-        </p>
-        <div class="not-large-help" v-if="zipCode">
-          <button class="primary primary-bar" @click="setLocation()">
-              <span class="material-icons">place</span> Change Location [{{
-                zipCode
-              }}]
-            </button>
-          </div>
-        <div v-else class="hide-desk">
-          <button class="primary primary-bar" @click="setLocation()">
-            <span class="material-icons">place</span> Set Location
-          </button>
-        </div>
-       
-        <div class="two-up large-help">
-          <div class="two-up-text">
-            <h2>
-              Native plants promote a healthier ecosystem in your garden
-              <div v-if="zipCode">
-                <button @click="setLocation()">
-                  <span class="material-icons">place</span> change location [{{
-                    zipCode
-                  }}]
-                </button>
-              </div>
-              <div v-else>
-                <button @click="setLocation()">
-                  <span class="material-icons">place</span> set location
-                </button>
-              </div>
-            </h2>
-            <p>
-              Find which native shrubs, plants and flowers <span v-if="displayLocation">from
-              <strong>{{ displayLocation }}</strong></span> have the right conditions
-              to flourish in your garden. Use the quick search option or side
-              filters to get started. Detailed instructions are found
-              <router-link to="/how-to-use#the-directions">here</router-link>
-            </p>
-            <button class="primary" @click="$router.push('/quick-search')">
-              Quick Search
-            </button>
-          </div>
-          <div class="two-up-image" :style="twoUpImage(twoUpIndex)">
-            <span class="two-up-credit"
-              ><a target="_blank" :href="twoUpImageCredit(twoUpIndex).href">{{
-                twoUpImageCredit(twoUpIndex).title
-              }}</a></span
-            >
-          </div>
-        </div>
-      </template>
     </Header>
-    <div class="search-desktop-parent" v-if="!(questions || favorites)">
-      <div class="search-with-autocomplete">
-        <form class="search-desktop" @submit.prevent="handleSearchSubmit">
-          <span class="material-icons">search</span>
-          <input 
-            v-model="q" 
-            id="q" 
-            placeholder="Search plants or your garden needs"
-            maxlength="200"
-            @keydown.enter.prevent="handleSearchSubmit"
-            @input="handleSearchInput"
-            @focus="showAutocomplete = true"
-            @blur="handleSearchBlur"
-          />
-          <button type="button" class="text" :disabled="q.length == 0" @click.prevent="handleSearchSubmit">
-            <span class="material-icons">chevron_right</span>
-          </button>
-        </form>
-        
-        <!-- Autocomplete Dropdown for Desktop -->
-        <div 
-          v-if="showAutocomplete && autocompleteResults.sections.length > 0 && isDesktop()" 
-          class="autocomplete-dropdown"
-          ref="autocompleteDropdown"
-        >
+    <div class="explorer-column">
+      <div v-if="!favorites" class="compact-utility-header">
+        <div class="utility-content">
+          <div class="location-section">
+            <button class="location-btn" @click="setLocation()">
+              <span class="material-icons">place</span>
+              <span v-if="zipCode">Change Location [{{ zipCode }}]</span>
+              <span v-else>Set Location</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="search-desktop-parent" v-if="!favorites">
+        <div class="search-with-autocomplete">
+          <form class="search-desktop" @submit.prevent="handleSearchSubmit">
+            <span class="material-icons">search</span>
+            <input 
+              v-model="q" 
+              id="q" 
+              placeholder="Search plants or your garden needs"
+              maxlength="200"
+              @keydown.enter.prevent="handleSearchSubmit"
+              @input="handleSearchInput"
+              @focus="showAutocomplete = true"
+              @blur="handleSearchBlur"
+            />
+            <button type="button" class="text" :disabled="q.length == 0" @click.prevent="handleSearchSubmit">
+              <span class="material-icons">chevron_right</span>
+            </button>
+          </form>
+          
+          <!-- Autocomplete Dropdown for Desktop -->
           <div 
-            v-for="section in autocompleteResults.sections" 
-            :key="section.filterName || section.type"
-            class="autocomplete-section"
+            v-if="showAutocomplete && autocompleteResults.sections.length > 0 && isDesktop()" 
+            class="autocomplete-dropdown"
+            ref="autocompleteDropdown"
           >
-            <div class="autocomplete-section-header">
-              <img 
-                v-if="section.type === 'filter' && section.items.length > 0"
-                :src="`/assets/images/${section.items[0].svg}.svg`"
-                class="section-icon"
-                :alt="section.label"
-              />
-              <span class="section-label">{{ section.label }}</span>
-            </div>
             <div 
-              v-for="item in section.items" 
-              :key="item.value || item.plantId"
-              class="autocomplete-item"
-              @mousedown.prevent="handleAutocompleteSelect(item)"
+              v-for="section in autocompleteResults.sections" 
+              :key="section.filterName || section.type"
+              class="autocomplete-section"
             >
-              <!-- For filter items -->
-              <template v-if="item.action === 'applyFilter'">
+              <div class="autocomplete-section-header">
                 <img 
-                  v-if="item.svg"
-                  :src="`/assets/images/${item.svg}.svg`"
-                  class="autocomplete-item-icon"
-                  :alt="item.value"
+                  v-if="autocompleteSectionHeaderSvg(section)"
+                  :src="`/assets/images/${autocompleteSectionHeaderSvg(section)}.svg`"
+                  class="section-icon"
+                  :alt="section.label"
                 />
-                <span class="autocomplete-item-text">{{ item.displayText }}</span>
-              </template>
-              
-              <!-- For plant items -->
-              <template v-else-if="item.action === 'navigateToPlant'">
-                <span class="autocomplete-item-text">
-                  <template v-if="item.commonName && item.scientificName">
-                    <template v-if="highlightMatch(item.commonName, q).match">
-                      <span>{{ highlightMatch(item.commonName, q).before }}</span><strong>{{ highlightMatch(item.commonName, q).match }}</strong><span>{{ highlightMatch(item.commonName, q).after }}</span>
-                    </template>
-                    <span v-else>{{ item.commonName }}</span>
-                    <span class="autocomplete-item-subtitle">(
-                      <template v-if="highlightMatch(item.scientificName, q).match">
-                        <span>{{ highlightMatch(item.scientificName, q).before }}</span><strong>{{ highlightMatch(item.scientificName, q).match }}</strong><span>{{ highlightMatch(item.scientificName, q).after }}</span>
+                <span class="section-label">{{ section.label }}</span>
+              </div>
+              <div 
+                v-for="item in section.items" 
+                :key="item.value || item.plantId"
+                class="autocomplete-item"
+                @mousedown.prevent="handleAutocompleteSelect(item)"
+              >
+                <!-- For filter items -->
+                <template v-if="item.action === 'applyFilter'">
+                  <img 
+                    v-if="item.svg"
+                    :src="`/assets/images/${item.svg}.svg`"
+                    class="autocomplete-item-icon"
+                    :alt="item.value"
+                  />
+                  <span class="autocomplete-item-text">{{ item.displayText }}</span>
+                </template>
+                
+                <!-- For plant items -->
+                <template v-else-if="item.action === 'navigateToPlant'">
+                  <span class="autocomplete-item-text">
+                    <template v-if="item.commonName && item.scientificName">
+                      <template v-if="highlightMatch(item.commonName, q).match">
+                        <span>{{ highlightMatch(item.commonName, q).before }}</span><strong>{{ highlightMatch(item.commonName, q).match }}</strong><span>{{ highlightMatch(item.commonName, q).after }}</span>
                       </template>
-                      <span v-else>{{ item.scientificName }}</span>
-                    )</span>
-                  </template>
-                  <template v-else>
-                    <strong>{{ item.displayText }}</strong>
-                    <span v-if="item.subtitle" class="autocomplete-item-subtitle">({{ item.subtitle }})</span>
-                  </template>
-                </span>
-              </template>
+                      <span v-else>{{ item.commonName }}</span>
+                      <span class="autocomplete-item-subtitle">(
+                        <template v-if="highlightMatch(item.scientificName, q).match">
+                          <span>{{ highlightMatch(item.scientificName, q).before }}</span><strong>{{ highlightMatch(item.scientificName, q).match }}</strong><span>{{ highlightMatch(item.scientificName, q).after }}</span>
+                        </template>
+                        <span v-else>{{ item.scientificName }}</span>
+                      )</span>
+                    </template>
+                    <template v-else>
+                      <strong>{{ item.displayText }}</strong>
+                      <span v-if="item.subtitle" class="autocomplete-item-subtitle">({{ item.subtitle }})</span>
+                    </template>
+                  </span>
+                </template>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-    <h1 class="large favorites" v-if="favorites">Favorites List</h1>
+    <h1 class="large favorites" v-if="favorites">
+      Favorites <span class="favorites-title-count" v-if="favoritesCount">({{ favoritesCount }})</span>
+    </h1>
     <article v-if="selected" class="selected">
       <div class="modal-bar">
         <span class="title">More Info</span>
@@ -171,7 +127,29 @@
               }}</span>
             </button>
           </h1>
-          <h2>{{ selected["Scientific Name"] }}</h2>
+          <div class="scientific-name-line" v-if="plantGenus || plantSpecies">
+            <span class="scientific-name-text">
+              <button
+                v-if="plantGenus"
+                type="button"
+                class="taxon-link taxon-link--scientific"
+                @click="applyGenusFilter(plantGenus)"
+              >
+                {{ plantGenus }}
+              </button>
+              <span v-if="plantSpecies" class="species-text">{{ plantSpecies }}</span>
+            </span>
+          </div>
+          <div class="taxon-meta" v-if="plantFamily">
+            <span class="taxon-label">Family:</span>
+            <button
+              type="button"
+              class="taxon-link taxon-link--meta"
+              @click="applyFamilyFilter(plantFamily)"
+            >
+              {{ plantFamily }}
+            </button>
+          </div>
           <p v-if="selected['Blurb']">{{ selected["Blurb"] }}</p>
           <p v-if="selected['Flowering Months']">
             Flowering Months:
@@ -179,6 +157,9 @@
           </p>
           <p v-if="selected['Height (feet)']">
             Height: {{ selected["Height (feet)"] }} feet
+          </p>
+          <p v-if="selected['Spread (feet)']">
+            Spread: {{ selected["Spread (feet)"] }} feet
           </p>
           <h3 v-if="localStoreLinks.length || onlineStoreLinks.length">
             Nurseries that carry this native plant:
@@ -249,160 +230,237 @@
       </div>
     </article>
     <main :class="mainClasses" ref="mainContent">
-      <div v-if="questions" class="questions-box">
-        <div :class="questionsClasses">
-          <div v-if="!question" class="questions-prologue">
-            <h1 class="large">Quick search</h1>
-            <p class="small">Novice gardener?</p>
-            <p class="small">Don't know where to start?</p>
-            <p class="large">Novice gardener? Don't know where to start?</p>
-            <p>
-              Answering these easy questions will get you well on your way to a
-              selection of plants for your garden.
-            </p>
-          </div>
-          <form
-            :class="questionClasses(index)"
-            v-for="(questionDetail, index) in questionDetails"
-            :key="index"
-          >
-            <h4>{{ questionDetail.title }}</h4>
-            <div class="radio-inputs" v-if="questionDetail.type === 'boolean'">
-              <label>
-                <input
-                  name="{{ questionDetail.name }}"
-                  type="radio"
-                  value="1"
-                  v-model="questionDetail.value"
-                />
-                <span class="label">Yes</span>
-              </label>
-              <label>
-                <input
-                  name="{{ questionDetail.name }}"
-                  type="radio"
-                  value=""
-                  v-model="questionDetail.value"
-                />
-                <span class="label">No</span>
-              </label>
-            </div>
-            <div v-else-if="questionDetail.type === 'month'" class="month">
-              <button @click.stop.prevent="toggleMonth" class="list-button">
-                <span class="label">Planting Month</span>
-                <span class="value">{{ currentMonthLabel }}</span>
-                <span class="material-icons">{{
-                  monthIsOpen ? "arrow_drop_up" : "arrow_drop_down"
-                }}</span>
-              </button>
-              <Menu
-                :open="monthIsOpen"
-                :choices="questionDetail.choices"
-                v-model="questionDetail.value"
-                @close="toggleMonth"
-              />
-            </div>
-            <div class="question-buttons">
-              <div
-                v-if="index + 1 === questionDetails.length"
-                class="show-back"
-              >
-                <button
-                  class="primary"
-                  v-if="index + 1 === questionDetails.length"
-                  @click.prevent="endQuestions"
-                >
-                  Show Plants
-                </button>
-                <button v-if="index > 0" @click.prevent="question = index - 1">
-                  Back
-                </button>
-              </div>
-              <div v-else class="next-back">
-                <button
-                  class="primary next"
-                  v-if="index + 1 < questionDetails.length"
-                  @click.prevent="nextQuestion"
-                >
-                  Next
-                </button>
-                <button
-                  class="back"
-                  v-if="index > 0"
-                  @click.prevent="question = index - 1"
-                >
-                  Back
-                </button>
-              </div>
-              <button @click="quitQuestions">Quit Questions</button>
-            </div>
-          </form>
-        </div>
-        <div
-          class="questions-decoration"
-          :style="twoUpImage(questionsHeroIndex)"
-        >
-          <span class="two-up-credit"
-            ><a :href="twoUpImageCredit(twoUpIndex).href" target="_blank">{{
-              twoUpImageCredit(twoUpIndex).title
-            }}</a></span
-          >
-        </div>
-      </div>
-      <template v-else>
         <div class="controls">
-          <div class="filter-toggle-and-sort">
-            <button
-              v-if="!favorites"
-              class="primary primary-bar filter"
-              @click="openFilters"
-            >
-              Filter
-            </button>
-            <div class="sort-and-favorites">
-              <button
-                class="favorites"
-                :disabled="!favoritesAvailable"
-                v-if="!favorites"
-                @click="favoritesAvailable && $router.push('/favorites')"
-              >
-                <span class="material-icons material-align">favorite</span
-                ><span class="favorites-label">&nbsp;Favorites</span>
-              </button>
-              <div class="sort">
-                <button @click.stop="toggleSort" :class="sortButtonClasses">
-                  <span class="label">Sort By</span>
-                  <span class="value">{{ sortLabel(sort) }}</span>
-                  <span class="material-icons">{{
-                    sortIsOpen ? "arrow_drop_up" : "arrow_drop_down"
-                  }}</span>
-                </button>
-                <Menu
-                  :open="sortIsOpen"
-                  :choices="sorts"
-                  v-model="sort"
-                  @close="toggleSort"
-                />
+          <!-- Favorites toolbar: preferences + actions -->
+          <div v-if="favorites" class="favorites-toolbar">
+            <div class="favorites-toolbar-row">
+              <div class="favorites-sort">
+                <div class="sort">
+                  <button @click.stop="toggleSort" :class="sortButtonClasses">
+                    <span class="label">Sort By</span>
+                    <span class="value">{{ sortLabel(sort) }}</span>
+                    <span class="material-icons">{{
+                      sortIsOpen ? "arrow_drop_up" : "arrow_drop_down"
+                    }}</span>
+                  </button>
+                  <Menu
+                    :open="sortIsOpen"
+                    :choices="sorts"
+                    v-model="sort"
+                    @close="toggleSort"
+                  />
+                </div>
+              </div>
+
+              <div class="favorites-photo-mode">
+                <div class="photo-mode-toggle" role="group" aria-label="Photos">
+                  <button
+                    type="button"
+                    class="photo-mode-button"
+                    :class="{ active: photoMode === 'habitat' }"
+                    @click="setPhotoMode('habitat')"
+                    :aria-pressed="photoMode === 'habitat'"
+                  >
+                    Habitat
+                  </button>
+                  <button
+                    type="button"
+                    class="photo-mode-button"
+                    :class="{ active: photoMode === 'studio' }"
+                    @click="setPhotoMode('studio')"
+                    :aria-pressed="photoMode === 'studio'"
+                  >
+                    Studio
+                  </button>
+                </div>
+              </div>
+
+              <!-- Quick Add (Favorites only): plant autocomplete that adds favorites on select -->
+              <div class="favorites-quick-add">
+                <div class="favorites-quick-add-input">
+                  <span class="material-icons">search</span>
+                  <input
+                    v-model="quickAddQ"
+                    type="text"
+                    class="favorites-quick-add-text"
+                    placeholder="Quick add a plant (e.g., Bloodroot)"
+                    maxlength="200"
+                    @input="handleQuickAddInput"
+                    @focus="quickAddOpen = true"
+                    @blur="handleQuickAddBlur"
+                    @keydown.enter.prevent="handleQuickAddEnter"
+                  />
+                </div>
+                <div
+                  v-if="quickAddOpen && quickAddPlants.length"
+                  class="favorites-quick-add-dropdown"
+                  ref="quickAddDropdown"
+                >
+                  <button
+                    v-for="p in quickAddPlants"
+                    :key="p.plantId"
+                    type="button"
+                    class="favorites-quick-add-item"
+                    @mousedown.prevent="selectQuickAddPlant(p)"
+                  >
+                    <div class="favorites-quick-add-item-title">{{ p.commonName || p.displayText }}</div>
+                    <div v-if="p.scientificName || p.subtitle" class="favorites-quick-add-item-subtitle">
+                      {{ p.scientificName || p.subtitle }}
+                    </div>
+                    <div class="favorites-quick-add-item-cta" aria-hidden="true">Add</div>
+                  </button>
+                </div>
+              </div>
+
+              <div class="favorites-actions" aria-label="Actions">
+                <div class="favorites-actions-buttons" aria-live="polite">
+                  <button
+                    type="button"
+                    v-if="favoritesAvailable"
+                    class="secondary action-button copy-button"
+                    :class="{ copied: isCopied }"
+                    @click="copyFavorites"
+                    :disabled="!results.length || isCopied"
+                  >
+                    <span v-if="isCopied">✓ Copied!</span>
+                    <span v-else>Copy</span>
+                  </button>
+                  <button
+                    v-if="favoritesAvailable"
+                    type="button"
+                    class="primary action-button bulk-add-button"
+                    @click="openBulkAdd"
+                  >
+                    Bulk Add
+                  </button>
+                  <button
+                    type="button"
+                    v-if="favoritesAvailable"
+                    class="secondary action-button clear-favorites-button"
+                    @click="clearAllFavorites"
+                    title="Clear"
+                  >
+                    <Trash2 :size="16" class="clear-icon" />
+                    Clear
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        <div v-if="favorites" class="copy-clipboard" aria-live="polite">
-          <button 
-            class="primary primary-bar copy-button" 
-            :class="{ 'copied': isCopied }" 
-            @click="copyFavorites"
-            :disabled="isCopied"
+
+          <!-- Default (browse) toolbar -->
+          <div v-else>
+            <div class="browse-toolbar" aria-label="Browse controls">
+              <!-- Row 1: primary actions -->
+              <div class="browse-toolbar-row browse-toolbar-row--actions">
+                <button
+                  type="button"
+                  class="browse-location-button"
+                  @click="setLocation()"
+                  :aria-label="zipCode ? `Change location (ZIP ${zipCode})` : 'Set location'"
+                  title="Change location"
+                >
+                  <span class="material-icons" aria-hidden="true">place</span>
+                </button>
+
+                <button type="button" class="primary browse-filter-button" @click="openFilters">
+                  <span class="material-icons" aria-hidden="true">tune</span>
+                  <span class="browse-filter-label">Filter</span>
+                </button>
+
+                <div class="sort browse-sort">
+                  <button @click.stop="toggleSort" :class="['browse-sort-button', sortButtonClasses]">
+                    <span class="label">Sort</span>
+                    <span class="value">{{ sortLabel(sort) }}</span>
+                    <span class="material-icons">{{
+                      sortIsOpen ? "arrow_drop_up" : "arrow_drop_down"
+                    }}</span>
+                  </button>
+                  <Menu
+                    :open="sortIsOpen"
+                    :choices="sorts"
+                    v-model="sort"
+                    @close="toggleSort"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  class="favorites browse-favorites"
+                  :disabled="!favoritesAvailable"
+                  @click="favoritesAvailable && $router.push('/favorites')"
+                  :aria-label="
+                    favoritesCount > 0
+                      ? 'Favorites (' + displayFavoritesCount + ')'
+                      : 'Favorites'
+                  "
+                >
+                  <span class="material-icons material-align" aria-hidden="true">favorite</span>
+                  <span class="favorites-label">&nbsp;Favorites</span>
+                  <span
+                    v-if="favoritesCount > 0"
+                    class="favorites-count-badge"
+                    aria-hidden="true"
+                  >
+                    {{ displayFavoritesCount }}
+                  </span>
+                </button>
+              </div>
+
+              <!-- Row 2: secondary mode -->
+              <div class="browse-toolbar-row browse-toolbar-row--mode">
+                <div class="photo-mode-toggle" role="group" aria-label="Photos">
+                  <button
+                    type="button"
+                    class="photo-mode-button"
+                    :class="{ active: photoMode === 'habitat' }"
+                    @click="setPhotoMode('habitat')"
+                    :aria-pressed="photoMode === 'habitat'"
+                  >
+                    Habitat
+                  </button>
+                  <button
+                    type="button"
+                    class="photo-mode-button"
+                    :class="{ active: photoMode === 'studio' }"
+                    @click="setPhotoMode('studio')"
+                    :aria-pressed="photoMode === 'studio'"
+                  >
+                    Studio
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            v-if="filtersOpen && !isDesktop()"
+            class="filters-backdrop"
+            @click="closeFilters"
+            aria-hidden="true"
+          ></div>
+          <form
+            v-if="!favorites"
+            class="filters"
+            id="form"
+            @submit.prevent="handleSearchSubmit"
           >
-            <span v-if="isCopied">✓ Copied!</span>
-            <span v-else>Copy to Clipboard</span>
-          </button>
-        </div>
-        <form
-          v-if="!favorites"
-          class="filters"
-          id="form"
-          @submit.prevent="handleSearchSubmit"
-          >
+            <div
+              v-if="filtersOpen && !isDesktop()"
+              class="filters-drawer-header"
+            >
+              <div class="filters-drawer-header-left">
+                <div class="filters-drawer-title">Filter</div>
+                <div class="filters-drawer-subtitle">Apply to update results</div>
+              </div>
+              <button
+                type="button"
+                class="filters-drawer-close"
+                @click="closeFilters"
+                aria-label="Close filters"
+              >
+                <span class="material-icons" aria-hidden="true">close</span>
+              </button>
+            </div>
             <div class="inner-controls">
               <div class="search-mobile-wrapper">
                 <div class="search-mobile-box">
@@ -434,8 +492,8 @@
                   >
                     <div class="autocomplete-section-header">
                       <img 
-                        v-if="section.type === 'filter' && section.items.length > 0"
-                        :src="`/assets/images/${section.items[0].svg}.svg`"
+                        v-if="autocompleteSectionHeaderSvg(section)"
+                        :src="`/assets/images/${autocompleteSectionHeaderSvg(section)}.svg`"
                         class="section-icon"
                         :alt="section.label"
                       />
@@ -493,7 +551,7 @@
               </div>
             </div>
             <fieldset
-              v-for="filter in filters"
+              v-for="filter in filtersForPane"
               :key="filter.name"
               :class="filterClass(filter)"
             >
@@ -549,6 +607,22 @@
                 </template>
               </template>
             </fieldset>
+            <div
+              v-if="filtersOpen && !isDesktop()"
+              class="filters-drawer-footer"
+              aria-label="Filter actions"
+            >
+              <button type="button" class="secondary filters-drawer-clear" @click="clearAll">
+                Clear
+              </button>
+              <button
+                type="button"
+                class="primary filters-drawer-apply"
+                @click="applyDrawerFilters"
+              >
+                Apply
+              </button>
+            </div>
           </form>
         </div>
         <div class="chips-and-plants">
@@ -570,45 +644,74 @@
             </button>
             <button class="text clear" @click="clearAll">Clear all</button>
           </div>
-          <article class="plants">
+          <template v-if="favorites && !favoritesCount && !loading">
+            <section class="favorites-empty" aria-live="polite">
+              <h2>No favorites yet</h2>
+              <p>Paste common or scientific names to add many at once.</p>
+              <div class="favorites-empty-actions">
+                <button type="button" class="primary" @click="$router.push('/')">Browse plants</button>
+                <button type="button" class="secondary" @click="openBulkAdd">Bulk Add</button>
+                <button type="button" class="secondary" @click="addStaffPicks">Staff Picks</button>
+              </div>
+            </section>
+          </template>
+          <article v-else class="plants">
             <article
               v-for="result in results"
               :key="result._id"
-              @click="this.$router.push(plantLink(result))"
               class="plant-preview-wrapper"
+              :class="{ 'plant-preview-wrapper--added': recentlyAddedIds.includes(result._id) }"
+              role="link"
+              tabindex="0"
+              :aria-label="`View details for ${result['Common Name']}`"
+              @click="onTileActivate(result, $event)"
+              @keydown.enter.prevent="onTileKeyActivate(result, $event)"
+              @keydown.space.prevent="onTileKeyActivate(result, $event)"
             >
               <div class="plant-preview">
-                <div class="photo" :style="imageStyle(result, true)"></div>
-                <div class="names">
-                  <h4 class="common-name">{{ result["Common Name"] }}</h4>
-                  <h5 class="scientific-name">
-                    {{ result["Scientific Name"] }}
-                  </h5>
-                </div>
-                <button
-                  @click.stop="toggleFavorite(result._id)"
-                  class="favorite-large text"
+                <div
+                  class="photo"
+                  :class="{
+                    'photo--studio': photoMode === 'studio',
+                    'photo--habitat': photoMode !== 'studio',
+                  }"
+                  :style="imageStyle(result, true)"
                 >
-                  <span class="material-icons material-align">{{
-                    renderFavorite(result._id)
-                  }}</span>
-                </button>
-                <div class="plant-controls-wrapper">
-                  <div class="plant-controls">
-                    <router-link :to="plantLink(result)" class="text">
-                      <span class="material-icons material-align info"
-                        >info_outline</span
-                      >
-                      More Info
-                    </router-link>
-                    <button
-                      @click.stop="toggleFavorite(result._id)"
-                      class="favorite-regular text"
-                    >
-                      <span class="material-icons material-align">{{
-                        renderFavorite(result._id)
-                      }}</span>
-                    </button>
+                  <div class="view-details-hint" aria-hidden="true">
+                    View details
+                  </div>
+
+                  <!-- Favorite button: always top-right so it never overlaps the plant name text -->
+                  <button
+                    @click.stop.prevent="toggleFavorite(result._id)"
+                    class="tile-favorite text"
+                    :aria-label="
+                      $store.state.favorites.has(result._id)
+                        ? `Remove ${result['Common Name']} from favorites`
+                        : `Add ${result['Common Name']} to favorites`
+                    "
+                  >
+                    <span class="material-icons material-align">{{
+                      renderFavorite(result._id)
+                    }}</span>
+                  </button>
+
+                  <div v-if="photoMode !== 'studio'" class="name-scrim">
+                    <div class="name-text">
+                      <h4 class="common-name">{{ result["Common Name"] }}</h4>
+                      <h5 class="scientific-name">
+                        {{ result["Scientific Name"] }}
+                      </h5>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="photoMode === 'studio'" class="caption">
+                  <div class="caption-text">
+                    <h4 class="common-name">{{ result["Common Name"] }}</h4>
+                    <h5 class="scientific-name">
+                      {{ result["Scientific Name"] }}
+                    </h5>
                   </div>
                 </div>
               </div>
@@ -620,12 +723,24 @@
               :key="extra.id"
               class="extra"
             ></article>
+            <!-- Infinite scroll sentinel: keep it anchored to the *results* column,
+                 not after <main> (desktop filters column can add large bottom space). -->
+            <div ref="next" class="infinite-scroll-sentinel" aria-hidden="true"></div>
           </article>
         </div>
-      </template>
     </main>
-    <!-- Useful if we go back to using an observer for infinite scroll -->
-    <div ref="next"></div>
+    <BulkAddFavoritesModal
+      :open="bulkAddOpen"
+      v-model="bulkAddText"
+      :loading="bulkAddLoading"
+      :result="bulkAddResult"
+      @close="closeBulkAdd"
+      @submit="submitBulkAdd"
+    />
+    <div v-if="toastMessage" class="toast" role="status" aria-live="polite">
+      {{ toastMessage }}
+    </div>
+    </div>
   </div>
 </template>
 
@@ -635,6 +750,8 @@ import Range from "./Range.vue";
 import Checkbox from "./Checkbox.vue";
 import Header from "./Header.vue";
 import Menu from "./Menu.vue";
+import BulkAddFavoritesModal from "./BulkAddFavoritesModal.vue";
+import { Trash2 } from "lucide-vue-next";
 
 const twoUpImageCredits = [
   // Order is synced with the public/assets/images/two-up folder filenames,
@@ -676,13 +793,11 @@ export default {
     Checkbox,
     Header,
     Menu,
+    BulkAddFavoritesModal,
+    Trash2,
   },
   props: {
     favorites: {
-      type: Boolean,
-      default: false,
-    },
-    questions: {
       type: Boolean,
       default: false,
     },
@@ -701,6 +816,30 @@ export default {
         showIcon: false,
       },
       {
+        name: "Genus",
+        label: "Genus",
+        choices: [],
+        value: [],
+        array: true,
+        counts: {},
+        initiallyOpen: false,
+        alwaysOpen: false,
+        showIcon: false,
+        hideInFilterPane: true,
+      },
+      {
+        name: "Family",
+        label: "Family",
+        choices: [],
+        value: [],
+        array: true,
+        counts: {},
+        initiallyOpen: false,
+        alwaysOpen: false,
+        showIcon: false,
+        hideInFilterPane: true,
+      },
+      {
         name: "Superplant",
         label: "Super Plant",
         choices: ["Super Plant"],
@@ -709,6 +848,7 @@ export default {
         counts: {},
         initiallyOpen: true,
         alwaysOpen: true,
+        hideInFilterPane: true,
       },
       {
         name: "Sun Exposure Flags",
@@ -789,7 +929,20 @@ export default {
       {
         name: "Height (feet)",
         range: true,
-        double: false,
+        double: true,
+        choices: [],
+        min: 0,
+        max: 0,
+        exponent: 3.0,
+        value: {
+          min: 0,
+          max: 0,
+        },
+      },
+      {
+        name: "Spread (feet)",
+        range: true,
+        double: true,
         choices: [],
         min: 0,
         max: 0,
@@ -815,194 +968,33 @@ export default {
       "Sort by Common Name (Z-A)": "Common Name (Z-A)",
       "Sort by Scientific Name (A-Z)": "Scientific Name (A-Z)",
       "Sort by Scientific Name (Z-A)": "Scientific Name (Z-A)",
+      "Sort by Height (Tallest First)": "Height (Tallest First)",
+      "Sort by Height (Shortest First)": "Height (Shortest First)",
+      "Sort by Spread (Widest First)": "Spread (Widest First)",
+      "Sort by Spread (Thinnest First)": "Spread (Thinnest First)",
     }).map(([value, label]) => ({ value, label }));
 
     this.defaultFilterValues = getDefaultFilterValues(filters);
 
-    const questionDetails = [
-      {
-        name: "flowers",
-        type: "boolean",
-        def: "1",
-        filter(value) {
-          // QUIZ_FLOWER: Field "Plant Type" contains "Graminoid" or "Herb" or "Shrub" or "Vine" and Field "Showy" = "Yes"
-          return value
-            ? {
-                "Plant Type Flags": ["Graminoid", "Herb", "Shrub", "Vine"],
-                Showy: ["Showy"],
-              }
-            : {};
-        },
-        title: "Do you want flowers?",
-      },
-      {
-        name: "perennial",
-        type: "boolean",
-        def: "1",
-        filter() {
-          return {
-            "Life Cycle Flags": ["Perennial"],
-          };
-        },
-        title:
-          "Do you want the plant to show up in your garden every year, without having to buy it again?",
-      },
-      {
-        name: "sunny",
-        type: "boolean",
-        def: "1",
-        filter() {
-          return {};
-        },
-        title: "Is your garden sunny?",
-      },
-      {
-        name: "shady",
-        type: "boolean",
-        def: "1",
-        filter(value, others) {
-          const exposure = [];
-          if (value) {
-            exposure.push("Shade");
-          }
-          if (others.sunny) {
-            exposure.push("Sun");
-          }
-          if (value && others.sunny) {
-            exposure.push("Part Shade");
-          }
-          if (exposure.length) {
-            return {
-              "Sun Exposure": exposure,
-            };
-          } else {
-            return {};
-          }
-        },
-        title: "Is your garden shady?",
-      },
-      {
-        name: "puddle",
-        type: "boolean",
-        def: "1",
-        filter() {
-          return {};
-        },
-        title: "Does your garden puddle when it rains?",
-      },
-      {
-        name: "dry",
-        type: "boolean",
-        def: "1",
-        filter() {
-          return {};
-        },
-        title: "Does your garden ever looked cracked or dry?",
-      },
-      {
-        name: "moist",
-        type: "boolean",
-        def: "1",
-        filter(value, others) {
-          if (others.puddle) {
-            return {
-              "Soil Moisture": "Wet",
-            };
-          } else if (others.dry) {
-            return {
-              "Soil Moisture": "Dry",
-            };
-          } else if (value) {
-            return {
-              "Soil Moisture": "Moist",
-            };
-          }
-        },
-        title:
-          "Is your garden a little damp when you stick your finger in the ground?",
-      },
-      {
-        name: "bees",
-        type: "boolean",
-        def: "1",
-        filter() {
-          return {};
-        },
-        title: "Do you want to attract bees?",
-      },
-      {
-        name: "butterflies",
-        type: "boolean",
-        def: "1",
-        filter() {
-          return {};
-        },
-        title: "Do you want to attract butterflies?",
-      },
-      {
-        name: "hummingbirds",
-        type: "boolean",
-        def: "1",
-        filter(value, others) {
-          const flags = [];
-          if (others.bees) {
-            flags.push("Native Bees");
-            flags.push("Bombus");
-            flags.push("Honey Bees");
-            flags.push("Nesting and Structure (Bees)");
-          }
-          if (others.butterflies) {
-            flags.push("Butterflies");
-            flags.push("Larval Host (Butterfly)");
-          }
-          if (value) {
-            flags.push("Hummingbirds");
-          }
-          if (flags.length) {
-            return {
-              "Pollinator Flags": flags,
-            };
-          } else {
-            return {};
-          }
-        },
-        title: "Do you want to attract hummingbirds?",
-      },
-      {
-        name: "online",
-        type: "boolean",
-        def: "1",
-        filter() {
-          return {};
-        },
-        title: "Do you want to buy your plants online?",
-      },
-      {
-        name: "local",
-        type: "boolean",
-        def: "1",
-        filter(value, others) {
-          const availabilityFlags = [];
-          if (others.online) {
-            availabilityFlags.push("Online");
-          }
-          if (value) {
-            availabilityFlags.push("Local");
-          }
-          return {
-            AvailabilityFlags: availabilityFlags,
-          };
-        },
-        title: "Do you want to buy your plants at a local store?",
-      },
-    ];
-
-    this.initQuestionValues(questionDetails);
 
     const twoUpIndex = 0;
     return {
       results: [],
       total: 0,
+      page: 1,
+      loading: false,
+      loadedAll: false,
+      checkingLoadMore: false, // Guard flag to prevent concurrent "load next page" calls
+      fetchRequestId: 0,
+      activeFetchRequestId: 0,
+      infiniteObserver: null,
+      scrollFallbackHandler: null,
+      maybeLoadMoreRaf: null,
+      submitTimeout: null,
+      updatingCountsTimeout: null,
+      initializing: false,
+      determinedFilterCounts: false,
+      isLoadingLocation: false,
       q: "",
       activeSearch: "",
       sort: "Sort by Recommendation Score",
@@ -1026,28 +1018,60 @@ export default {
       baseSorts,
       sortIsOpen: false,
       monthIsOpen: false,
-      question: 0,
-      questionDetails,
       twoUpIndex,
       isCopied: false,
+      bulkAddOpen: false,
+      bulkAddText: "",
+      bulkAddLoading: false,
+      bulkAddResult: null,
+      toastMessage: "",
+      toastTimeout: null,
+      recentlyAddedIds: [],
+      quickAddQ: "",
+      quickAddOpen: false,
+      quickAddResults: [],
+      quickAddTimeout: null,
       showAutocomplete: false,
       autocompleteResults: { query: "", sections: [] },
       autocompleteTimeout: null,
       hasExtractedFilters: false,
+      suppressFilterWatcher: false, // Flag to prevent watcher from triggering submit during programmatic updates
     };
   },
   computed: {
-    questionsHeroIndex() {
-      return (this.twoUpIndex + this.question + 1) % twoUpImageCredits.length;
-    },
-    questionsClasses() {
-      return {
-        questions: 1,
-        first: !this.question,
-      };
-    },
     selectedName() {
       return this.$route.params.name;
+    },
+    filtersForPane() {
+      return (this.filters || []).filter((f) => !f.hideInFilterPane);
+    },
+    plantGenus() {
+      if (!this.selected) return null;
+      // Prefer Genus field, fallback to parsing Scientific Name
+      if (this.selected.Genus) {
+        return this.selected.Genus;
+      }
+      if (this.selected["Scientific Name"]) {
+        const parts = this.selected["Scientific Name"].trim().split(/\s+/);
+        return parts[0] || null;
+      }
+      return null;
+    },
+    plantSpecies() {
+      if (!this.selected) return null;
+      // Prefer Species field, fallback to parsing Scientific Name
+      if (this.selected.Species) {
+        return this.selected.Species;
+      }
+      if (this.selected["Scientific Name"]) {
+        const parts = this.selected["Scientific Name"].trim().split(/\s+/);
+        return parts.length > 1 ? parts.slice(1).join(" ") : null;
+      }
+      return null;
+    },
+    plantFamily() {
+      if (!this.selected) return null;
+      return this.selected.Family || this.selected["Plant Family"] || null;
     },
     extras() {
       if (typeof window === "undefined") {
@@ -1122,7 +1146,17 @@ export default {
       return this.selected["Online Stores"];
     },
     favoritesAvailable() {
-      return !![...this.$store.state.favorites].length;
+      return this.favoritesCount > 0;
+    },
+    favoritesCount() {
+      // Favorites are stored as a Set in Vuex; convert to an array for stable, reactive length tracking.
+      return [...this.$store.state.favorites].length;
+    },
+    photoMode() {
+      return this.$store.state.photoMode || "habitat";
+    },
+    displayFavoritesCount() {
+      return this.favoritesCount > 99 ? "99+" : String(this.favoritesCount);
     },
     currentMonthLabel() {
       const questionDetail = this.questionDetails.find(
@@ -1145,6 +1179,9 @@ export default {
       }
       return this.parseNaturalLanguageFromQuery(this.q);
     },
+    quickAddPlants() {
+      return Array.isArray(this.quickAddResults) ? this.quickAddResults : [];
+    },
   },
   watch: {
     selectedName() {
@@ -1152,13 +1189,35 @@ export default {
     },
     favorites() {
       this.determineFilterCountsAndSubmit();
+      // Favorites view does not page; ensure infinite scroll is correctly enabled/disabled.
+      this.$nextTick(() => {
+        if (this.favorites) {
+          this.teardownInfiniteScroll();
+        } else {
+          this.setupInfiniteScroll();
+        }
+      });
     },
-    questions() {
-      if (this.questions) {
-        this.filterValues = { ...this.defaultFilterValues };
-        this.determineFilterCountsAndSubmit();
-        this.question = 0;
-        this.initQuestionValues(this.questionDetails);
+    filtersOpen(newVal) {
+      if (typeof window === "undefined" || typeof document === "undefined") return;
+      // Only treat it as a drawer on non-desktop layouts
+      if (!this.isDesktop() && newVal) {
+        this._prevBodyOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        window.addEventListener("keydown", this.onFiltersKeydown, true);
+        this.$nextTick(() => {
+          const closeButton = this.$el?.querySelector?.(".filters-drawer-close");
+          if (closeButton && typeof closeButton.focus === "function") {
+            closeButton.focus();
+          }
+        });
+      } else {
+        window.removeEventListener("keydown", this.onFiltersKeydown, true);
+        if (this._prevBodyOverflow !== undefined) {
+          document.body.style.overflow = this._prevBodyOverflow;
+        } else {
+          document.body.style.overflow = "";
+        }
       }
     },
     sortIsOpen() {
@@ -1218,6 +1277,19 @@ export default {
     },
     filterValues: {
       async handler() {
+        // Don't trigger submit if we're programmatically updating filter values
+        // (e.g., when adjusting height/spread ranges to match new bounds)
+        if (this.suppressFilterWatcher) {
+          return;
+        }
+        // Mobile/tablet drawer: let users make multiple selections, then apply explicitly.
+        if (!this.isDesktop() && this.filtersOpen) {
+          return;
+        }
+        // Cancel any ongoing operations to ensure fresh submit with correct sort
+        this.checkingLoadMore = false;
+        // Wait for Vue to fully update the reactive state before submitting
+        await this.$nextTick();
         if (this.isDesktop()) {
           this.submit();
         } else {
@@ -1230,10 +1302,20 @@ export default {
       deep: true,
     },
   },
+  beforeDestroy() {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+    window.removeEventListener("keydown", this.onFiltersKeydown, true);
+    if (this._prevBodyOverflow !== undefined) {
+      document.body.style.overflow = this._prevBodyOverflow;
+    }
+  },
   // Server only
   async serverPrefetch() {
-    await this.determineFilterCountsAndSubmit();
-    await this.fetchPage();
+    await this.determineFilterCounts();
+    this.page = 1;
+    this.loadedAll = false;
+    this.total = 0;
+    await this.fetchPage(true);
   },
   async postData(url = "", data = {}) {
     // Default options are marked with *
@@ -1340,11 +1422,80 @@ export default {
 
     await this.determineFilterCountsAndSubmit();
     await this.fetchSelectedIfNeeded();
+    this.setupInfiniteScroll();
   },
-  destroy() {
-    document.body.removeEventListener("click", this.bodyClick);
+  beforeUnmount() {
+    this.teardownInfiniteScroll();
+    if (this.submitTimeout) {
+      clearTimeout(this.submitTimeout);
+      this.submitTimeout = null;
+    }
+    if (this.updatingCountsTimeout) {
+      clearTimeout(this.updatingCountsTimeout);
+      this.updatingCountsTimeout = null;
+    }
+    if (this.autocompleteTimeout) {
+      clearTimeout(this.autocompleteTimeout);
+      this.autocompleteTimeout = null;
+    }
+    if (this.maybeLoadMoreRaf) {
+      cancelAnimationFrame(this.maybeLoadMoreRaf);
+      this.maybeLoadMoreRaf = null;
+    }
   },
   methods: {
+    autocompleteSectionHeaderSvg(section) {
+      if (!section || section.type !== "filter") return null;
+      const name = section.filterName || section.label;
+      if (name === "Family") return "Family";
+      if (name === "Genus") return "Genus";
+      if (section.items && section.items.length > 0 && section.items[0] && section.items[0].svg) {
+        return section.items[0].svg;
+      }
+      return null;
+    },
+    /**
+     * Build query params for /api/v1/plants.
+     *
+     * Important: For range filters (Height/Spread/etc), the UI dynamically updates
+     * filter bounds (filter.min/filter.max) based on the currently filtered set.
+     * If the user is at the full current range, the filter should be considered
+     * "inactive" and MUST NOT be sent to the server, otherwise the backend will
+     * interpret it as an active constraint relative to the *global* range.
+     */
+    buildPlantsQueryParams(params) {
+      const cleanedParams = {};
+      for (const [key, value] of Object.entries(params || {})) {
+        if (value === undefined || value === null) {
+          continue;
+        }
+        // Filter out empty arrays to prevent serialization issues
+        if (Array.isArray(value)) {
+          if (value.length > 0) {
+            cleanedParams[key] = value;
+          }
+          continue;
+        }
+        // Omit range filters when at the current bounds (i.e., not active)
+        if (typeof value === "object" && "min" in value && "max" in value) {
+          const filter = this.filters?.find((f) => f.name === key);
+          if (
+            filter &&
+            filter.range &&
+            typeof filter.min === "number" &&
+            typeof filter.max === "number" &&
+            value.min === filter.min &&
+            value.max === filter.max
+          ) {
+            continue;
+          }
+          cleanedParams[key] = value;
+          continue;
+        }
+        cleanedParams[key] = value;
+      }
+      return cleanedParams;
+    },
     setDefaultZipCode() {
       // Set default zip code to 19355 (Malvern, PA)
       this.zipCode = "19355";
@@ -2309,6 +2460,11 @@ export default {
     getChips(active) {
       const chips = [];
       const previewChips = [];
+      const svgForArrayItem = (filterName, item) => {
+        if (filterName === "Family") return "Family";
+        if (filterName === "Genus") return "Genus";
+        return item;
+      };
       
       // Show search chip only when:
       // 1. There's an active search
@@ -2336,6 +2492,11 @@ export default {
           if (value === true) {
             value = [filter.label];
           }
+          // Some "array" filters can be scalar strings/booleans on the selected plant
+          // (e.g. Genus/Family or boolean flags). Normalize to an array so downstream .forEach works.
+          if (!Array.isArray(value)) {
+            value = [value];
+          }
           if (filter.name === "Flower Color Flags") {
             value.forEach((item) => {
               // Skip if this is already shown as a preview chip
@@ -2355,7 +2516,7 @@ export default {
                 chips.push({
                   name: filter.name,
                   label: item,
-                  svg: item,
+                  svg: svgForArrayItem(filter.name, item),
                   key: filter.name + ":" + item,
                 });
               }
@@ -2363,9 +2524,11 @@ export default {
           }
         } else if (filter.range) {
           if (active) {
+            // Use "Height (feet)" icon for both Height and Spread filters
+            const svgName = filter.name === "Spread (feet)" ? "Height (feet)" : filter.name;
             chips.push({
               name: filter.name,
-              svg: filter.name,
+              svg: svgName,
               label: filter.label || filter.name,
               key: filter.name,
             });
@@ -2391,7 +2554,7 @@ export default {
               previewChips.push({
                 name: filter.name,
                 label: item,
-                svg: filter.name === "Flower Color Flags" ? null : item,
+                svg: filter.name === "Flower Color Flags" ? null : svgForArrayItem(filter.name, item),
                 color: filter.name === "Flower Color Flags" ? item : null,
                 key: `preview:${filter.name}:${item}`,
                 preview: true, // Mark as preview chip
@@ -2405,13 +2568,29 @@ export default {
       return [...chips, ...previewChips];
     },
     selectedImageStyle(selected) {
-      return `background-image: url("${this.imageUrl(selected, false)}")`;
+      return `background-image: url("${this.imageUrl(selected, false)}"); background-size: cover`;
     },
-    imageStyle(image) {
-      return `background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.4) 60.94%, rgba(0, 0, 0, 0.4) 100%), url("${this.imageUrl(
-        image,
-        true
-      )}"); background-size: cover`;
+    onTileActivate(result, evt) {
+      // Prevent accidental navigations when clicking nested controls or selecting text.
+      if (evt && evt.defaultPrevented) return;
+      if (typeof window !== "undefined" && window.getSelection) {
+        const selection = window.getSelection();
+        if (selection && String(selection).trim()) return;
+      }
+      this.$router.push(this.plantLink(result));
+    },
+    onTileKeyActivate(result, evt) {
+      // Space should not scroll the page when a tile is focused.
+      if (evt && typeof evt.preventDefault === "function") evt.preventDefault();
+      this.$router.push(this.plantLink(result));
+    },
+    imageStyle(image, preview = true) {
+      const url = this.imageUrl(image, preview);
+      const isStudio = this.photoMode === "studio";
+      // Studio tiles should be clean white with no muddy overlay. Habitat readability comes from CSS scrim.
+      const backgroundSize = isStudio ? "contain" : "cover";
+      const backgroundColor = isStudio ? "#ffffff" : "transparent";
+      return `background-image: url("${url}"); background-size: ${backgroundSize}; background-position: center; background-repeat: no-repeat; background-color: ${backgroundColor};`;
     },
     async fetchSelectedIfNeeded() {
       if (!this.selectedName) {
@@ -2440,31 +2619,96 @@ export default {
         for (const filter of this.filters) {
           filter.choices = data.choices[filter.name];
         }
-        const height = this.filters.find(
-          (filter) => filter.name === "Height (feet)"
-        );
-        height.min = 0;
-        const heights = data.choices["Height (feet)"];
-        height.max = heights[heights.length - 1];
-        this.filterValues["Height (feet)"].max = height.max;
+        // Suppress filter watcher during initial filter setup
+        this.suppressFilterWatcher = true;
+        try {
+          const height = this.filters.find(
+            (filter) => filter.name === "Height (feet)"
+          );
+          if (height) {
+            height.min = 0;
+            const heights = data.choices["Height (feet)"];
+            if (heights && heights.length > 0) {
+              height.max = heights[heights.length - 1];
+              // Ensure choices array matches the min/max range
+              height.choices = [];
+              for (let i = height.min; i <= height.max; i++) {
+                height.choices.push(i);
+              }
+              // Set filter value to match the filter bounds (full range) so it doesn't appear active
+              this.filterValues["Height (feet)"] = {
+                min: height.min,
+                max: height.max
+              };
+            }
+          }
+          const spread = this.filters.find(
+            (filter) => filter.name === "Spread (feet)"
+          );
+          if (spread) {
+            spread.min = 0;
+            const spreads = data.choices["Spread (feet)"];
+            if (spreads && spreads.length > 0) {
+              spread.max = spreads[spreads.length - 1];
+              // Ensure choices array matches the min/max range
+              spread.choices = [];
+              for (let i = spread.min; i <= spread.max; i++) {
+                spread.choices.push(i);
+              }
+              // Set filter value to match the filter bounds (full range) so it doesn't appear active
+              this.filterValues["Spread (feet)"] = {
+                min: spread.min,
+                max: spread.max
+              };
+            }
+          }
+        } finally {
+          // Keep suppression through the next tick so the deep watcher doesn't
+          // fire after we've already re-enabled it.
+          await this.$nextTick();
+          this.suppressFilterWatcher = false;
+        }
         this.determinedFilterCounts = true;
       }
       this.initializing = false;
-      this.submit();
     },
     imageUrl(result, preview) {
-      if (result.hasImage) {
-        if (preview) {
-          return `/images/${result._id}.preview.jpg`;
-        } else {
-          return `/images/${result._id}.jpg`;
-        }
-      } else {
-        return "/assets/images/missing-image.png";
-      }
+      if (!result || !result._id) return "/assets/images/missing-image.png";
+      const id = encodeURIComponent(String(result._id));
+      const mode = encodeURIComponent(this.photoMode);
+      const p = preview ? "1" : "0";
+      return `/api/v1/plant-image/${id}?mode=${mode}&preview=${p}`;
+    },
+    setPhotoMode(mode) {
+      this.$store.commit("setPhotoMode", mode);
     },
     openFilters() {
       this.filtersOpen = true;
+    },
+    closeFilters() {
+      this.filtersOpen = false;
+    },
+    applyDrawerFilters() {
+      // Match desktop behavior: if user typed trigger words / search text, confirm it on Apply.
+      const queryText = (this.q || "").trim();
+      if (queryText) {
+        this.handleSearchSubmit();
+        return;
+      }
+      // Otherwise, apply current filterValues without changing activeSearch semantics.
+      this.showAutocomplete = false;
+      this.submit();
+      if (!this.isDesktop()) {
+        this.filtersOpen = false;
+      }
+    },
+    onFiltersKeydown(event) {
+      if (!this.filtersOpen) return;
+      if (this.isDesktop()) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        this.closeFilters();
+      }
     },
     handleSearchSubmit() {
       // Only submit search when explicitly triggered (Enter or button click)
@@ -2551,6 +2795,9 @@ export default {
       this.showAutocomplete = false;
       
       this.submit();
+      if (!this.isDesktop()) {
+        this.filtersOpen = false;
+      }
     },
     async handleSearchInput() {
       // Debounce autocomplete requests
@@ -2595,6 +2842,12 @@ export default {
             this.filterIsOpen[item.filterName] = true;
           }
         }
+        // If the user is explicitly choosing a Genus/Family from autocomplete,
+        // treat it like a real field filter (NOT semantic search).
+        if (item.filterName === "Genus" || item.filterName === "Family") {
+          this.activeSearch = "";
+          this.hasExtractedFilters = false;
+        }
         this.q = ""; // Clear search
         this.showAutocomplete = false;
         this.submit();
@@ -2603,6 +2856,51 @@ export default {
         this.$router.push(`/plants/${item.plantId}`);
         this.showAutocomplete = false;
       }
+    },
+    applyGenusFilter(genus) {
+      if (!genus) return;
+      // Ensure we do a real MongoDB field filter, not semantic search
+      this.activeSearch = "";
+      this.hasExtractedFilters = false;
+      this.q = "";
+      // Navigate to home if not already there
+      if (this.$route.path !== '/') {
+        this.$router.push('/').then(() => {
+          this.$nextTick(() => {
+            this.addFilterValue("Genus", genus);
+          });
+        });
+      } else {
+        this.addFilterValue("Genus", genus);
+      }
+    },
+    applyFamilyFilter(family) {
+      if (!family) return;
+      // Ensure we do a real MongoDB field filter, not semantic search
+      this.activeSearch = "";
+      this.hasExtractedFilters = false;
+      this.q = "";
+      // Navigate to home if not already there
+      if (this.$route.path !== '/') {
+        this.$router.push('/').then(() => {
+          this.$nextTick(() => {
+            this.addFilterValue("Family", family);
+          });
+        });
+      } else {
+        this.addFilterValue("Family", family);
+      }
+    },
+    addFilterValue(filterName, filterValue) {
+      const filter = this.filters.find(f => f.name === filterName);
+      if (filter && filter.array) {
+        const existing = this.filterValues[filterName] || [];
+        if (!existing.includes(filterValue)) {
+          this.filterValues[filterName] = [...existing, filterValue];
+          this.filterIsOpen[filterName] = true;
+        }
+      }
+      // Submit will be triggered by the filterValues watcher
     },
     handleSearchBlur() {
       // Delay hiding to allow click events to fire
@@ -2625,11 +2923,8 @@ export default {
       return { before, match, after };
     },
     submit() {
-      if (this.loading) {
-        // Prevent race condition
-        setTimeout(this.submit, 500);
-        return;
-      }
+      // Cancel any ongoing "load more" to ensure a clean reset.
+      this.checkingLoadMore = false;
       if (this.submitTimeout) {
         clearTimeout(this.submitTimeout);
         this.submitTimeout = null;
@@ -2638,18 +2933,14 @@ export default {
 
       function submit() {
         // Reset pagination values
-        this.page = 0;
+        this.page = 1; // Start at page 1 (server expects >= 1)
         this.loadedAll = false;
         this.total = 0; // Reset total as well
+        this.checkingLoadMore = false;
 
         // Fetch new data and replace results when it arrives
         this.fetchPage(true);
-        
-        // Restart infinite scroll monitoring
-        this.restartLoadMoreIfNeeded();
-        
-        // Close filters drawer
-        this.filtersOpen = false;
+
         this.submitTimeout = null;
         
         // Allow any queued DOM updates to complete
@@ -2689,7 +2980,10 @@ export default {
               resolve();
               return;
             }
-            const response = await fetch("/api/v1/plants?" + qs.stringify(params));
+            const cleanedParams = this.buildPlantsQueryParams(params);
+            const response = await fetch(
+              "/api/v1/plants?" + qs.stringify(cleanedParams, { arrayFormat: "repeat" })
+            );
             const data = await response.json();
             this.filterCounts = data.counts;
           } finally {
@@ -2702,6 +2996,8 @@ export default {
       });
     },
     async fetchPage(replace = false) {
+      const requestId = ++this.fetchRequestId;
+      this.activeFetchRequestId = requestId;
       this.loading = true;
       if (this.favorites && ![...this.$store.state.favorites].length) {
         // Avoid a query that would result in seeing all of the plants
@@ -2711,78 +3007,319 @@ export default {
         }
         this.loadedAll = true;
         this.total = 0;
-        this.loading = false;
+        if (this.activeFetchRequestId === requestId) {
+          this.loading = false;
+        }
         return;
       }
-      const params = this.favorites
-        ? {
-            favorites: [...this.$store.state.favorites],
-            sort: this.sort,
+      try {
+        // Create a fresh copy of filterValues to ensure we have the latest state
+        const currentFilterValues = { ...this.filterValues };
+        // Ensure sort is always defined - fallback to default if somehow undefined
+        const currentSort = this.sort || "Sort by Recommendation Score";
+        const params = this.favorites
+          ? {
+              favorites: [...this.$store.state.favorites],
+              sort: currentSort,
+            }
+          : {
+              ...currentFilterValues,
+              sort: currentSort,
+              page: this.page,
+            };
+        // Only include search query if there's an active search (explicitly submitted)
+        // Don't use this.q directly as it changes while typing
+        if (this.activeSearch && this.activeSearch.trim()) {
+          params.q = this.activeSearch;
+          params.semantic = "true";
+        }
+        if (this.initializing) {
+          // Don't send a bogus query for min 0 max 0
+          delete params["Height (feet)"];
+          delete params["Spread (feet)"];
+        }
+        const cleanedParams = this.buildPlantsQueryParams(params);
+        const response = await fetch(
+          "/api/v1/plants?" + qs.stringify(cleanedParams, { arrayFormat: "repeat" })
+        );
+        const data = await response.json();
+
+        // Ignore stale responses (e.g., filter/sort changed mid-flight).
+        if (this.activeFetchRequestId !== requestId) {
+          return;
+        }
+
+        if (!this.favorites) {
+          this.filterCounts = data.counts;
+          for (const filter of this.filters) {
+            filter.choices = data.choices[filter.name];
           }
-        : {
-            ...this.filterValues,
-            sort: this.sort,
-            page: this.page,
-          };
-      // Only include search query if there's an active search (explicitly submitted)
-      // Don't use this.q directly as it changes while typing
-      if (this.activeSearch && this.activeSearch.trim()) {
-        params.q = this.activeSearch;
-        params.semantic = 'true';
-      }
-      if (this.initializing) {
-        // Don't send a bogus query for min 0 max 0
-        delete params["Height (feet)"];
-      }
-      const response = await fetch("/api/v1/plants?" + qs.stringify(params));
-      const data = await response.json();
-      if (!this.favorites) {
-        this.filterCounts = data.counts;
-        for (const filter of this.filters) {
-          filter.choices = data.choices[filter.name];
+          // Suppress filter watcher to prevent triggering submit() when programmatically updating filter values
+          this.suppressFilterWatcher = true;
+          try {
+          // Update height filter min/max based on filtered plants
+          if (data.heightRange && data.heightRange.min !== undefined && data.heightRange.max !== undefined) {
+            const heightFilter = this.filters.find(f => f.name === "Height (feet)");
+            if (heightFilter) {
+              const oldMin = heightFilter.min;
+              const oldMax = heightFilter.max;
+              // Only update if we have a valid range (max >= min) and it's not the default 0-0 (no plants)
+              // Also update if we're initializing (oldMin === oldMax === 0)
+              const isInitializing = oldMin === 0 && oldMax === 0;
+              if (data.heightRange.max >= data.heightRange.min && (data.heightRange.max > 0 || isInitializing)) {
+                heightFilter.min = data.heightRange.min;
+                heightFilter.max = data.heightRange.max;
+                // Regenerate choices array from min to max to ensure all values are present
+                heightFilter.choices = [];
+                for (let i = data.heightRange.min; i <= data.heightRange.max; i++) {
+                  heightFilter.choices.push(i);
+                }
+                // Adjust filter value if it's outside the new range
+                const currentValue = this.filterValues[heightFilter.name];
+                if (currentValue) {
+                  let needsUpdate = false;
+                  const newValue = { ...currentValue };
+                  // Only adjust if the current value is outside the new bounds
+                  if (currentValue.min < data.heightRange.min) {
+                    newValue.min = data.heightRange.min;
+                    needsUpdate = true;
+                  }
+                  if (currentValue.max > data.heightRange.max) {
+                    newValue.max = data.heightRange.max;
+                    needsUpdate = true;
+                  }
+                  // If the current value matches the old bounds (full range), update it to match new bounds
+                  // This ensures the filter stays at full range when bounds change due to other filters
+                  const wasAtFullRange = currentValue.min === oldMin && currentValue.max === oldMax;
+                  if (wasAtFullRange && !isInitializing) {
+                    newValue.min = data.heightRange.min;
+                    newValue.max = data.heightRange.max;
+                    needsUpdate = true;
+                  }
+                  // Only set to full range on true first initialization (oldMin === oldMax === 0)
+                  // AND the current value is at the default (0, 0) - meaning it was never set
+                  if (isInitializing && data.heightRange.max >= data.heightRange.min) {
+                    const isUninitialized = currentValue.min === 0 && currentValue.max === 0;
+                    if (isUninitialized) {
+                      newValue.min = data.heightRange.min;
+                      newValue.max = data.heightRange.max;
+                      needsUpdate = true;
+                    }
+                  }
+                  if (needsUpdate) {
+                    this.filterValues[heightFilter.name] = newValue;
+                  }
+                } else {
+                  // Initialize to full range if no value set (only on true first initialization)
+                  // But only if it's truly uninitialized - if it was set in determineFilterCounts, don't override
+                  if (isInitializing) {
+                    const existingValue = this.filterValues[heightFilter.name];
+                    // Only set if it's still at the default (0, 0) or doesn't exist
+                    if (!existingValue || (existingValue.min === 0 && existingValue.max === 0)) {
+                      this.filterValues[heightFilter.name] = {
+                        min: data.heightRange.min,
+                        max: data.heightRange.max
+                      };
+                    }
+                  }
+                }
+              }
+            }
+          }
+          // Update spread filter min/max based on filtered plants
+          if (data.spreadRange && data.spreadRange.min !== undefined && data.spreadRange.max !== undefined) {
+            const spreadFilter = this.filters.find(f => f.name === "Spread (feet)");
+            if (spreadFilter) {
+              const oldMin = spreadFilter.min;
+              const oldMax = spreadFilter.max;
+              // Only update if we have a valid range (max >= min) and it's not the default 0-0 (no plants)
+              // Also update if we're initializing (oldMin === oldMax === 0)
+              const isInitializing = oldMin === 0 && oldMax === 0;
+              if (data.spreadRange.max >= data.spreadRange.min && (data.spreadRange.max > 0 || isInitializing)) {
+                spreadFilter.min = data.spreadRange.min;
+                spreadFilter.max = data.spreadRange.max;
+                // Regenerate choices array from 0 to max to ensure all values are present
+                // The Range component's labelListStyle uses the value directly, so we need all values from 0 to max
+                spreadFilter.choices = [];
+                for (let i = 0; i <= data.spreadRange.max; i++) {
+                  spreadFilter.choices.push(i);
+                }
+                // Ensure max matches the last choice in the array
+                if (spreadFilter.choices.length > 0) {
+                  spreadFilter.max = spreadFilter.choices[spreadFilter.choices.length - 1];
+                }
+                // Adjust filter value if it's outside the new range
+                const currentValue = this.filterValues[spreadFilter.name];
+                if (currentValue) {
+                  let needsUpdate = false;
+                  const newValue = { ...currentValue };
+                  // Only adjust if the current value is outside the new bounds
+                  if (currentValue.min < data.spreadRange.min) {
+                    newValue.min = data.spreadRange.min;
+                    needsUpdate = true;
+                  }
+                  if (currentValue.max > data.spreadRange.max) {
+                    newValue.max = data.spreadRange.max;
+                    needsUpdate = true;
+                  }
+                  // If the current value matches the old bounds (full range), update it to match new bounds
+                  // This ensures the filter stays at full range when bounds change due to other filters
+                  const wasAtFullRange = currentValue.min === oldMin && currentValue.max === oldMax;
+                  if (wasAtFullRange && !isInitializing) {
+                    newValue.min = data.spreadRange.min;
+                    newValue.max = data.spreadRange.max;
+                    needsUpdate = true;
+                  }
+                  // Only set to full range on true first initialization (oldMin === oldMax === 0)
+                  // AND the current value is at the default (0, 0) - meaning it was never set
+                  if (isInitializing && data.spreadRange.max >= data.spreadRange.min) {
+                    const isUninitialized = currentValue.min === 0 && currentValue.max === 0;
+                    if (isUninitialized) {
+                      newValue.min = data.spreadRange.min;
+                      newValue.max = data.spreadRange.max;
+                      needsUpdate = true;
+                    }
+                  }
+                  if (needsUpdate) {
+                    this.filterValues[spreadFilter.name] = newValue;
+                  }
+                } else {
+                  // Initialize to full range if no value set (only on true first initialization)
+                  // But only if it's truly uninitialized - if it was set in determineFilterCounts, don't override
+                  if (isInitializing) {
+                    const existingValue = this.filterValues[spreadFilter.name];
+                    // Only set if it's still at the default (0, 0) or doesn't exist
+                    if (!existingValue || (existingValue.min === 0 && existingValue.max === 0)) {
+                      this.filterValues[spreadFilter.name] = {
+                        min: data.spreadRange.min,
+                        max: data.spreadRange.max
+                      };
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } finally {
+          // Keep suppression through the next tick so the deep watcher doesn't
+          // fire after we've already re-enabled it.
+          await this.$nextTick();
+          this.suppressFilterWatcher = false;
         }
       }
-      if (!data.results.length || this.favorites || this.questions) {
-        this.loadedAll = true;
-      }
-      if (replace) {
-        this.results = data.results;
-      } else {
-        // Prevent duplicate plants by checking if they already exist in the results array
-        data.results.forEach((datum) => {
-          if (!this.results.some((existing) => existing._id === datum._id)) {
-            this.results.push(datum);
+        if (!data.results.length || this.favorites) {
+          this.loadedAll = true;
+        }
+
+        if (replace) {
+          this.results = data.results;
+        } else {
+          // Prevent duplicate plants by checking if they already exist in the results array
+          const existingIds = new Set(this.results.map((r) => r._id));
+          for (const datum of data.results) {
+            if (!existingIds.has(datum._id)) {
+              this.results.push(datum);
+              existingIds.add(datum._id);
+            }
           }
-        });
+        }
+
+        this.total = data.total;
+
+        // If the sentinel is already in/near view (short result sets, or user at bottom),
+        // keep loading additional pages.
+        this.scheduleMaybeLoadMore("post-fetch");
+      } catch (error) {
+        if (this.activeFetchRequestId === requestId) {
+          console.error("Error fetching plants:", error);
+        }
+      } finally {
+        if (this.activeFetchRequestId === requestId) {
+          this.loading = false;
+        }
       }
-      this.total = data.total;
-      this.loading = false;
     },
-    async restartLoadMoreIfNeeded() {
-      if (this.loadTimeout) {
-        clearTimeout(this.loadTimeout);
+
+    setupInfiniteScroll() {
+      if (typeof window === "undefined") return;
+      if (this.favorites) return;
+
+      this.teardownInfiniteScroll();
+
+      const sentinel = this.$refs.next;
+      if (!sentinel) return;
+
+      // Always attach a scroll/resize handler. In some layouts the observer can be
+      // delayed; this also covers browsers where IO is flaky.
+      this.scrollFallbackHandler = () => {
+        this.scheduleMaybeLoadMore("scroll");
+      };
+      window.addEventListener("scroll", this.scrollFallbackHandler, { passive: true });
+      window.addEventListener("resize", this.scrollFallbackHandler, { passive: true });
+
+      if ("IntersectionObserver" in window) {
+        this.infiniteObserver = new IntersectionObserver(
+          (entries) => {
+            if (entries.some((e) => e.isIntersecting)) {
+              this.maybeLoadMore("observer");
+            }
+          },
+          { root: null, rootMargin: "2000px 0px", threshold: 0 }
+        );
+        this.infiniteObserver.observe(sentinel);
       }
-      this.loadTimeout = setTimeout(loadMoreIfNeeded.bind(this), 500);
-      async function loadMoreIfNeeded() {
-        if (typeof window === "undefined") {
-          // server side, not appropriate
-          return;
+
+      // If we're already near the bottom (or results are short), kick off a load.
+      this.scheduleMaybeLoadMore("setup");
+    },
+
+    teardownInfiniteScroll() {
+      if (this.infiniteObserver) {
+        this.infiniteObserver.disconnect();
+        this.infiniteObserver = null;
+      }
+      if (this.scrollFallbackHandler && typeof window !== "undefined") {
+        window.removeEventListener("scroll", this.scrollFallbackHandler);
+        window.removeEventListener("resize", this.scrollFallbackHandler);
+        this.scrollFallbackHandler = null;
+      }
+    },
+
+    scheduleMaybeLoadMore() {
+      if (typeof window === "undefined") return;
+      if (this.favorites) return;
+      if (this.maybeLoadMoreRaf) {
+        cancelAnimationFrame(this.maybeLoadMoreRaf);
+      }
+      this.maybeLoadMoreRaf = requestAnimationFrame(() => {
+        this.maybeLoadMoreRaf = null;
+        if (this.isNextSentinelNearViewport()) {
+          this.maybeLoadMore("sentinel-near");
         }
-        if (!this.$el.closest("body")) {
-          // Component unmounted, don't waste energy
-          return;
-        }
-        // Stay a full screen ahead
-        if (
-          !this.loadedAll &&
-          !this.loading &&
-          window.scrollY + window.innerHeight * 3 > document.body.clientHeight
-        ) {
-          // this.$refs.afterTable.getBoundingClientRect().top)) {
-          this.page++;
-          await this.fetchPage();
-        }
-        this.loadTimeout = setTimeout(loadMoreIfNeeded.bind(this), 500);
+      });
+    },
+
+    isNextSentinelNearViewport(pixels = 2000) {
+      if (typeof window === "undefined") return false;
+      const sentinel = this.$refs.next;
+      if (!sentinel || typeof sentinel.getBoundingClientRect !== "function") return false;
+      const rect = sentinel.getBoundingClientRect();
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+      return rect.top <= viewportHeight + pixels;
+    },
+
+    async maybeLoadMore() {
+      if (typeof window === "undefined") return;
+      if (this.favorites) return;
+      if (this.loadedAll || this.loading) return;
+      if (this.checkingLoadMore) return;
+
+      this.checkingLoadMore = true;
+      try {
+        this.page += 1;
+        await this.fetchPage(false);
+      } finally {
+        this.checkingLoadMore = false;
       }
     },
     findKeywordForFilterValue(filterName, filterValue) {
@@ -2963,12 +3500,31 @@ export default {
           this.filterValues[chip.name] = currentValues.filter(
             (value) => value !== chip.label
           );
+        } else if (filter && filter.range) {
+          // For range filters, set to match the current filter bounds (full range)
+          // This ensures the filter is not active after removing the chip
+          this.filterValues[chip.name] = {
+            min: filter.min,
+            max: filter.max
+          };
         } else if (filter) {
           this.filterValues[chip.name] = filter.default;
         }
         
         // Don't clear activeSearch when removing filter chips
         // This allows semantic search to continue working with remaining filters
+        
+        // If activeSearch is empty or doesn't have meaningful content, and we're sorting by Search Relevance,
+        // switch back to the previous sort to ensure proper sorting when filters are removed
+        if ((!this.activeSearch || !this.activeSearch.trim() || !this.getRemainingQueryText(this.activeSearch).trim()) && 
+            this.sort === "Sort by Search Relevance") {
+          if (this.previousSort) {
+            this.sort = this.previousSort;
+          } else {
+            // Fallback to default sort if previousSort is not set
+            this.sort = "Sort by Recommendation Score";
+          }
+        }
         
         // The filterValues watcher will trigger, but ensure submit happens
         // Use $nextTick to ensure the watcher has processed the change
@@ -2980,11 +3536,29 @@ export default {
     },
     clearAll() {
       for (const filter of this.filters) {
-        this.filterValues[filter.name] = filter.default;
+        if (filter.range) {
+          // For range filters, set to match the current filter bounds (full range)
+          // This ensures the filter is not active after clearAll
+          this.filterValues[filter.name] = {
+            min: filter.min,
+            max: filter.max
+          };
+        } else {
+          this.filterValues[filter.name] = filter.default;
+        }
       }
       this.q = "";
       this.activeSearch = "";
       this.hasExtractedFilters = false;
+      // If we're sorting by Search Relevance but there's no active search, switch back to previous sort
+      if (this.sort === "Sort by Search Relevance") {
+        if (this.previousSort) {
+          this.sort = this.previousSort;
+        } else {
+          // Fallback to default sort if previousSort is not set
+          this.sort = "Sort by Recommendation Score";
+        }
+      }
       // Close sort dropdown if it's open
       if (this.sortIsOpen) {
         this.sortIsOpen = false;
@@ -3033,6 +3607,216 @@ export default {
     isDesktop() {
       // Must match CSS media query below
       return window.innerWidth >= 1280;
+    },
+    openBulkAdd() {
+      this.bulkAddOpen = true;
+      this.bulkAddResult = null;
+    },
+    closeBulkAdd() {
+      this.bulkAddOpen = false;
+    },
+    showToast(message) {
+      this.toastMessage = message;
+      if (this.toastTimeout) {
+        clearTimeout(this.toastTimeout);
+        this.toastTimeout = null;
+      }
+      this.toastTimeout = setTimeout(() => {
+        this.toastMessage = "";
+        this.toastTimeout = null;
+      }, 2500);
+    },
+    handleQuickAddInput() {
+      if (this.quickAddTimeout) {
+        clearTimeout(this.quickAddTimeout);
+        this.quickAddTimeout = null;
+      }
+      const q = String(this.quickAddQ || "").trim();
+      if (q.length < 2) {
+        this.quickAddResults = [];
+        return;
+      }
+      this.quickAddTimeout = setTimeout(async () => {
+        try {
+          const response = await fetch(`/api/v1/autocomplete?q=${encodeURIComponent(q)}`);
+          const data = await response.json();
+          const sections = Array.isArray(data?.sections) ? data.sections : [];
+          const plantSection = sections.find((s) => s && s.type === "plant");
+          const items = Array.isArray(plantSection?.items) ? plantSection.items : [];
+          // Plant-only results
+          this.quickAddResults = items
+            .filter((i) => i && (i.plantId || i._id))
+            .map((i) => ({
+              plantId: i.plantId || i._id,
+              commonName: i.commonName || i["Common Name"] || i.displayText,
+              scientificName: i.scientificName || i["Scientific Name"] || i.subtitle,
+              displayText: i.displayText,
+              subtitle: i.subtitle,
+            }))
+            .slice(0, 10);
+        } catch (e) {
+          console.error("Quick add autocomplete error:", e);
+          this.quickAddResults = [];
+        }
+      }, 180);
+    },
+    handleQuickAddBlur() {
+      // Allow click selection via @mousedown; delay close to avoid losing selection
+      setTimeout(() => {
+        this.quickAddOpen = false;
+      }, 120);
+    },
+    async selectQuickAddPlant(p) {
+      const id = p?.plantId;
+      if (!id) return;
+      if (!this.$store.state.favorites.has(id)) {
+        this.$store.commit("addFavorites", [id]);
+        this.recentlyAddedIds = [id];
+        setTimeout(() => {
+          this.recentlyAddedIds = [];
+        }, 1800);
+      }
+      this.quickAddQ = "";
+      this.quickAddResults = [];
+      this.quickAddOpen = false;
+
+      if (this.favorites) {
+        await this.fetchPage(true);
+      }
+    },
+    async handleQuickAddEnter() {
+      // If there's a top suggestion, add it.
+      if (this.quickAddPlants.length) {
+        await this.selectQuickAddPlant(this.quickAddPlants[0]);
+      }
+    },
+    async clearAllFavorites() {
+      if (!this.favoritesAvailable) return;
+      this.$store.commit("clearFavorites");
+      this.results = [];
+      this.loadedAll = true;
+      this.total = 0;
+      this.showToast("Cleared favorites");
+
+      if (this.favorites) {
+        await this.fetchPage(true);
+      }
+    },
+    async addStaffPicks() {
+      // Curated starter set for empty favorites state
+      const staffPicksText = `
+Asclepias tuberosa
+Symphyotrichum novae-angliae
+Diospyros virginiana
+Amelanchier laevis
+Corylus americana
+Vaccinium corymbosum
+Asimina triloba
+Aronia melanocarpa
+Pycnanthemum muticum
+      `.trim();
+
+      try {
+        const response = await fetch("/api/v1/plants/resolve-names", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: staffPicksText }),
+        });
+        const contentType = (response.headers.get("content-type") || "").toLowerCase();
+        const rawBody = await response.text();
+        const data = contentType.includes("application/json") ? JSON.parse(rawBody || "{}") : null;
+        if (!response.ok) {
+          throw new Error((data && data.error) || rawBody || "Failed to add Staff Picks");
+        }
+        const matchedIds = Array.isArray(data?.matchedIds) ? data.matchedIds : [];
+        const toAdd = matchedIds.filter((id) => !this.$store.state.favorites.has(id));
+        if (toAdd.length) {
+          this.$store.commit("addFavorites", toAdd);
+          this.recentlyAddedIds = toAdd;
+          setTimeout(() => {
+            this.recentlyAddedIds = [];
+          }, 1800);
+        }
+        if (this.favorites) {
+          await this.fetchPage(true);
+        }
+        this.showToast(`Added ${toAdd.length} Staff Pick(s)`);
+      } catch (e) {
+        console.error("Staff Picks error:", e);
+        this.showToast(e?.message || "Failed to add Staff Picks");
+      }
+    },
+    async submitBulkAdd(text) {
+      if (this.bulkAddLoading) return;
+      const payload = typeof text === "string" ? text : "";
+      if (!payload.trim()) return;
+
+      this.bulkAddLoading = true;
+      this.bulkAddResult = null;
+      try {
+        const response = await fetch("/api/v1/plants/resolve-names", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: payload }),
+        });
+        const contentType = (response.headers.get("content-type") || "").toLowerCase();
+        const rawBody = await response.text();
+        const data = contentType.includes("application/json") ? JSON.parse(rawBody || "{}") : null;
+        if (!response.ok) {
+          throw new Error((data && data.error) || rawBody || "Bulk add failed");
+        }
+        if (!data) {
+          throw new Error("Bulk add failed: server returned a non-JSON response");
+        }
+
+        const matchedIds = Array.isArray(data?.matchedIds) ? data.matchedIds : [];
+        const notFound = Array.isArray(data?.notFound) ? data.notFound : [];
+
+        const already = [];
+        const toAdd = [];
+        for (const id of matchedIds) {
+          if (this.$store.state.favorites.has(id)) {
+            already.push(id);
+          } else {
+            toAdd.push(id);
+          }
+        }
+
+        if (toAdd.length) {
+          this.$store.commit("addFavorites", toAdd);
+        }
+
+        this.recentlyAddedIds = toAdd;
+        if (this.recentlyAddedIds.length) {
+          setTimeout(() => {
+            this.recentlyAddedIds = [];
+          }, 1800);
+        }
+
+        // Refresh results if we are on the favorites page.
+        if (this.favorites) {
+          await this.fetchPage(true);
+        }
+
+        // One concise toast so users feel the click "did something"
+        let toast = "";
+        if (toAdd.length) toast = `Added ${toAdd.length} favorite(s)`;
+        else if (already.length) toast = "All matches were already in favorites";
+        else toast = "No matches found";
+        if (notFound.length) toast += ` • ${notFound.length} not found`;
+        this.showToast(toast);
+
+        this.bulkAddResult = {
+          addedCount: toAdd.length,
+          alreadyCount: already.length,
+          notFound,
+        };
+      } catch (e) {
+        console.error("Bulk add error:", e);
+        this.showToast(e?.message || "Bulk add failed");
+      } finally {
+        this.bulkAddLoading = false;
+      }
     },
     toggleFavorite(_id) {
       this.$store.commit("toggleFavorite", _id);
@@ -3133,42 +3917,6 @@ ${htmlLines.join("\n")}
         ? "favorite"
         : "favorite_outline";
     },
-    questionClasses(index) {
-      if (this.question === index) {
-        return "question active-question";
-      } else {
-        return "question inactive-question";
-      }
-    },
-    nextQuestion() {
-      this.question = this.question + 1;
-    },
-    endQuestions() {
-      for (const questionDetail of this.questionDetails) {
-        const filters = questionDetail.filter(
-          questionDetail.value,
-          Object.fromEntries(
-            this.questionDetails.map((questionDetail) => [
-              questionDetail.name,
-              questionDetail.value,
-            ])
-          )
-        );
-        for (const [name, value] of Object.entries(filters)) {
-          this.filterIsOpen[name] = true;
-          this.filterValues[name] = value;
-        }
-      }
-      this.$router.push("/");
-    },
-    quitQuestions() {
-      this.$router.push("/");
-    },
-    initQuestionValues(questionDetails) {
-      for (const questionDetail of questionDetails) {
-        questionDetail.value = questionDetail.def;
-      }
-    },
     twoUpImage(index) {
       return `background-image: url(/assets/images/two-up/${index}.jpg`;
     },
@@ -3228,6 +3976,10 @@ function getDefaultFilterValues(filters) {
   margin: auto;
   background-color: #fcf9f4;
   padding: 32px;
+}
+
+.explorer-column {
+  width: 100%;
 }
 
 main {
@@ -3295,12 +4047,317 @@ button.text {
   margin-bottom: 11px;
 }
 
+.browse-toolbar {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 8px 0 12px;
+}
+
+.browse-toolbar-row--actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(170px, 1.2fr) auto;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.browse-toolbar-row--mode {
+  width: 100%;
+}
+
+.browse-filter-button {
+  width: 100%;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.browse-filter-button .material-icons {
+  font-size: 18px;
+}
+
+.browse-sort {
+  min-width: 0;
+}
+
+.browse-sort-button {
+  width: 100%;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+/* Override legacy list-button styling for this toolbar context */
+.browse-sort-button.list-button {
+  position: relative;
+}
+.browse-sort-button.list-button .label {
+  position: static;
+  background: transparent;
+  padding: 0;
+  font-size: 13px;
+  color: inherit;
+}
+
+/* Favorites: icon-first in toolbar */
+.browse-toolbar .browse-favorites {
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  margin: 0;
+  border-radius: 10px;
+  flex: 0 0 auto;
+}
+
+.browse-toolbar .browse-favorites .favorites-label {
+  display: none;
+}
+
+/* If Favorites is icon-only, don't show the count badge (too crowded). */
+.browse-toolbar .browse-favorites .favorites-count-badge {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .browse-toolbar .browse-favorites .favorites-label {
+    display: inline;
+  }
+  .browse-toolbar .browse-favorites .favorites-count-badge {
+    display: grid;
+  }
+}
+
+.browse-toolbar .browse-favorites .favorites-count-badge {
+  right: 8px;
+  top: 8px;
+}
+
+@media (max-width: 600px) {
+  /* Reduce chrome at phone widths: keep focus on Filter + Sort */
+  .browse-toolbar-row--actions {
+    grid-template-columns: auto minmax(160px, 1fr) auto;
+  }
+  .browse-location-button {
+    display: none;
+  }
+  .browse-sort-button.list-button .label {
+    display: none;
+  }
+  /* When Favorites is icon-only, hide the count badge (too crowded) */
+  .browse-toolbar .browse-favorites .favorites-count-badge {
+    display: none;
+  }
+}
+
+/* Tablet-ish: one-row toolbar (location + filter + sort + favorites + photo mode) */
+@media (min-width: 600px) and (max-width: 1279px) {
+  .compact-utility-header {
+    display: none;
+  }
+
+  /* Flatten the internal rows so we can place controls on a single grid row */
+  .browse-toolbar-row--actions,
+  .browse-toolbar-row--mode {
+    display: contents;
+  }
+
+  .browse-toolbar {
+    display: grid;
+    /* Keep Sort compact and reserve enough space for the photo mode toggle */
+    grid-template-columns: 44px auto minmax(120px, 200px) 44px minmax(180px, 1fr);
+    grid-template-areas: "loc filter sort fav mode";
+    column-gap: 6px;
+    row-gap: 0;
+    align-items: center;
+    margin: 10px 0 12px;
+  }
+
+  .browse-location-button {
+    grid-area: loc;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .browse-filter-button {
+    grid-area: filter;
+    width: auto;
+    padding: 10px 12px;
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .browse-sort {
+    grid-area: sort;
+  }
+  .browse-sort-button {
+    padding: 10px 10px;
+  }
+  /* Make Sort pill no wider than needed and prevent the value from wrapping */
+  .browse-sort-button .label {
+    display: none;
+  }
+  .browse-sort-button .value {
+    display: inline-block;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .browse-favorites {
+    grid-area: fav;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+  /* Keep Favorites icon-only across tablet widths for a clean one-line toolbar */
+  .browse-toolbar .browse-favorites .favorites-label,
+  .browse-toolbar .browse-favorites .favorites-count-badge {
+    display: none !important;
+  }
+
+  .browse-toolbar-row--mode .photo-mode-toggle {
+    grid-area: mode;
+    width: 100%;
+    margin: 0;
+    max-width: none;
+    min-width: 180px;
+  }
+  .browse-toolbar-row--mode .photo-mode-button {
+    padding: 8px 8px;
+    font-size: 13px;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Narrow tablet: prioritize keeping the photo-mode toggle fully visible */
+@media (min-width: 600px) and (max-width: 720px) {
+  .browse-toolbar {
+    grid-template-columns: 44px 44px minmax(0, 1fr) 44px minmax(200px, 240px);
+    column-gap: 6px;
+  }
+  /* Filter becomes icon-only here to save width */
+  .browse-filter-button {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+  .browse-filter-label {
+    display: none;
+  }
+  /* Let sort shrink aggressively (ellipsis already applied) */
+  .browse-sort-button {
+    padding: 10px 8px;
+  }
+  .browse-toolbar-row--mode .photo-mode-button {
+    padding: 7px 6px;
+    font-size: 12px;
+  }
+}
+
 .sort-and-favorites {
   max-width: 350px;
   margin: auto;
   display: flex;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
+}
+
+.photo-mode-row {
+  max-width: 350px;
+  margin: auto;
+  margin-bottom: 12px;
+}
+
+/* Mobile/tablet spacing: keep sort + photo toggle closer together */
+@media all and (max-width: 1279px) {
+  .explorer-column {
+    /* Shared alignment column for location + toolbar + chips + results */
+    --results-max-width: 1120px;
+    max-width: min(100%, var(--results-max-width));
+    margin-inline: auto;
+    padding-inline: 16px;
+  }
+  main {
+    /* Let the shared column manage horizontal padding at these sizes */
+    padding: 0;
+  }
+  .primary-bar,
+  .sort-and-favorites,
+  .photo-mode-row,
+  .copy-clipboard,
+  .filters {
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+  }
+  .primary-bar {
+    width: 100%;
+  }
+  .sort-and-favorites {
+    width: 100%;
+  }
+  .photo-mode-row {
+    width: 100%;
+  }
+  .sort-and-favorites {
+    margin-bottom: 8px;
+  }
+  .photo-mode-row {
+    margin-bottom: 10px;
+  }
+  .favorites-prefs-stack {
+    gap: 6px;
+  }
+}
+
+.photo-mode-toggle {
+  display: flex;
+  width: 100%;
+  border: 1px solid #b74d15;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #fcf9f4;
+}
+
+.photo-mode-button {
+  flex: 1 1 0;
+  border: none;
+  border-radius: 0;
+  padding: 10px 12px;
+  font-size: 16px;
+  font-family: Roboto;
+  background: transparent;
+  color: #b74d15;
+}
+
+.photo-mode-button + .photo-mode-button {
+  border-left: 1px solid #b74d15;
+}
+
+.photo-mode-button.active {
+  background: #b74d15;
+  color: #fcf9f4;
+}
+
+.photo-mode-button:focus-visible {
+  outline: 3px solid rgba(183, 77, 21, 0.35);
+  outline-offset: -3px;
 }
 
 .copy-clipboard {
@@ -3317,6 +4374,33 @@ button.favorites {
   flex-basis: 0;
   flex-grow: 0;
   margin-right: 24px;
+  position: relative;
+}
+
+button.favorites .favorites-count-badge {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  transform: none;
+  background: #B74D15;
+  color: #fff;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  font-family: Roboto, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  padding: 0 6px;
+  line-height: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  box-shadow:
+    0 0 0 2px #fcf9f4,
+    0 1px 2px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
 }
 
 button.favorites[disabled], button.copy-button[disabled] {
@@ -3364,7 +4448,9 @@ button.favorites[disabled], button.copy-button[disabled] {
   margin-top: 10px;
   display: flex;
   justify-content: center;
+  gap: 10px;
 }
+
 
 .list-button {
   position: relative;
@@ -3527,77 +4613,472 @@ th {
   flex-grow: 1;
   min-width: 0;
 }
+.favorites-toolbar {
+  max-width: 1000px;
+  margin: 0 auto 16px;
+}
+.favorites-toolbar-row {
+  display: grid;
+  gap: 12px 16px;
+  align-items: start;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "sort"
+    "toggle"
+    "quickadd"
+    "actions";
+}
+
+.favorites-sort {
+  grid-area: sort;
+  min-width: 0;
+}
+
+.favorites-photo-mode {
+  grid-area: toggle;
+  min-width: 0;
+}
+
+.favorites-quick-add {
+  grid-area: quickadd;
+}
+
+.favorites-actions {
+  grid-area: actions;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.favorites-actions-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+.favorites-quick-add {
+  position: relative;
+  width: min(420px, 100%);
+}
+
+/* Tablet: two-row layout */
+@media (min-width: 600px) {
+  .favorites-toolbar-row {
+    grid-template-columns: minmax(260px, 1fr) auto;
+    grid-template-areas:
+      "sort toggle"
+      "quickadd actions";
+    align-items: center;
+  }
+  .favorites-photo-mode {
+    justify-self: end;
+  }
+  .favorites-actions {
+    align-items: flex-end;
+    justify-self: end;
+  }
+  /* Keep action buttons as one cluster on tablet sizes */
+  .favorites-actions-buttons {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+  }
+  .favorites-actions-buttons .action-button {
+    white-space: nowrap;
+  }
+}
+
+/* iPad Pro-ish widths: single-row toolbar when there is room */
+@media (min-width: 1024px) {
+  .favorites-toolbar-row {
+    grid-template-columns: minmax(260px, 1fr) auto minmax(180px, 360px) auto;
+    grid-template-areas: "sort toggle quickadd actions";
+    align-items: center;
+  }
+  .favorites-photo-mode {
+    justify-self: start;
+  }
+  .favorites-quick-add {
+    width: 100%;
+  }
+}
+
+/* Desktop: Favorites controls live in the left sidebar (320px), so keep it stacked to avoid clipping */
+@media (min-width: 1280px) {
+  .favorites-toolbar-row {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "sort"
+      "toggle"
+      "quickadd"
+      "actions";
+    align-items: start;
+  }
+  .favorites-actions {
+    align-items: flex-start;
+    justify-self: start;
+  }
+  .favorites-actions-buttons {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  /* Desktop: keep the empty-state aligned with the content column (not centered) */
+  .favorites-empty {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+.favorites-quick-add-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+}
+.favorites-quick-add-input .material-icons {
+  color: #555;
+  font-size: 18px;
+}
+.favorites-quick-add-text {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-family: Roboto;
+  font-size: 14px;
+  background: transparent;
+  color: #1d2e26;
+}
+.favorites-quick-add-text::placeholder {
+  color: #777;
+}
+.favorites-quick-add-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.18);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+  max-height: 280px;
+  overflow: auto;
+  z-index: 1000;
+}
+.favorites-quick-add-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 10px 12px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+}
+.favorites-quick-add-item:hover {
+  background: rgba(183, 77, 21, 0.06);
+}
+.favorites-quick-add-item-title {
+  font-family: Roboto;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1d2e26;
+  grid-column: 1 / 2;
+  grid-row: 1 / 2;
+}
+.favorites-quick-add-item-subtitle {
+  font-family: Roboto;
+  font-size: 12px;
+  color: #555;
+  margin-top: 2px;
+  grid-column: 1 / 2;
+  grid-row: 2 / 3;
+}
+.favorites-quick-add-item-cta {
+  grid-column: 2 / 3;
+  grid-row: 1 / 3;
+  align-self: center;
+  justify-self: end;
+  font-family: Roboto;
+  font-size: 12px;
+  font-weight: 700;
+  color: #b74d15;
+  border: 1px solid rgba(183, 77, 21, 0.45);
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(183, 77, 21, 0.06);
+}
+.action-button {
+  padding: 10px 12px;
+  font-size: 14px;
+  border-radius: 10px;
+  width: auto;
+}
+.clear-favorites-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-color: rgba(183, 77, 21, 0.65);
+  color: #b74d15;
+}
+.clear-favorites-button:hover:not(:disabled) {
+  background: rgba(183, 77, 21, 0.06);
+  border-color: rgba(183, 77, 21, 0.85);
+  color: #c85d25;
+}
+.clear-favorites-button .clear-icon {
+  color: currentColor;
+}
+.favorites-empty {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 16px;
+  padding: 20px;
+  max-width: 740px;
+  width: min(740px, 100%);
+  margin: 0 auto;
+}
+.favorites-empty h2 {
+  margin: 0 0 6px;
+  font-family: Arvo;
+  font-size: 20px;
+  color: #1d2e26;
+}
+.favorites-title-count {
+  font-family: Roboto;
+  font-weight: 700;
+  font-size: 16px;
+  color: #555;
+}
+.favorites-empty p {
+  margin: 0 0 14px;
+  font-family: Roboto;
+  color: #444;
+}
+.favorites-empty-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  background: rgba(29, 46, 38, 0.95);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-family: Roboto;
+  font-size: 13px;
+  z-index: 10000;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.25);
+  max-width: min(92vw, 720px);
+  text-align: center;
+}
 .plants {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(248px, 1fr));
   gap: 8px;
   align-content: start;
 }
+
+.infinite-scroll-sentinel {
+  /* Keep sentinel at the end of the results grid without affecting layout */
+  grid-column: 1 / -1;
+  height: 1px;
+  width: 100%;
+}
 .plant-preview-wrapper {
   position: relative;
-  aspect-ratio: 1/1;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+}
+.plant-preview-wrapper--added .plant-preview {
+  box-shadow: 0 0 0 3px rgba(56, 161, 105, 0.28), 0 6px 18px rgba(0,0,0,0.12);
+  transform: translateY(-1px);
 }
 .plant-preview {
   position: relative;
-  border-radius: 8px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  font-family: Roboto;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 .photo {
   width: 100%;
   aspect-ratio: 1/1;
-  border-radius: 8px 8px 0 0;
+  position: relative;
+  background: #fff;
 }
-.names {
+.photo--studio {
+  background: #ffffff;
+}
+.tile-favorite {
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: 999px;
   position: absolute;
-  top: calc(50% - 16px);
-  left: 16px;
+  top: 10px;
+  right: 10px;
+  background: transparent;
+  box-shadow: none;
+  border: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #1d2e26; /* readable over both studio + habitat */
+  z-index: 2;
+  flex: 0 0 auto;
+}
+.tile-favorite .material-icons {
+  font-size: 28px;
+  /* Make the icon readable on photos without adding a visible button background */
+  text-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.35),
+    0 0 2px rgba(255, 255, 255, 0.85);
+}
+
+/* Studio photos are already high-contrast on white; remove shadow for a cleaner look */
+.photo--studio .tile-favorite .material-icons {
+  text-shadow: none;
+}
+
+.tile-favorite:focus-visible {
+  outline: 3px solid rgba(183, 77, 21, 0.35);
+  outline-offset: 2px;
+}
+.photo--habitat .tile-favorite {
+  color: #fff;
+}
+.photo--habitat .tile-favorite .material-icons {
+  /* Help the white outline heart stay visible over bright habitat photos */
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.75));
+}
+.photo--studio .tile-favorite {
+  color: #111;
+  background: transparent;
+  background-color: transparent;
+}
+.tile-favorite:focus-visible {
+  outline: 3px solid rgba(183, 77, 21, 0.35);
+  outline-offset: 2px;
+}
+.view-details-hint {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  pointer-events: none;
+}
+.name-scrim {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 12px 12px 10px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.74) 0%,
+    rgba(0, 0, 0, 0.34) 55%,
+    rgba(0, 0, 0, 0) 100%
+  );
+}
+.name-text {
+  min-width: 0;
+}
+.name-scrim .common-name,
+.name-scrim .scientific-name {
+  color: #fff;
+  text-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.75),
+    0 1px 2px rgba(0, 0, 0, 0.85);
+}
+.caption {
+  padding: 10px 12px 12px;
+  background: #fff;
+  min-height: 56px; /* reserve space so grid doesn't jump for short/long names */
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.caption-text {
+  min-width: 0;
+}
+.plant-preview .common-name {
+  font-size: 15px;
   margin: 0;
   padding: 0;
-  font-size: 14px;
-  font-family: Lato;
-  color: white;
+  font-weight: 650;
+  line-height: 1.2;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
-.common-name {
-  font-size: 14px;
-  margin: 0;
-  padding: 0;
-  font-weight: normal;
-}
-.scientific-name {
+.plant-preview .scientific-name {
   font-size: 12px;
   font-style: italic;
   margin: 0;
   padding: 0;
   font-weight: normal;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.9;
 }
-.plant-controls-wrapper {
-  position: absolute;
-  width: 100%;
-  bottom: 0px;
-  background-color: white;
+.caption .common-name,
+.caption .scientific-name {
+  color: #1d2e26;
 }
-.plant-controls {
-  width: 100%;
-  font-family: Lato;
-  font-size: 14px;
-  border: 1px solid #b74d15;
-  border-top: none;
-  border-radius: 0 0 8px 8px;
-  color: #b74d15;
-  padding: 8px 8px 2px;
-  height: 32px;
-  display: flex;
-  justify-content: space-between;
+
+.plant-preview-wrapper:focus-visible .plant-preview {
+  box-shadow: 0 0 0 3px rgba(183, 77, 21, 0.25);
 }
-.plant-controls .text {
-  margin: 0;
-  letter-spacing: 0.1em;
+@media (hover: hover) {
+  .plant-preview-wrapper:hover .plant-preview {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.1);
+  }
+  .plant-preview-wrapper:hover .view-details-hint,
+  .plant-preview-wrapper:focus-within .view-details-hint {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
-.plant-controls a.text {
-  color: inherit;
-  text-decoration: none;
-}
-.favorite-large {
-  display: none;
+@media (hover: none) {
+  .view-details-hint {
+    display: none;
+  }
 }
 .filters {
   flex-direction: column;
@@ -3698,14 +5179,113 @@ th {
   padding-left: 8px;
   user-select: none;
 }
-.filters {
-  display: none;
+.filters-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 1180;
 }
-.filters-open .filter-toggle-and-sort {
-  display: none;
-}
-.filters-open .filters {
+
+.filters-drawer-header {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0 10px;
+  background: #fcf9f4;
+}
+.filters-drawer-header-left {
+  min-width: 0;
+}
+.filters-drawer-title {
+  font-family: Arvo;
+  font-size: 18px;
+  line-height: 1.2;
+  color: #1d2e26;
+}
+.filters-drawer-subtitle {
+  margin-top: 2px;
+  font-family: Roboto;
+  font-size: 12px;
+  color: rgba(29, 46, 38, 0.72);
+}
+.filters-drawer-close {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filters-drawer-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  gap: 10px;
+  padding: 12px 0 0;
+  margin-top: 16px;
+  background: #fcf9f4;
+  box-shadow: 0 -10px 18px rgba(252, 249, 244, 0.95);
+}
+.filters-drawer-footer button {
+  flex: 1 1 0;
+  border-radius: 12px;
+}
+
+/* Mobile/tablet: filters become an overlay drawer */
+@media all and (max-width: 1279px) {
+  .filters {
+    display: none;
+  }
+  .filters-open .filters {
+    display: flex;
+    position: fixed;
+    z-index: 1190;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(420px, 92vw);
+    max-width: none;
+    margin: 0;
+    padding: 12px 16px 96px;
+    background: #fcf9f4;
+    overflow: auto;
+    box-shadow: 12px 0 28px rgba(0, 0, 0, 0.18);
+    border-right: 1px solid rgba(0, 0, 0, 0.08);
+  }
+  .filters-open .filters-drawer-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .filters-open .filters .inner-controls {
+    position: static;
+    top: auto;
+    z-index: auto;
+    background: transparent;
+  }
+  .filters-open .filters .go {
+    display: none;
+  }
+}
+
+/* Phone: bottom sheet */
+@media all and (max-width: 600px) {
+  .filters-open .filters {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    width: 100vw;
+    height: min(86vh, 720px);
+    border-left: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -14px 34px rgba(0, 0, 0, 0.22);
+  }
 }
 @media all and (max-width: 480px) {
   #app {
@@ -3749,119 +5329,6 @@ th {
   text-align: center;
 }
 
-.questions-page main {
-  padding: 0;
-}
-
-.questions {
-  display: flex;
-  flex-direction: column;
-  margin: auto;
-  padding-top: 48px;
-  background-color: #b74d15;
-  text-align: center;
-  font-family: Roboto;
-}
-
-.questions.first {
-  padding-top: 0;
-}
-
-.questions-prologue {
-  background-image: url("/assets/images/questions-prologue-background.png");
-  background-repeat: no-repeat;
-  background-size: cover;
-  padding: 72px 32px;
-}
-
-.questions-prologue p {
-  color: white;
-  font-size: 20px;
-  font-family: Arvo;
-  font-weight: 700;
-}
-
-.question {
-  flex-grow: 1;
-  border-radius: 16px 16px 0 0;
-  background-color: #fcf9f4;
-  padding: 0 32px;
-}
-
-.question .radio-inputs {
-  display: flex;
-  flex-direction: column;
-  font-size: 18px;
-}
-
-.question .radio-inputs label {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 32px;
-}
-
-.question .radio-inputs .label {
-  width: 3em;
-}
-
-.question .month {
-  margin-bottom: 48px;
-}
-
-/* https://moderncss.dev/pure-css-custom-styled-radio-buttons/ */
-
-.question input[type="radio"] {
-  -webkit-appearance: none;
-  appearance: none;
-  background-color: #fcf9f4;
-  margin: 0;
-  font: inherit;
-  color: #b74d15;
-  width: 1.15em;
-  height: 1.15em;
-  border: 0.15em solid #b74d15;
-  border-radius: 50%;
-  display: grid;
-  place-content: center;
-}
-
-.question input[type="radio"]::before {
-  content: "";
-  width: 0.65em;
-  height: 0.65em;
-  border-radius: 50%;
-  transform: scale(0);
-  transition: 120ms transform ease-in-out;
-  box-shadow: inset 1em 1em #b74d15;
-}
-
-.question input[type="radio"]:checked::before {
-  transform: scale(1);
-}
-
-.question h4 {
-  font-weight: normal;
-  font-size: 24px;
-}
-
-.question .month {
-  position: relative;
-}
-
-.inactive-question {
-  display: none;
-}
-
-.question-buttons,
-.next-back,
-.show-back {
-  display: flex;
-  flex-direction: column;
-}
-
-.question-buttons button {
-  margin-bottom: 48px;
-}
 
 .modal-bar {
   padding: 12px;
@@ -3951,8 +5418,7 @@ th {
   display: flex;
 }
 
-.two-up-image,
-.questions-decoration {
+.two-up-image {
   position: relative;
 }
 
@@ -3979,6 +5445,82 @@ th {
   line-height: 48px;
   margin: 0;
   padding: 0;
+}
+
+.scientific-name-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+
+.scientific-name-text {
+  font-style: italic;
+  font-size: 24px;
+  color: #1d2e26;
+  font-family: Arvo;
+}
+
+.scientific-name-line .species-text {
+  font-style: inherit;
+  font-size: inherit;
+  color: inherit;
+  font-family: inherit;
+}
+
+.taxon-meta {
+  margin: 8px 0;
+  font-size: 14px;
+  font-family: Roboto;
+  color: #1d2e26;
+}
+
+.taxon-label {
+  opacity: 0.75;
+  margin-right: 6px;
+}
+
+.taxon-link {
+  /* Override global button styling so this reads like inline text */
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  letter-spacing: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.taxon-link--scientific {
+  /* Keep scientific name readable, but communicate clickability */
+  text-decoration-color: rgba(29, 46, 38, 0.45);
+}
+
+.taxon-link--scientific + .species-text {
+  /* Make the genus/species separation visually obvious */
+  margin-left: 0.3ch;
+}
+
+.taxon-link--meta {
+  text-decoration-color: rgba(29, 46, 38, 0.35);
+}
+
+@media (hover: hover) {
+  .taxon-link:hover {
+    color: #b74d15;
+    text-decoration-color: rgba(183, 77, 21, 0.75);
+  }
+}
+
+.taxon-link:focus-visible {
+  outline: 2px solid rgba(183, 77, 21, 0.8);
+  outline-offset: 2px;
 }
 
 .two-up p {
@@ -4071,8 +5613,34 @@ th {
     margin-bottom: 0;
     display: block;
   }
+  /* Desktop: use the full location bar; hide the compact icon in the toolbar */
+  .browse-location-button {
+    display: none;
+  }
+  /* Desktop: filters are always visible in the sidebar, so hide the Filter button */
+  .browse-filter-button {
+    display: none;
+  }
+  .browse-toolbar-row--actions {
+    grid-template-columns: 1fr;
+  }
+  .browse-toolbar .browse-favorites {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .browse-toolbar .browse-favorites .favorites-label {
+    display: inline;
+  }
+  .browse-sort-button.list-button .label {
+    display: inline;
+  }
   button.favorites .favorites-label {
     display: inline;
+  }
+  button.favorites .favorites-count-badge {
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
   }
   .two-up.large-help {
     display: flex;
@@ -4143,7 +5711,7 @@ th {
   .search-desktop-parent {
     display: flex;
     justify-content: right;
-    padding: 24px 32px;
+    padding: 16px 32px;
   }
   .search-desktop {
     display: flex;
@@ -4414,43 +5982,6 @@ th {
     overflow: visible;
     height: auto;
   }
-  .questions-box {
-    display: flex;
-    flex-direction: row;
-    width: 100%;
-    height: calc(100vh - 140px);
-  }
-  .questions-box > * {
-    flex-basis: 0;
-    flex-grow: 1;
-  }
-  .questions-decoration {
-    background-size: cover;
-  }
-  .questions {
-    background-color: #fcf9f4;
-    color: #1d2e26;
-  }
-  .questions-prologue {
-    background: none;
-    background-color: #fcf9f4;
-    padding: 40px 32px 0;
-  }
-  .questions-prologue h1 {
-    font-family: Arvo;
-    font-size: 60px;
-    margin: 16px 0;
-  }
-  .questions-prologue p {
-    font-family: Roboto;
-    font-weight: 400;
-    font-size: 20px;
-    color: #1d2e26;
-  }
-  .questions form {
-    width: 70%;
-    margin: auto;
-  }
   .next-back {
     flex-direction: row;
     gap: 32px;
@@ -4490,6 +6021,85 @@ th {
     color: white;
     background: none;
     text-shadow: 0px 0px 2px black;
+  }
+}
+
+/* Compact utility header styles
+   Mobile/tablet: centered, clean (no grey bar)
+   Desktop (orange hero): left-aligned with the utility bar styling */
+.compact-utility-header {
+  background: transparent;
+  border-bottom: none;
+  /* Horizontal padding comes from `.explorer-column` at <=1279px */
+  padding: 8px 0 0;
+  margin-bottom: 8px;
+}
+
+.utility-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.location-section {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Keep default button styling for consistency; just lay out the icon/text nicely */
+.location-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.location-btn .material-icons {
+  font-size: 16px;
+}
+
+@media screen and (max-width: 768px) {
+  .location-btn {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+}
+
+/* Phone: location selector should be icon-only to save vertical space */
+@media (max-width: 600px) {
+  .location-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 12px;
+    justify-content: center;
+  }
+  .location-btn span:not(.material-icons) {
+    display: none;
+  }
+}
+
+@media all and (min-width: 1280px) {
+  .compact-utility-header {
+    background-color: #f5f5f5;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 12px 40px 8px;
+    margin-bottom: 8px;
+  }
+
+  .utility-content {
+    justify-content: flex-start;
+  }
+
+  .location-section {
+    width: auto;
+    justify-content: flex-start;
   }
 }
 </style>

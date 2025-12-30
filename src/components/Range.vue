@@ -18,6 +18,16 @@
         </li>
       </ul>
     </div>
+    <button 
+      v-if="isFilterActive" 
+      class="range-clear-button" 
+      @click="clearFilter"
+      type="button"
+      title="Clear height filter"
+    >
+      <span class="material-icons">close</span>
+      Clear
+    </button>
   </div>
 </template>
 
@@ -50,6 +60,12 @@ export default {
     }
   },
   emits: [ 'update:modelValue' ],
+  computed: {
+    isFilterActive() {
+      // Filter is active if current values differ from min/max range
+      return this.modelValue.min !== this.min || this.modelValue.max !== this.max;
+    }
+  },
   data() {
     return {
       isDown: false,
@@ -169,6 +185,13 @@ export default {
     valueToPixels(value) {
       const linearUnit = (value - this.min) / (this.max - this.min);
       return Math.pow(linearUnit, 1 / this.exponent) * this.clientWidth;
+    },
+    clearFilter() {
+      // Reset to full range
+      this.$emit('update:modelValue', {
+        min: this.min,
+        max: this.max
+      });
     }
   }
 };
@@ -220,5 +243,27 @@ export default {
   .labels li {
     height: 2em;
     list-style: none;
+  }
+  .range-clear-button {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    padding: 6px 12px;
+    background-color: #fcf9f4;
+    color: #b74d15;
+    border: 1px solid #b74d15;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: Roboto;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+  }
+  .range-clear-button:hover {
+    background-color: #b74d15;
+    color: #fcf9f4;
+  }
+  .range-clear-button .material-icons {
+    font-size: 16px;
   }
 </style>
