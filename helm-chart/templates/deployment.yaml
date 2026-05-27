@@ -211,9 +211,9 @@ spec:
               path: /
               port: http
             initialDelaySeconds: 60
-            timeoutSeconds: 10
+            timeoutSeconds: 30
             periodSeconds: 30
-            failureThreshold: 3
+            failureThreshold: 5
           resources:
             {{- toYaml $.Values.resources | nindent 12 }}
         {{- end }}
