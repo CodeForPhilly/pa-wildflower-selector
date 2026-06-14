@@ -41,8 +41,12 @@ export default {
   },
   // Server only
   async serverPrefetch() {
-    this.server = true;
-    await this.fetchNurseries();
+    try {
+      this.server = true;
+      await this.fetchNurseries();
+    } catch (error) {
+      console.error("SSR prefetch failed; client will hydrate:", error);
+    }
   },
   // Browser only
   async mounted() {
