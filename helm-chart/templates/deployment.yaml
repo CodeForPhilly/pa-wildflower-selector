@@ -208,7 +208,7 @@ spec:
               subPath: app-images
           livenessProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: http
             initialDelaySeconds: 60
             timeoutSeconds: 30
