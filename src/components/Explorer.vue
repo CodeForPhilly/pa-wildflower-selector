@@ -3374,6 +3374,8 @@ export default {
           'Vine': ['vine', 'vines', 'climbing', 'trellis'],
           'Graminoid': ['grass', 'grasses', 'graminoid'],
           'Herb': ['herb', 'herbs'],
+          'Cactus': ['cactus', 'cacti'],
+          'Fern': ['fern', 'ferns']
         },
         'Flower Color Flags': {
           'Yellow': ['yellow', 'yellow flowers'],
