@@ -28,7 +28,6 @@
           :key="p.id"
           :placed="p"
           :plant="plantById[p.plantId]"
-          :is-overlapping="overlapIds.has(p.id)"
           :is-dragging="dragState.isDragging && dragState.plantId === p.id && dragState.dragType === 'move'"
           :is-selected="selectedPlacedPlantId === p.id"
           :show-label="labelModeResolved === 'all'"
@@ -76,13 +75,6 @@
           </div>
         </div>
 
-        <!-- Overlap warning - positioned on canvas -->
-        <div 
-          v-if="placedPlants.length && overlapIds.size"
-          class="overlap-hint"
-        >
-          Some plants overlap (crowding risk)
-        </div>
       </div>
 
       <!-- Top Controls -->
@@ -184,7 +176,6 @@ import type { PlacedPlant, Plant, GridCoords } from '../types/garden';
 interface Props {
   placedPlants: PlacedPlant[];
   plantById: Record<string, Plant>;
-  overlapIds: Set<string>;
   selectedPlantId: string | null;
   selectedPlacedPlantId: string | null;
   isMobile: boolean;
@@ -771,24 +762,6 @@ const gridHighlightStyle = computed(() => {
     );
   background-position: 0 0;
   touch-action: none;
-}
-
-.overlap-hint {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(200, 40, 40, 0.4);
-  border-left: 3px solid rgba(200, 40, 40, 0.85);
-  border-radius: 4px;
-  padding: 6px 10px;
-  font-family: Roboto;
-  font-size: 12px;
-  color: #6b1b1b;
-  z-index: 10;
-  pointer-events: none;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  white-space: nowrap;
 }
 
 button.primary-bar.small.danger {

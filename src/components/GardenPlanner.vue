@@ -83,7 +83,6 @@
             ref="canvasRef"
             :placed-plants="placedPlants"
             :plant-by-id="plantById"
-            :overlap-ids="overlapIds"
             :selected-plant-id="selectedPlantId"
             :selected-placed-plant-id="selectedPlacedPlantId"
             :is-mobile="isMobile"
@@ -204,7 +203,6 @@ const {
   selectedPlantId,
   selectedPlacedPlantId,
   plantById,
-  overlapIds,
   plantCounts,
   imageUrl,
   spreadFeetLabel,

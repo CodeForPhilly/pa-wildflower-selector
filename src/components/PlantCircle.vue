@@ -3,7 +3,6 @@
     ref="plantRef"
     class="placed"
     :class="{
-      overlapping: isOverlapping,
       dragging: isDragging,
       selected: isSelected
     }"
@@ -68,7 +67,6 @@ interface Emits {
 interface Props {
   placed: PlacedPlant;
   plant: Plant | undefined;
-  isOverlapping: boolean;
   isDragging?: boolean;
   isSelected?: boolean;
   showLabel?: boolean;
@@ -333,12 +331,6 @@ const handleDeleteClick = () => {
   touch-action: none;
 }
 
-.placed.overlapping {
-  border-color: rgba(220, 30, 30, 1);
-  border-style: dashed;
-  animation: pulseOverlap 1.75s ease-in-out infinite;
-}
-
 .placed.dragging {
   opacity: 0.4;
   pointer-events: none;
@@ -422,17 +414,6 @@ const handleDeleteClick = () => {
   border: 1px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   margin-bottom: 4px;
-}
-
-@keyframes pulseOverlap {
-  0%, 100% {
-    border-width: 2px;
-    box-shadow: 0 0 0 2px rgba(220, 30, 30, 0.3);
-  }
-  50% {
-    border-width: 6px;
-    box-shadow: 0 0 0 5px rgba(220, 30, 30, 0.5);
-  }
 }
 
 .plant-actions {
@@ -525,4 +506,3 @@ const handleDeleteClick = () => {
   }
 }
 </style>
-
