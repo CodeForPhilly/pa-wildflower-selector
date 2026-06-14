@@ -1311,11 +1311,15 @@ export default {
   },
   // Server only
   async serverPrefetch() {
-    await this.determineFilterCounts();
-    this.page = 1;
-    this.loadedAll = false;
-    this.total = 0;
-    await this.fetchPage(true);
+    try {
+      await this.determineFilterCounts();
+      this.page = 1;
+      this.loadedAll = false;
+      this.total = 0;
+      await this.fetchPage(true);
+    } catch (error) {
+      console.error("SSR prefetch failed; client will hydrate:", error);
+    }
   },
   async postData(url = "", data = {}) {
     // Default options are marked with *
@@ -2612,6 +2616,7 @@ export default {
     },
     async determineFilterCounts() {
       this.initializing = true;
+      try {
       if (!this.determinedFilterCounts) {
         const response = await fetch("/api/v1/plants?results=0&total=0");
         const data = await response.json();
@@ -2670,7 +2675,11 @@ export default {
         }
         this.determinedFilterCounts = true;
       }
-      this.initializing = false;
+      } catch (error) {
+        console.error("Failed to load filter counts:", error);
+      } finally {
+        this.initializing = false;
+      }
     },
     imageUrl(result, preview) {
       if (!result || !result._id) return "/assets/images/missing-image.png";
