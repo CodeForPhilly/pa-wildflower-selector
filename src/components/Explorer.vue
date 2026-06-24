@@ -106,17 +106,22 @@
     <h1 class="large favorites" v-if="favorites">
       Favorites <span class="favorites-title-count" v-if="favoritesCount">({{ favoritesCount }})</span>
     </h1>
-    <article v-if="selected" class="selected">
-      <div class="modal-bar">
-        <span class="title">More Info</span>
-        <button
-          type="button"
-          class="material-icons router-button close-nav"
-          aria-label="Close plant details"
-          @click="closePlantDetail"
-        >close</button>
+    <PlantDetailDialog
+      :open="!!selectedName"
+      :title="detailTitle"
+      :position-label="feedPositionLabel"
+      :has-previous="feedHasPrevious"
+      :has-next="feedHasNext"
+      :loading="detailLoading"
+      @close="closePlantDetail"
+      @previous="navigateFeedPlant(-1)"
+      @next="navigateFeedPlant(1)"
+    >
+      <div v-if="detailError" class="plant-detail-error" role="alert">
+        <p>{{ detailError }}</p>
+        <button type="button" class="primary" @click="closePlantDetail">Close</button>
       </div>
-      <div class="two-up">
+      <div v-else-if="selected" class="two-up">
         <div class="two-up-image" :style="selectedImageStyle(selected)"></div>
         <div class="two-up-text">
           <h1>
@@ -124,6 +129,11 @@
             }}<button
               @click="toggleFavorite(selected._id)"
               class="favorite-selected text"
+              :aria-label="
+                $store.state.favorites.has(selected._id)
+                  ? `Remove ${selected['Common Name']} from favorites`
+                  : `Add ${selected['Common Name']} to favorites`
+              "
             >
               <span class="material-icons material-align">{{
                 renderFavorite(selected._id)
@@ -231,7 +241,24 @@
           </p>
         </div>
       </div>
-    </article>
+      <template #footer>
+        <button
+          v-if="selected"
+          type="button"
+          class="plant-detail-footer-favorite primary"
+          @click="toggleFavorite(selected._id)"
+        >
+          <span class="material-icons material-align" aria-hidden="true">{{
+            renderFavorite(selected._id)
+          }}</span>
+          <span>{{
+            $store.state.favorites.has(selected._id)
+              ? "Remove from favorites"
+              : "Add to favorites"
+          }}</span>
+        </button>
+      </template>
+    </PlantDetailDialog>
     <main :class="mainClasses" ref="mainContent">
         <div class="controls">
           <!-- Favorites toolbar: preferences + actions -->
@@ -792,6 +819,7 @@ import Header from "./Header.vue";
 import Menu from "./Menu.vue";
 import BulkAddFavoritesModal from "./BulkAddFavoritesModal.vue";
 import BrowseResultStates from "./BrowseResultStates.vue";
+import PlantDetailDialog from "./PlantDetailDialog.vue";
 import {
   browseRouteQueriesMatch,
   DEFAULT_SORT,
@@ -844,6 +872,7 @@ export default {
     Menu,
     BulkAddFavoritesModal,
     BrowseResultStates,
+    PlantDetailDialog,
     Trash2,
   },
   props: {
@@ -1065,6 +1094,8 @@ export default {
       manualZip: false,
       updatingCounts: false,
       selected: null,
+      detailLoading: false,
+      detailError: null,
       localStoreLinks: [],
       baseSorts,
       sortIsOpen: false,
@@ -1094,6 +1125,46 @@ export default {
   computed: {
     selectedName() {
       return this.$route.params.name;
+    },
+    detailTitle() {
+      if (this.selected?.["Common Name"]) {
+        return this.selected["Common Name"];
+      }
+      if (this.selectedName) {
+        return this.selectedName;
+      }
+      return "More Info";
+    },
+    selectedFeedIndex() {
+      if (!this.selectedName || !this.results.length) {
+        return -1;
+      }
+      const index = this.results.findIndex(
+        (result) => result["Scientific Name"] === this.selectedName
+      );
+      if (index >= 0) {
+        return index;
+      }
+      if (this.selected?._id) {
+        return this.results.findIndex((result) => result._id === this.selected._id);
+      }
+      return -1;
+    },
+    feedHasPrevious() {
+      return this.selectedFeedIndex > 0;
+    },
+    feedHasNext() {
+      return (
+        this.selectedFeedIndex >= 0 &&
+        this.selectedFeedIndex < this.results.length - 1
+      );
+    },
+    feedPositionLabel() {
+      if (this.selectedFeedIndex < 0) {
+        return "";
+      }
+      const total = this.total > 0 ? this.total : this.results.length;
+      return `${this.selectedFeedIndex + 1} of ${total}`;
     },
     filtersForPane() {
       return (this.filters || []).filter((f) => !f.hideInFilterPane);
@@ -1754,11 +1825,50 @@ export default {
         });
     },
     closePlantDetail() {
+      if (this.$route.path.startsWith("/plants/")) {
+        this.$router.push(this.browseHomeLocation());
+        return;
+      }
       if (typeof window !== "undefined" && window.history.length > 1) {
         this.$router.back();
         return;
       }
       this.$router.push(this.browseHomeLocation());
+    },
+    plantRouteLocation(plant) {
+      const scientificName = encodeURIComponent(plant["Scientific Name"]);
+      const queryString = serializeBrowseSearchParams(
+        this.buildBrowseSnapshot(),
+        this.filters,
+        this.defaultFilterValues
+      );
+      return {
+        path: `/plants/${scientificName}`,
+        query: queryStringToRouteQuery(queryString),
+      };
+    },
+    openPlantDetail(plant) {
+      const destination = this.plantRouteLocation(plant);
+      const detailAlreadyOpen = !!this.selectedName;
+      this.syncingBrowseUrl = true;
+      const navigate = detailAlreadyOpen
+        ? this.$router.replace
+        : this.$router.push;
+      navigate
+        .call(this.$router, destination)
+        .catch(() => {})
+        .finally(() => {
+          this.$nextTick(() => {
+            this.syncingBrowseUrl = false;
+          });
+        });
+    },
+    navigateFeedPlant(delta) {
+      const index = this.selectedFeedIndex;
+      if (index < 0) return;
+      const nextPlant = this.results[index + delta];
+      if (!nextPlant) return;
+      this.openPlantDetail(nextPlant);
     },
     setDefaultZipCode() {
       // Set default zip code to 19355 (Malvern, PA)
@@ -2842,12 +2952,12 @@ export default {
         const selection = window.getSelection();
         if (selection && String(selection).trim()) return;
       }
-      this.$router.push(this.plantLink(result));
+      this.openPlantDetail(result);
     },
     onTileKeyActivate(result, evt) {
       // Space should not scroll the page when a tile is focused.
       if (evt && typeof evt.preventDefault === "function") evt.preventDefault();
-      this.$router.push(this.plantLink(result));
+      this.openPlantDetail(result);
     },
     imageStyle(image, preview = true) {
       const url = this.imageUrl(image, preview);
@@ -2860,15 +2970,33 @@ export default {
     async fetchSelectedIfNeeded() {
       if (!this.selectedName) {
         this.selected = null;
+        this.detailLoading = false;
+        this.detailError = null;
         this.$store.commit("setSelectedIsOpen", false);
-      } else {
-        // Could be optimized away in some cases, but not all
-        // (direct links from Google for example), so let's stick to
-        // what definitely works for now
-        const response = await fetch(`/api/v1/plants/${this.selectedName}`);
+        return;
+      }
+
+      this.detailLoading = true;
+      this.detailError = null;
+      try {
+        const response = await fetch(
+          `/api/v1/plants/${encodeURIComponent(this.selectedName)}`
+        );
+        if (!response.ok) {
+          throw new Error("Could not load this plant. It may have been removed.");
+        }
         this.selected = await response.json();
         this.getVendors();
         this.$store.commit("setSelectedIsOpen", true);
+      } catch (error) {
+        console.error("Error loading plant detail:", error);
+        this.selected = null;
+        this.detailError =
+          (error && error.message) ||
+          "Could not load this plant. Please try again.";
+        this.$store.commit("setSelectedIsOpen", false);
+      } finally {
+        this.detailLoading = false;
       }
     },
     async determineFilterCountsAndSubmit() {
@@ -3122,7 +3250,7 @@ export default {
         this.showAutocomplete = false;
         this.submit();
       } else if (item.action === "navigateToPlant") {
-        this.$router.push(this.plantLink({ "Scientific Name": item.plantId }));
+        this.openPlantDetail({ "Scientific Name": item.plantId });
         this.showAutocomplete = false;
       }
     },
@@ -4231,14 +4359,11 @@ ${htmlLines.join("\n")}
       return groups;
     },
     plantLink(plant) {
-      const scientificName = encodeURIComponent(plant["Scientific Name"]);
-      const queryString = serializeBrowseSearchParams(
-        this.buildBrowseSnapshot(),
-        this.filters,
-        this.defaultFilterValues
-      );
-      const path = `/plants/${scientificName}`;
-      return queryString ? `${path}?${queryString}` : path;
+      const location = this.plantRouteLocation(plant);
+      const queryString = routeQueryToSearchParams(location.query).toString();
+      return queryString
+        ? `${location.path}?${queryString}`
+        : location.path;
     },
   },
 };
@@ -5626,6 +5751,26 @@ th {
   width: 100%;
 }
 
+.plant-detail-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 40vh;
+  padding: 32px 16px;
+  text-align: center;
+  font-family: Roboto, sans-serif;
+}
+
+.plant-detail-footer-favorite {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
 
 .modal-bar {
   padding: 12px;
@@ -5655,27 +5800,20 @@ th {
   line-height: 1;
 }
 
-.selected {
-  position: fixed;
-  top: 0px;
-  left: 0px;
-  width: 100%;
-  height: 100vh;
-  background-color: #fcf9f4;
-  z-index: 1100;
-  overflow: scroll;
+:deep(.plant-detail-dialog) {
+  /* layout handled by PlantDetailDialog */
 }
 
-.favorite-selected > * {
-  color: #b74d15;
-  font-weight: normal;
-}
-
-.selected .two-up h1 {
+:deep(.plant-detail-dialog) .two-up h1 {
   font-family: Arvo;
   font-size: 24px;
   margin: 16px 0 4px 0;
   text-align: left;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 48px;
 }
 
 .favorite-selected.text {
@@ -5686,14 +5824,32 @@ th {
   font-size: 16px;
 }
 
-.selected .two-up h2 {
+:deep(.plant-detail-dialog) .favorite-selected.text {
+  position: static;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.favorite-selected > * {
+  color: #b74d15;
+  font-weight: normal;
+}
+
+@media (max-width: 767px) {
+  .favorite-selected.text {
+    display: none;
+  }
+}
+
+:deep(.plant-detail-dialog) .two-up h2 {
   font-size: 20px;
   font-family: Roboto;
   line-height: 1;
   margin: 0 0 24px;
 }
 
-.selected .two-up h3 {
+:deep(.plant-detail-dialog) .two-up h3 {
   font-size: 20px;
   font-family: Roboto;
   line-height: 1;
@@ -5701,7 +5857,7 @@ th {
   margin: 0 0 8px 0;
 }
 
-.selected .two-up h4 {
+:deep(.plant-detail-dialog) .two-up h4 {
   font-size: 20px;
   font-family: Roboto;
   line-height: 1;
@@ -5709,7 +5865,7 @@ th {
   margin: 0 0 8px 0;
 }
 
-.selected .two-up p {
+:deep(.plant-detail-dialog) .two-up p {
   font-size: 16px;
   font-family: Lato;
   line-height: 20px;
@@ -5718,6 +5874,36 @@ th {
 
 .two-up {
   display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+@media (min-width: 640px) {
+  :deep(.plant-detail-dialog) .plant-detail-scroll {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  :deep(.plant-detail-dialog) .two-up {
+    flex: 1 1 auto;
+    flex-direction: row;
+    align-items: stretch;
+    min-height: 0;
+    height: 100%;
+  }
+
+  :deep(.plant-detail-dialog) .two-up-image {
+    flex: 1 1 48%;
+    min-width: 0;
+    min-height: 320px;
+  }
+
+  :deep(.plant-detail-dialog) .two-up-text {
+    flex: 1 1 52%;
+    min-width: 0;
+    overflow-y: auto;
+  }
 }
 
 .two-up-image {
@@ -5728,9 +5914,20 @@ th {
   display: none;
 }
 
-.selected .two-up .two-up-image {
-  /* flex-basis doesn't do the job at least on iPhone */
-  min-height: 40vh;
+:deep(.plant-detail-dialog) .two-up .two-up-image {
+  min-height: 280px;
+}
+
+@media (min-width: 640px) {
+  :deep(.plant-detail-dialog) .two-up-text {
+    padding-top: 56px;
+  }
+
+  :deep(.plant-detail-dialog) .two-up .two-up-image {
+    min-height: 0;
+    height: auto;
+    aspect-ratio: auto;
+  }
 }
 
 .two-up-text {
@@ -5842,21 +6039,21 @@ th {
   color: #b74d15;
   flex-grow: 1;
   flex-basis: 0;
-  height: 380px;
   background-color: white;
+}
+
+:deep(.plant-detail-dialog) .two-up-image {
   background-size: cover;
   background-position: center;
 }
 
-.selected .two-up {
-  height: calc(100vh - 96px);
-}
-
-.selected .two-up {
+:deep(.plant-detail-dialog) .two-up {
+  flex: 1 1 auto;
+  min-height: 0;
   flex-direction: column;
 }
 
-.selected .two-up > * {
+:deep(.plant-detail-dialog) .two-up > * {
   background-color: #fcf9f4;
   color: black;
   height: auto;
@@ -6171,40 +6368,38 @@ th {
     padding: 40px;
   }
 
-  .selected {
-    overflow: hidden;
-  }
-
-  .selected .two-up-text {
+  :deep(.plant-detail-dialog) .two-up-text {
     overflow: scroll;
+    padding-top: 56px;
   }
 
-  .selected .two-up h1,
-  .selected .two-up h2,
-  .selected .two-up h3,
-  .selected .two-up h4 {
+  :deep(.plant-detail-dialog) .two-up h1,
+  :deep(.plant-detail-dialog) .two-up h2,
+  :deep(.plant-detail-dialog) .two-up h3,
+  :deep(.plant-detail-dialog) .two-up h4 {
     font-family: Roboto;
     text-align: left;
   }
 
-  .selected .two-up h1 {
+  :deep(.plant-detail-dialog) .two-up h1 {
     font-family: Roboto;
     font-size: 40px;
     margin: 0 0 12px 0;
+    padding-right: 0;
   }
 
-  .selected .two-up h2 {
+  :deep(.plant-detail-dialog) .two-up h2 {
     font-size: 24px;
     margin: 0 0 32px 0;
   }
 
-  .selected .two-up h3 {
+  :deep(.plant-detail-dialog) .two-up h3 {
     font-size: 24px;
     font-weight: 500;
     margin: 24px 0 8px 0;
   }
 
-  .selected .two-up p {
+  :deep(.plant-detail-dialog) .two-up p {
     font-size: 20px;
     line-height: 24px;
     margin: 0 0 16px 0;
@@ -6249,34 +6444,9 @@ th {
     color: black;
     transform: translate(0, -12px);
   }
-  .selected {
-    flex-direction: row;
-    width: calc(100vw - 64px);
-    height: calc(100vh - 32px);
-    margin: 16px 32px;
-  }
-  .selected .two-up {
-    height: auto;
-  }
-  .selected .info {
-    order: 1;
-    flex-basis: 0;
-    flex-grow: 1;
-  }
-  .selected .photo {
-    order: 2;
-    flex-basis: 0;
-    flex-grow: 1;
-  }
-  .selected .two-up {
+  :deep(.plant-detail-dialog) .two-up {
     flex-direction: row;
     height: 100%;
-  }
-  .selected .two-up-image {
-    order: 2;
-  }
-  .selected .two-up-text {
-    order: 1;
   }
   .chips {
     /* Per Cristina desktop chips wrap, they do not scroll */
