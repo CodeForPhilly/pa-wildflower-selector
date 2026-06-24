@@ -64,22 +64,6 @@ export function useGardenPlanner() {
     return map;
   });
 
-  const overlapIds = computed(() => {
-    const overlaps = new Set<string>();
-    const items = placedPlants.value;
-    for (let i = 0; i < items.length; i++) {
-      const a = items[i];
-      for (let j = i + 1; j < items.length; j++) {
-        const b = items[j];
-        if (circlesOverlap(a, b)) {
-          overlaps.add(a.id);
-          overlaps.add(b.id);
-        }
-      }
-    }
-    return overlaps;
-  });
-
   const plantCounts = computed(() => {
     const counts: Record<string, number> = {};
     for (const p of placedPlants.value) {
@@ -689,7 +673,6 @@ export function useGardenPlanner() {
     // Computed
     favoriteIds,
     plantById,
-    overlapIds,
     plantCounts,
 
     // Methods
@@ -801,4 +784,3 @@ export function useGardenPlanner() {
     importDesignFromText,
   };
 }
-

@@ -655,7 +655,39 @@
               </div>
             </section>
           </template>
-          <article v-else class="plants">
+          <BrowseResultStates
+            v-else-if="showBrowseLoading"
+            state="loading"
+            :message="browseLoadingMessage"
+            :photo-mode="photoMode"
+          />
+          <BrowseResultStates
+            v-else-if="showBrowseError"
+            state="error"
+            :message="fetchError"
+            @retry="retryBrowseFetch"
+          />
+          <BrowseResultStates
+            v-else-if="showBrowseNoResults"
+            state="no-results"
+            :near-display-label="nearDisplayLabel"
+            :active-filter-count="activeFilterCount"
+            :has-plant-search="hasSearchChip"
+            @clear-filters="clearAll"
+            @clear-search="clearSearchOnly"
+            @set-location="setLocation"
+          />
+          <div v-else class="browse-results">
+            <p
+              v-if="!favorites && total > 0"
+              class="browse-result-count"
+              role="status"
+              aria-live="polite"
+            >
+              Showing {{ results.length }} of {{ total }} plants
+              <span v-if="nearDisplayLabel"> near {{ nearDisplayLabel }}</span>
+            </p>
+            <article class="plants">
             <article
               v-for="result in results"
               :key="result._id"
@@ -726,7 +758,12 @@
             <!-- Infinite scroll sentinel: keep it anchored to the *results* column,
                  not after <main> (desktop filters column can add large bottom space). -->
             <div ref="next" class="infinite-scroll-sentinel" aria-hidden="true"></div>
+            <BrowseResultStates
+              v-if="showBrowseUpdating"
+              state="updating"
+            />
           </article>
+          </div>
         </div>
     </main>
     <BulkAddFavoritesModal
@@ -751,6 +788,7 @@ import Checkbox from "./Checkbox.vue";
 import Header from "./Header.vue";
 import Menu from "./Menu.vue";
 import BulkAddFavoritesModal from "./BulkAddFavoritesModal.vue";
+import BrowseResultStates from "./BrowseResultStates.vue";
 import { Trash2 } from "lucide-vue-next";
 
 const twoUpImageCredits = [
@@ -794,6 +832,7 @@ export default {
     Header,
     Menu,
     BulkAddFavoritesModal,
+    BrowseResultStates,
     Trash2,
   },
   props: {
@@ -983,6 +1022,7 @@ export default {
       total: 0,
       page: 1,
       loading: false,
+      fetchError: null,
       loadedAll: false,
       checkingLoadMore: false, // Guard flag to prevent concurrent "load next page" calls
       fetchRequestId: 0,
@@ -1181,6 +1221,63 @@ export default {
     },
     quickAddPlants() {
       return Array.isArray(this.quickAddResults) ? this.quickAddResults : [];
+    },
+    nearDisplayLabel() {
+      const zip = (this.zipCode || "").trim();
+      const location = (this.displayLocation || "").trim();
+      if (location && zip) {
+        return `${location} · ${zip}`;
+      }
+      if (location) {
+        return location;
+      }
+      if (zip) {
+        return zip;
+      }
+      return "";
+    },
+    activeFilterCount() {
+      return this.chips.filter((chip) => chip.name !== "Search").length;
+    },
+    browseLoadingMessage() {
+      if (this.isLoadingLocation && !this.manualZip) {
+        return "Finding plants near you…";
+      }
+      return "Loading native plants…";
+    },
+    showBrowseLoading() {
+      if (this.fetchError || !this.loading || this.results.length > 0) {
+        return false;
+      }
+      if (this.favorites) {
+        return this.favoritesCount > 0;
+      }
+      return true;
+    },
+    showBrowseError() {
+      if (!this.fetchError || this.results.length > 0) {
+        return false;
+      }
+      if (this.favorites) {
+        return this.favoritesCount > 0;
+      }
+      return true;
+    },
+    showBrowseNoResults() {
+      if (
+        this.loading ||
+        this.fetchError ||
+        this.results.length > 0
+      ) {
+        return false;
+      }
+      if (this.favorites) {
+        return false;
+      }
+      return this.total === 0;
+    },
+    showBrowseUpdating() {
+      return this.loading && this.results.length > 0;
     },
   },
   watch: {
@@ -2936,6 +3033,7 @@ export default {
         this.page = 1; // Start at page 1 (server expects >= 1)
         this.loadedAll = false;
         this.total = 0; // Reset total as well
+        this.fetchError = null;
         this.checkingLoadMore = false;
 
         // Fetch new data and replace results when it arrives
@@ -3042,12 +3140,17 @@ export default {
         const response = await fetch(
           "/api/v1/plants?" + qs.stringify(cleanedParams, { arrayFormat: "repeat" })
         );
+        if (!response.ok) {
+          throw new Error(`Could not load plants (${response.status})`);
+        }
         const data = await response.json();
 
         // Ignore stale responses (e.g., filter/sort changed mid-flight).
         if (this.activeFetchRequestId !== requestId) {
           return;
         }
+
+        this.fetchError = null;
 
         if (!this.favorites) {
           this.filterCounts = data.counts;
@@ -3232,6 +3335,9 @@ export default {
       } catch (error) {
         if (this.activeFetchRequestId === requestId) {
           console.error("Error fetching plants:", error);
+          this.fetchError =
+            (error && error.message) ||
+            "Could not load plants. Please try again.";
         }
       } finally {
         if (this.activeFetchRequestId === requestId) {
@@ -3481,58 +3587,57 @@ export default {
     },
     removeChip(chip) {
       if (chip.name === "Search") {
-        // When removing search chip: clear activeSearch but keep all filter chips
-        this.q = "";
-        this.activeSearch = "";
-        this.hasExtractedFilters = false;
-        // Close sort dropdown if it's open
-        if (this.sortIsOpen) {
-          this.sortIsOpen = false;
-        }
-        // Filter chips remain intact in filterValues
-        this.submit();
-      } else {
-        // When removing filter chip: only update filterValues, preserve activeSearch
-        const filter = this.filters.find((filter) => filter.name === chip.name);
-        if (filter && filter.array) {
-          // Create a new array to ensure Vue reactivity detects the change
-          const currentValues = this.filterValues[chip.name] || [];
-          this.filterValues[chip.name] = currentValues.filter(
-            (value) => value !== chip.label
-          );
-        } else if (filter && filter.range) {
-          // For range filters, set to match the current filter bounds (full range)
-          // This ensures the filter is not active after removing the chip
-          this.filterValues[chip.name] = {
-            min: filter.min,
-            max: filter.max
-          };
-        } else if (filter) {
-          this.filterValues[chip.name] = filter.default;
-        }
-        
-        // Don't clear activeSearch when removing filter chips
-        // This allows semantic search to continue working with remaining filters
-        
-        // If activeSearch is empty or doesn't have meaningful content, and we're sorting by Search Relevance,
-        // switch back to the previous sort to ensure proper sorting when filters are removed
-        if ((!this.activeSearch || !this.activeSearch.trim() || !this.getRemainingQueryText(this.activeSearch).trim()) && 
-            this.sort === "Sort by Search Relevance") {
-          if (this.previousSort) {
-            this.sort = this.previousSort;
-          } else {
-            // Fallback to default sort if previousSort is not set
-            this.sort = "Sort by Recommendation Score";
-          }
-        }
-        
-        // The filterValues watcher will trigger, but ensure submit happens
-        // Use $nextTick to ensure the watcher has processed the change
-        this.$nextTick(() => {
-          // Force submit to ensure counts and results update
-          this.submit();
-        });
+        this.clearSearchOnly();
+        return;
       }
+
+      const filter = this.filters.find((filter) => filter.name === chip.name);
+      if (filter && filter.array) {
+        const currentValues = this.filterValues[chip.name] || [];
+        this.filterValues[chip.name] = currentValues.filter(
+          (value) => value !== chip.label
+        );
+      } else if (filter && filter.range) {
+        this.filterValues[chip.name] = {
+          min: filter.min,
+          max: filter.max
+        };
+      } else if (filter) {
+        this.filterValues[chip.name] = filter.default;
+      }
+
+      if ((!this.activeSearch || !this.activeSearch.trim() || !this.getRemainingQueryText(this.activeSearch).trim()) &&
+          this.sort === "Sort by Search Relevance") {
+        if (this.previousSort) {
+          this.sort = this.previousSort;
+        } else {
+          this.sort = "Sort by Recommendation Score";
+        }
+      }
+
+      this.$nextTick(() => {
+        this.submit();
+      });
+    },
+    clearSearchOnly() {
+      this.q = "";
+      this.activeSearch = "";
+      this.hasExtractedFilters = false;
+      if (this.sortIsOpen) {
+        this.sortIsOpen = false;
+      }
+      if (this.sort === "Sort by Search Relevance") {
+        if (this.previousSort) {
+          this.sort = this.previousSort;
+        } else {
+          this.sort = "Sort by Recommendation Score";
+        }
+      }
+      this.submit();
+    },
+    retryBrowseFetch() {
+      this.fetchError = null;
+      this.submit();
     },
     clearAll() {
       for (const filter of this.filters) {
@@ -5327,6 +5432,18 @@ th {
 
 .total-matches {
   text-align: center;
+}
+
+.browse-result-count {
+  margin: 0 0 12px;
+  font-family: Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: rgba(0, 0, 0, 0.68);
+}
+
+.browse-results {
+  width: 100%;
 }
 
 
