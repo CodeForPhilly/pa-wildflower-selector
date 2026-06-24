@@ -13,11 +13,15 @@
       <div v-if="!favorites" class="compact-utility-header">
         <div class="utility-content">
           <div class="location-section">
-            <button class="location-btn" @click="setLocation()">
-              <span class="material-icons">place</span>
-              <span v-if="zipCode">Change Location [{{ zipCode }}]</span>
-              <span v-else>Set Location</span>
-            </button>
+            <LocationSearchField
+              ref="locationBar"
+              variant="bar"
+              :applied-zip="zipCode"
+              :applied-display-location="displayLocation"
+              :commit-handler="commitLocationZip"
+              :external-loading="isLoadingLocation"
+              @cleared="clearLocation"
+            />
           </div>
         </div>
       </div>
@@ -164,7 +168,11 @@
           <h3 v-if="localStoreLinks.length || onlineStoreLinks.length">
             Nurseries that carry this native plant:
           </h3>
-          <h4 class="enter-location" v-if="!this.zipCode"><a @click="setLocation()">Enter your location in order to see nearby stores</a></h4>
+          <h4 class="enter-location" v-if="!this.zipCode">
+            <button type="button" class="text enter-location-link" @click="focusLocationField">
+              Enter your location in order to see nearby stores
+            </button>
+          </h4>
           <h4 v-if="this.zipCode && localStoreLinks.length">Local Nurseries</h4>
           <p class="store-links">
             <a
@@ -353,15 +361,16 @@
             <div class="browse-toolbar" aria-label="Browse controls">
               <!-- Row 1: primary actions -->
               <div class="browse-toolbar-row browse-toolbar-row--actions">
-                <button
-                  type="button"
-                  class="browse-location-button"
-                  @click="setLocation()"
-                  :aria-label="zipCode ? `Change location (ZIP ${zipCode})` : 'Set location'"
-                  title="Change location"
-                >
-                  <span class="material-icons" aria-hidden="true">place</span>
-                </button>
+                <LocationSearchField
+                  ref="locationToolbar"
+                  class="browse-location-field"
+                  variant="toolbar"
+                  :applied-zip="zipCode"
+                  :applied-display-location="displayLocation"
+                  :commit-handler="commitLocationZip"
+                  :external-loading="isLoadingLocation"
+                  @cleared="clearLocation"
+                />
 
                 <button type="button" class="primary browse-filter-button" @click="openFilters">
                   <span class="material-icons" aria-hidden="true">tune</span>
@@ -462,6 +471,18 @@
               </button>
             </div>
             <div class="inner-controls">
+              <LocationSearchField
+                v-if="filtersOpen && !isDesktop()"
+                ref="locationDrawer"
+                class="filters-drawer-location"
+                variant="drawer"
+                show-label
+                :applied-zip="zipCode"
+                :applied-display-location="displayLocation"
+                :commit-handler="commitLocationZip"
+                :external-loading="isLoadingLocation"
+                @cleared="clearLocation"
+              />
               <div class="search-mobile-wrapper">
                 <div class="search-mobile-box">
                   <span class="material-icons">search</span>
@@ -675,7 +696,7 @@
             :has-plant-search="hasSearchChip"
             @clear-filters="clearAll"
             @clear-search="clearSearchOnly"
-            @set-location="setLocation"
+            @set-location="focusLocationField"
           />
           <div v-else class="browse-results">
             <p
@@ -789,6 +810,7 @@ import Header from "./Header.vue";
 import Menu from "./Menu.vue";
 import BulkAddFavoritesModal from "./BulkAddFavoritesModal.vue";
 import BrowseResultStates from "./BrowseResultStates.vue";
+import LocationSearchField from "./LocationSearchField.vue";
 import { Trash2 } from "lucide-vue-next";
 
 const twoUpImageCredits = [
@@ -833,6 +855,7 @@ export default {
     Menu,
     BulkAddFavoritesModal,
     BrowseResultStates,
+    LocationSearchField,
     Trash2,
   },
   props: {
@@ -1653,40 +1676,57 @@ export default {
         el.style.display = display;
       }
     },
-    async setLocation() {
-      this.zipCode = prompt("Please enter your zipcode");
-      if (!this.zipCode) return;
-      if (!/^\d{5}$/.test(this.zipCode)) {
-        alert("Zipcode must be 5 digits");
-        return;
+    async commitLocationZip(zip) {
+      const response = await fetch("/get-city", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ zipCode: zip }),
+      });
+      if (!response.ok) {
+        throw new Error("Could not find that ZIP code. Please try again.");
       }
-      try {
-        const response = await fetch("/get-city", {
-          method: "POST", // *GET, POST, PUT, DELETE, etc.
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ zipCode: this.zipCode }), // body data type must match "Content-Type" header
-        });
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+      const json = await response.json();
+      this.zipCode = zip;
+      this.filterValues["States"] = [json.state];
+      this.displayLocation = `${json.city}, ${json.state}`;
+      localStorage.setItem("displayLocation", this.displayLocation);
+      localStorage.setItem("zipCode", this.zipCode);
+      localStorage.setItem("state", json.state);
+      this.manualZip = true;
+      localStorage.setItem("manualZip", "true");
+
+      if (this.selected) {
+        this.getVendors();
+      }
+      this.submit();
+    },
+    clearLocation() {
+      this.zipCode = "";
+      this.displayLocation = "";
+      this.manualZip = false;
+      this.filterValues["States"] = this.defaultFilterValues["States"];
+      localStorage.removeItem("zipCode");
+      localStorage.removeItem("displayLocation");
+      localStorage.removeItem("manualZip");
+      localStorage.removeItem("state");
+      if (this.selected) {
+        this.localStoreLinks = [];
+      }
+      this.submit();
+    },
+    focusLocationField() {
+      const refs = [
+        this.$refs.locationBar,
+        this.$refs.locationToolbar,
+        this.$refs.locationDrawer,
+      ].filter(Boolean);
+      for (const field of refs) {
+        if (field && typeof field.focus === "function") {
+          field.focus();
+          return;
         }
-        let json = await response.json();
-        this.filterValues["States"] = [json.state];
-        this.displayLocation = `${json.city}, ${json.state}`;
-        localStorage.setItem("displayLocation", this.displayLocation)
-        localStorage.setItem("zipCode", this.zipCode)
-        localStorage.setItem("state", json.state)
-        this.manualZip = true;
-        localStorage.setItem("manualZip", "true")
-        
-        // Retry getting vendors if a plant is already selected
-        if (this.selected) {
-          this.getVendors();
-        }
-      } catch (error) {
-        console.error("Error setting location:", error);
-        alert("Error setting location. Please try again.");
       }
     },
     async getVendors() {
@@ -4147,6 +4187,22 @@ button.text {
   text-align: center;
   padding: 5px;
 }
+.enter-location-link {
+  color: #b74d15;
+  text-decoration: underline;
+  font: inherit;
+  font-style: italic;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+.enter-location-link:hover {
+  color: #8f3d11;
+}
+.filters-drawer-location {
+  padding: 0 16px;
+}
 .chips button.clear {
   text-decoration: underline;
   font-size: 16px;
@@ -4258,7 +4314,7 @@ button.text {
   .browse-toolbar-row--actions {
     grid-template-columns: auto minmax(160px, 1fr) auto;
   }
-  .browse-location-button {
+  .browse-location-field {
     display: none;
   }
   .browse-sort-button.list-button .label {
@@ -4285,7 +4341,7 @@ button.text {
   .browse-toolbar {
     display: grid;
     /* Keep Sort compact and reserve enough space for the photo mode toggle */
-    grid-template-columns: 44px auto minmax(120px, 200px) 44px minmax(180px, 1fr);
+    grid-template-columns: minmax(120px, 1.1fr) auto minmax(120px, 200px) 44px minmax(180px, 1fr);
     grid-template-areas: "loc filter sort fav mode";
     column-gap: 6px;
     row-gap: 0;
@@ -4293,15 +4349,9 @@ button.text {
     margin: 10px 0 12px;
   }
 
-  .browse-location-button {
+  .browse-location-field {
     grid-area: loc;
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    border-radius: 12px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    min-width: 0;
   }
 
   .browse-filter-button {
@@ -5739,8 +5789,8 @@ th {
     margin-bottom: 0;
     display: block;
   }
-  /* Desktop: use the full location bar; hide the compact icon in the toolbar */
-  .browse-location-button {
+  /* Desktop: use the full location bar; hide the compact toolbar field */
+  .browse-location-field {
     display: none;
   }
   /* Desktop: filters are always visible in the sidebar, so hide the Filter button */
@@ -6174,41 +6224,8 @@ th {
   display: flex;
   justify-content: center;
   flex-shrink: 0;
-}
-
-/* Keep default button styling for consistency; just lay out the icon/text nicely */
-.location-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 14px;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.location-btn .material-icons {
-  font-size: 16px;
-}
-
-@media screen and (max-width: 768px) {
-  .location-btn {
-    font-size: 13px;
-    padding: 8px 12px;
-  }
-}
-
-/* Phone: location selector should be icon-only to save vertical space */
-@media (max-width: 600px) {
-  .location-btn {
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    border-radius: 12px;
-    justify-content: center;
-  }
-  .location-btn span:not(.material-icons) {
-    display: none;
-  }
+  max-width: 420px;
+  margin: 0 auto;
 }
 
 @media all and (min-width: 1280px) {
@@ -6226,6 +6243,8 @@ th {
   .location-section {
     width: auto;
     justify-content: flex-start;
+    max-width: 360px;
+    margin: 0;
   }
 }
 </style>
