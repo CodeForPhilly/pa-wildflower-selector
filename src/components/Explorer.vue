@@ -109,9 +109,12 @@
     <article v-if="selected" class="selected">
       <div class="modal-bar">
         <span class="title">More Info</span>
-        <router-link to="/" class="material-icons router-button close-nav"
-          >close</router-link
-        >
+        <button
+          type="button"
+          class="material-icons router-button close-nav"
+          aria-label="Close plant details"
+          @click="closePlantDetail"
+        >close</button>
       </div>
       <div class="two-up">
         <div class="two-up-image" :style="selectedImageStyle(selected)"></div>
@@ -789,6 +792,14 @@ import Header from "./Header.vue";
 import Menu from "./Menu.vue";
 import BulkAddFavoritesModal from "./BulkAddFavoritesModal.vue";
 import BrowseResultStates from "./BrowseResultStates.vue";
+import {
+  browseRouteQueriesMatch,
+  DEFAULT_SORT,
+  parseBrowseSearchParams,
+  queryStringToRouteQuery,
+  routeQueryToSearchParams,
+  serializeBrowseSearchParams,
+} from "../lib/browse-search-params.js";
 import { Trash2 } from "lucide-vue-next";
 
 const twoUpImageCredits = [
@@ -1076,6 +1087,8 @@ export default {
       autocompleteTimeout: null,
       hasExtractedFilters: false,
       suppressFilterWatcher: false, // Flag to prevent watcher from triggering submit during programmatic updates
+      syncingBrowseUrl: false,
+      browseUrlReady: false,
     };
   },
   computed: {
@@ -1284,6 +1297,14 @@ export default {
     selectedName() {
       this.fetchSelectedIfNeeded();
     },
+    "$route.query": {
+      async handler(newQuery, oldQuery) {
+        if (!this.browseUrlReady || this.favorites || this.syncingBrowseUrl) return;
+        if (!oldQuery || browseRouteQueriesMatch(newQuery, oldQuery)) return;
+        await this.applyBrowseSnapshotFromRoute();
+        this.submit();
+      },
+    },
     favorites() {
       this.determineFilterCountsAndSubmit();
       // Favorites view does not page; ensure infinite scroll is correctly enabled/disabled.
@@ -1409,6 +1430,7 @@ export default {
   // Server only
   async serverPrefetch() {
     try {
+      await this.applyBrowseSnapshotFromRoute();
       await this.determineFilterCounts();
       this.page = 1;
       this.loadedAll = false;
@@ -1443,14 +1465,21 @@ export default {
     this.displayLocation = localStorage.getItem("displayLocation") || "";
     this.zipCode = localStorage.getItem("zipCode") || "";
     this.manualZip = localStorage.getItem("manualZip") === "true";
-    this.filterValues["States"] = [localStorage.getItem("state")];
-
-    // Pre-set the default zip code to ensure immediate response
-    if (!this.zipCode) {
-      this.zipCode = "19355";
+    const storedState = localStorage.getItem("state");
+    if (storedState) {
+      this.filterValues["States"] = [storedState];
     }
-    
-    if (!this.manualZip && "geolocation" in navigator) {
+
+    await this.applyBrowseSnapshotFromRoute();
+    const urlZip = this.$route.query.zip;
+
+    if (!urlZip) {
+      // Pre-set the default zip code to ensure immediate response
+      if (!this.zipCode) {
+        this.zipCode = "19355";
+      }
+
+      if (!this.manualZip && "geolocation" in navigator) {
       // Set loading state
       this.isLoadingLocation = true;
       
@@ -1516,14 +1545,19 @@ export default {
         },
         { timeout: 3000, maximumAge: 60000 } // 3s timeout, cache for 1 minute
       );
-    } else if (!this.displayLocation) {
-      // Geolocation not available or user chose manual zip
-      this.setDefaultZipCode();
+      } else if (!this.displayLocation) {
+        // Geolocation not available or user chose manual zip
+        this.setDefaultZipCode();
+      }
+    } else if (this.zipCode && !this.displayLocation) {
+      await this.refreshDisplayLocationForZip(this.zipCode, { persist: true });
     }
 
     await this.determineFilterCountsAndSubmit();
     await this.fetchSelectedIfNeeded();
     this.setupInfiniteScroll();
+    this.browseUrlReady = true;
+    this.syncBrowseUrl({ replace: true });
   },
   beforeUnmount() {
     this.teardownInfiniteScroll();
@@ -1596,6 +1630,135 @@ export default {
         cleanedParams[key] = value;
       }
       return cleanedParams;
+    },
+    buildBrowseSnapshot() {
+      return {
+        q: (this.activeSearch || "").trim(),
+        sort: this.sort || DEFAULT_SORT,
+        zip: (this.zipCode || "").trim(),
+        loc: (this.displayLocation || "").trim(),
+        filterValues: { ...this.filterValues },
+      };
+    },
+    async applyBrowseSnapshotFromRoute() {
+      if (this.favorites) return false;
+      const params = routeQueryToSearchParams(this.$route.query);
+      if ([...params.keys()].length === 0) return false;
+      const snapshot = parseBrowseSearchParams(params);
+      await this.applyBrowseSnapshot(snapshot);
+      return true;
+    },
+    async applyBrowseSnapshot(snapshot) {
+      this.suppressFilterWatcher = true;
+      try {
+        if (snapshot.q) {
+          this.q = snapshot.q;
+          this.activeSearch = snapshot.q;
+          this.hasExtractedFilters = false;
+        }
+        if (snapshot.sort) {
+          this.sort = snapshot.sort;
+          this.previousSort =
+            snapshot.sort === "Sort by Search Relevance"
+              ? DEFAULT_SORT
+              : snapshot.sort;
+        }
+        for (const [filterName, value] of Object.entries(
+          snapshot.filterValues || {}
+        )) {
+          this.filterValues[filterName] = value;
+        }
+        if (snapshot.zip) {
+          this.zipCode = snapshot.zip;
+          this.manualZip = true;
+          localStorage.setItem("zipCode", snapshot.zip);
+          localStorage.setItem("manualZip", "true");
+          if (snapshot.loc) {
+            this.displayLocation = snapshot.loc;
+            localStorage.setItem("displayLocation", snapshot.loc);
+          }
+          const states = snapshot.filterValues?.States;
+          if (Array.isArray(states) && states.length > 0) {
+            localStorage.setItem("state", states[0]);
+          } else if (!snapshot.loc) {
+            await this.refreshDisplayLocationForZip(snapshot.zip, {
+              persist: true,
+            });
+          }
+        }
+      } finally {
+        await this.$nextTick();
+        this.suppressFilterWatcher = false;
+      }
+    },
+    async refreshDisplayLocationForZip(zip, { persist = false } = {}) {
+      try {
+        const response = await fetch("/get-city", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ zipCode: zip }),
+        });
+        if (!response.ok) return;
+        const json = await response.json();
+        this.filterValues["States"] = [json.state];
+        this.displayLocation = `${json.city}, ${json.state}`;
+        if (persist) {
+          localStorage.setItem("zipCode", zip);
+          localStorage.setItem("state", json.state);
+          localStorage.setItem("displayLocation", this.displayLocation);
+        }
+      } catch (error) {
+        console.error("Error resolving ZIP location:", error);
+      }
+    },
+    browseHomeLocation() {
+      const queryString = serializeBrowseSearchParams(
+        this.buildBrowseSnapshot(),
+        this.filters,
+        this.defaultFilterValues
+      );
+      return {
+        path: "/",
+        query: queryStringToRouteQuery(queryString),
+      };
+    },
+    syncBrowseUrl({ replace = true } = {}) {
+      if (this.favorites || this.syncingBrowseUrl || typeof window === "undefined") {
+        return;
+      }
+      const queryString = serializeBrowseSearchParams(
+        this.buildBrowseSnapshot(),
+        this.filters,
+        this.defaultFilterValues
+      );
+      const nextQuery = queryStringToRouteQuery(queryString);
+      if (browseRouteQueriesMatch(this.$route.query, nextQuery)) {
+        return;
+      }
+
+      const path = this.selectedName
+        ? `/plants/${encodeURIComponent(this.selectedName)}`
+        : "/";
+
+      this.syncingBrowseUrl = true;
+      const navigate = replace ? this.$router.replace : this.$router.push;
+      navigate
+        .call(this.$router, { path, query: nextQuery })
+        .catch(() => {})
+        .finally(() => {
+          this.$nextTick(() => {
+            this.syncingBrowseUrl = false;
+          });
+        });
+    },
+    closePlantDetail() {
+      if (typeof window !== "undefined" && window.history.length > 1) {
+        this.$router.back();
+        return;
+      }
+      this.$router.push(this.browseHomeLocation());
     },
     setDefaultZipCode() {
       // Set default zip code to 19355 (Malvern, PA)
@@ -1684,6 +1847,7 @@ export default {
         if (this.selected) {
           this.getVendors();
         }
+        this.submit();
       } catch (error) {
         console.error("Error setting location:", error);
         alert("Error setting location. Please try again.");
@@ -2958,8 +3122,7 @@ export default {
         this.showAutocomplete = false;
         this.submit();
       } else if (item.action === "navigateToPlant") {
-        // Navigate to plant detail page
-        this.$router.push(`/plants/${item.plantId}`);
+        this.$router.push(this.plantLink({ "Scientific Name": item.plantId }));
         this.showAutocomplete = false;
       }
     },
@@ -2970,8 +3133,8 @@ export default {
       this.hasExtractedFilters = false;
       this.q = "";
       // Navigate to home if not already there
-      if (this.$route.path !== '/') {
-        this.$router.push('/').then(() => {
+      if (this.$route.path !== "/") {
+        this.$router.push(this.browseHomeLocation()).then(() => {
           this.$nextTick(() => {
             this.addFilterValue("Genus", genus);
           });
@@ -2987,8 +3150,8 @@ export default {
       this.hasExtractedFilters = false;
       this.q = "";
       // Navigate to home if not already there
-      if (this.$route.path !== '/') {
-        this.$router.push('/').then(() => {
+      if (this.$route.path !== "/") {
+        this.$router.push(this.browseHomeLocation()).then(() => {
           this.$nextTick(() => {
             this.addFilterValue("Family", family);
           });
@@ -3047,6 +3210,7 @@ export default {
 
         // Fetch new data and replace results when it arrives
         this.fetchPage(true);
+        this.syncBrowseUrl({ replace: true });
 
         this.submitTimeout = null;
         
@@ -4067,7 +4231,14 @@ ${htmlLines.join("\n")}
       return groups;
     },
     plantLink(plant) {
-      return `/plants/${plant["Scientific Name"]}`;
+      const scientificName = encodeURIComponent(plant["Scientific Name"]);
+      const queryString = serializeBrowseSearchParams(
+        this.buildBrowseSnapshot(),
+        this.filters,
+        this.defaultFilterValues
+      );
+      const path = `/plants/${scientificName}`;
+      return queryString ? `${path}?${queryString}` : path;
     },
   },
 };
@@ -5477,6 +5648,11 @@ th {
   right: 16px;
   text-decoration: none;
   color: black;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
 }
 
 .selected {
