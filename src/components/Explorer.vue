@@ -260,7 +260,10 @@
                 </div>
               </div>
 
-              <div class="favorites-photo-mode">
+              <div
+                class="favorites-photo-mode display-mode-controls"
+                :class="{ 'display-mode-controls--table': viewMode === 'table' }"
+              >
                 <div class="view-mode-toggle" role="group" aria-label="Results layout">
                   <button
                     type="button"
@@ -270,7 +273,7 @@
                     @click="setViewMode('tiles')"
                   >
                     <span class="material-icons" aria-hidden="true">grid_view</span>
-                    Tiles
+                    <span class="mode-label">Tiles</span>
                   </button>
                   <button
                     type="button"
@@ -280,7 +283,7 @@
                     @click="setViewMode('table')"
                   >
                     <span class="material-icons" aria-hidden="true">view_list</span>
-                    Table
+                    <span class="mode-label">Table</span>
                   </button>
                 </div>
                 <div v-if="viewMode === 'tiles'" class="photo-mode-toggle" role="group" aria-label="Photos">
@@ -291,7 +294,8 @@
                     @click="setPhotoMode('habitat')"
                     :aria-pressed="photoMode === 'habitat'"
                   >
-                    Habitat
+                    <span class="material-icons" aria-hidden="true">landscape</span>
+                    <span class="mode-label">Habitat</span>
                   </button>
                   <button
                     type="button"
@@ -300,7 +304,8 @@
                     @click="setPhotoMode('studio')"
                     :aria-pressed="photoMode === 'studio'"
                   >
-                    Studio
+                    <span class="material-icons" aria-hidden="true">filter_vintage</span>
+                    <span class="mode-label">Studio</span>
                   </button>
                 </div>
               </div>
@@ -439,7 +444,10 @@
               </div>
 
               <!-- Row 2: secondary mode -->
-              <div class="browse-toolbar-row browse-toolbar-row--mode">
+              <div
+                class="browse-toolbar-row browse-toolbar-row--mode display-mode-controls"
+                :class="{ 'display-mode-controls--table': viewMode === 'table' }"
+              >
                 <div class="view-mode-toggle" role="group" aria-label="Results layout">
                   <button
                     type="button"
@@ -449,7 +457,7 @@
                     @click="setViewMode('tiles')"
                   >
                     <span class="material-icons" aria-hidden="true">grid_view</span>
-                    Tiles
+                    <span class="mode-label">Tiles</span>
                   </button>
                   <button
                     type="button"
@@ -459,7 +467,7 @@
                     @click="setViewMode('table')"
                   >
                     <span class="material-icons" aria-hidden="true">view_list</span>
-                    Table
+                    <span class="mode-label">Table</span>
                   </button>
                 </div>
                 <div v-if="viewMode === 'tiles'" class="photo-mode-toggle" role="group" aria-label="Photos">
@@ -470,7 +478,8 @@
                     @click="setPhotoMode('habitat')"
                     :aria-pressed="photoMode === 'habitat'"
                   >
-                    Habitat
+                    <span class="material-icons" aria-hidden="true">landscape</span>
+                    <span class="mode-label">Habitat</span>
                   </button>
                   <button
                     type="button"
@@ -479,7 +488,8 @@
                     @click="setPhotoMode('studio')"
                     :aria-pressed="photoMode === 'studio'"
                   >
-                    Studio
+                    <span class="material-icons" aria-hidden="true">filter_vintage</span>
+                    <span class="mode-label">Studio</span>
                   </button>
                 </div>
               </div>
@@ -4344,9 +4354,6 @@ button.text {
 
 .browse-toolbar-row--mode {
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
 .browse-filter-button {
@@ -4511,7 +4518,7 @@ button.text {
   .browse-toolbar-row--mode .photo-mode-toggle,
   .browse-toolbar-row--mode .view-mode-toggle {
     max-width: none;
-    min-width: 180px;
+    min-width: 0;
   }
   .browse-toolbar-row--mode .photo-mode-button,
   .browse-toolbar-row--mode .view-mode-button {
@@ -4610,9 +4617,21 @@ button.text {
   display: flex;
   width: 100%;
   border: 1px solid #b74d15;
-  border-radius: 999px;
+  border-radius: 9px;
   overflow: hidden;
   background: #fcf9f4;
+}
+
+.display-mode-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.display-mode-controls--table {
+  grid-template-columns: minmax(160px, 220px);
 }
 
 .view-mode-toggle {
@@ -4630,13 +4649,14 @@ button.text {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 40px;
-  padding: 8px 12px;
+  min-width: 0;
+  min-height: 36px;
+  padding: 5px 4px;
   color: #42534b;
   background: transparent;
   border: 0;
   border-radius: 0;
-  font: 700 14px Roboto, sans-serif;
+  font: 700 12px Roboto, sans-serif;
   cursor: pointer;
 }
 
@@ -4649,8 +4669,9 @@ button.text {
   background: #1d2e26;
 }
 
-.view-mode-button .material-icons {
-  font-size: 18px;
+.view-mode-button .material-icons,
+.photo-mode-button .material-icons {
+  font-size: 16px;
 }
 
 .view-mode-button:focus-visible {
@@ -4661,11 +4682,18 @@ button.text {
 }
 
 .photo-mode-button {
+  display: inline-flex;
   flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
   border: none;
   border-radius: 0;
-  padding: 10px 12px;
-  font-size: 16px;
+  min-height: 36px;
+  padding: 5px 4px;
+  font-size: 12px;
+  font-weight: 700;
   font-family: Roboto;
   background: transparent;
   color: #b74d15;
@@ -4962,6 +4990,20 @@ th {
 .favorites-photo-mode {
   grid-area: toggle;
   min-width: 0;
+}
+
+@media (min-width: 600px) and (max-width: 1279px) {
+  .display-mode-controls .mode-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 
 .favorites-quick-add {
