@@ -7,6 +7,7 @@ import { createWebHistory } from "vue-router";
 import Tres, { extend } from '@tresjs/core';
 // @ts-ignore - project TS tooling struggles with modern package exports; runtime bundling works.
 import * as THREE from 'three';
+import { initAnalytics, trackEvent, trackPageView } from './lib/analytics';
 
 // Register ALL Three.js classes with Tres globally
 extend(THREE);
@@ -19,6 +20,11 @@ const store = storeFactory({ favorites: initialFavorites });
 // Create the app and router
 const app = createSSRApp(App);
 const router = routerFactory({ history: createWebHistory() });
+
+initAnalytics();
+router.afterEach((to) => {
+  trackPageView(to);
+});
 
 // Mount the app first
 app.use(router).use(store).use(Tres).mount('#app');
@@ -49,8 +55,26 @@ if (typeof window !== 'undefined') {
       ) {
         localStorage.setItem('favorites', JSON.stringify([...state.favorites]));
       }
+
+      if (mutation.type === 'toggleFavorite') {
+        trackEvent(
+          state.favorites.has(mutation.payload) ? 'favorite_added' : 'favorite_removed',
+          { favorite_count: state.favorites.size, method: 'single' }
+        );
+      } else if (mutation.type === 'addFavorites') {
+        const ids = Array.isArray(mutation.payload) ? mutation.payload : [mutation.payload];
+        trackEvent('favorites_added', {
+          item_count: ids.filter(Boolean).length,
+          favorite_count: state.favorites.size,
+          method: ids.length > 1 ? 'bulk' : 'single',
+        });
+      } else if (mutation.type === 'clearFavorites') {
+        trackEvent('favorites_cleared');
+      }
+
       if (mutation.type === 'setPhotoMode') {
         localStorage.setItem('photoMode', JSON.stringify(state.photoMode));
+        trackEvent('photo_mode_changed', { photo_mode: state.photoMode });
       }
     });
     
