@@ -6,6 +6,7 @@ import { useLocalStorage } from './useLocalStorage';
 import { useUndoRedo } from './useUndoRedo';
 import { buildGardenDesignV1, clamp, parseGardenDesignV1, roundToIncrement, stringifyGardenDesign } from '../lib/gardenDesign';
 import type { GardenDesignV1 } from '../types/gardenDesign';
+import { trackEvent } from '../lib/analytics';
 
 const STORAGE_KEY = 'gardenPlanner:v1';
 const SNAP_INCREMENT_KEY = 'gardenPlanner:snapIncrement';
@@ -402,6 +403,10 @@ export function useGardenPlanner() {
     placedPlants.value = newPlacedPlants;
     // Create deep copy for history
     undoRedo.addState(newPlacedPlants.map(p => ({ ...p })));
+    trackEvent('planner_plant_added', {
+      placed_plant_count: newPlacedPlants.length,
+      unique_species_count: new Set(newPlacedPlants.map(p => p.plantId)).size,
+    });
 
     // Clear mobile selection after placement
     selectedPlantId.value = null;
@@ -440,17 +445,25 @@ export function useGardenPlanner() {
 
   const removePlaced = (id: string): void => {
     const newPlacedPlants = placedPlants.value.filter((p) => p.id !== id);
+    if (newPlacedPlants.length === placedPlants.value.length) return;
     placedPlants.value = newPlacedPlants;
     // Create deep copy for history
     undoRedo.addState(newPlacedPlants.map(p => ({ ...p })));
+    trackEvent('planner_plant_removed', {
+      placed_plant_count: newPlacedPlants.length,
+    });
   };
 
   const clearLayout = (): void => {
+    const removedCount = placedPlants.value.length;
     // Save current state to history before clearing so undo can restore it
     if (placedPlants.value.length > 0) {
       undoRedo.addState(placedPlants.value.map(p => ({ ...p })));
     }
     placedPlants.value = [];
+    if (removedCount > 0) {
+      trackEvent('planner_cleared', { removed_plant_count: removedCount });
+    }
   };
 
   const resetPlanner = (): void => {

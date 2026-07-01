@@ -18,8 +18,8 @@
         @undo="undo"
         @redo="redo"
         @clear="clearLayout"
-        @export="showDesignExport = true"
-        @import="showDesignImport = true"
+        @export="openDesignExport"
+        @import="openDesignImport"
         @toggle-summary="handleSummaryToggle"
         @toggle-3d="toggle3D"
         @fit-to-plants="handleGridSizeFit"
@@ -160,6 +160,7 @@ import DesignIOEditor from './DesignIOEditor.vue';
 import PlannerToolbar from './PlannerToolbar.vue';
 import type { PlacedPlant, Plant } from '../types/garden';
 import { GARDEN_DESIGN_SCHEMA, GARDEN_DESIGN_VERSION } from '../lib/gardenDesign';
+import { trackEvent } from '../lib/analytics';
 
 const Garden3DView = defineAsyncComponent({
   loader: () => {
@@ -242,11 +243,28 @@ const exportDesignText = computed(() => getExportDesignText());
 const handleImportDesign = (text: string) => {
   const result = importDesignFromText(text);
   if (!result.success) {
+    trackEvent('planner_design_import_failed');
     window.alert(result.error || 'Import failed.');
     return;
   }
+  trackEvent('planner_design_imported', {
+    placed_plant_count: placedPlants.value.length,
+    unique_species_count: new Set(placedPlants.value.map(p => p.plantId)).size,
+  });
   showDesignImport.value = false;
   showSummary.value = false;
+};
+
+const openDesignExport = () => {
+  showDesignExport.value = true;
+  trackEvent('planner_design_export_opened', {
+    placed_plant_count: placedPlants.value.length,
+  });
+};
+
+const openDesignImport = () => {
+  showDesignImport.value = true;
+  trackEvent('planner_design_import_opened');
 };
 
 const handlePaletteDragStart = (event: PointerEvent, plantId: string) => {
@@ -266,12 +284,14 @@ const handleSummaryToggle = () => {
     // Turning summary off: restore the last non-summary mode
     showSummary.value = false;
     show3D.value = lastNonSummary3D.value;
+    trackEvent('planner_view_changed', { planner_view: show3D.value ? '3d' : '2d' });
     return;
   }
   // Turning summary on: remember current mode and switch to summary (always exits 3D)
   lastNonSummary3D.value = show3D.value;
   show3D.value = false;
   showSummary.value = true;
+  trackEvent('planner_view_changed', { planner_view: 'summary' });
 };
 
 const toggle3D = () => {
@@ -279,6 +299,7 @@ const toggle3D = () => {
   showSummary.value = false;
   show3D.value = !show3D.value;
   lastNonSummary3D.value = show3D.value;
+  trackEvent('planner_view_changed', { planner_view: show3D.value ? '3d' : '2d' });
 };
 
 const cycleLabelMode = () => {
