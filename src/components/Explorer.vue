@@ -1422,13 +1422,6 @@ export default {
       deep: true,
     },
   },
-  beforeDestroy() {
-    if (typeof window === "undefined" || typeof document === "undefined") return;
-    window.removeEventListener("keydown", this.onFiltersKeydown, true);
-    if (this._prevBodyOverflow !== undefined) {
-      document.body.style.overflow = this._prevBodyOverflow;
-    }
-  },
   // Server only
   async serverPrefetch() {
     try {
@@ -1549,6 +1542,12 @@ export default {
     this.setupInfiniteScroll();
   },
   beforeUnmount() {
+    if (typeof window !== "undefined" && typeof document !== "undefined") {
+      window.removeEventListener("keydown", this.onFiltersKeydown, true);
+      if (this._prevBodyOverflow !== undefined) {
+        document.body.style.overflow = this._prevBodyOverflow;
+      }
+    }
     this.teardownInfiniteScroll();
     if (this.submitTimeout) {
       clearTimeout(this.submitTimeout);
