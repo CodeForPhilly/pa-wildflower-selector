@@ -1,8 +1,6 @@
 require('dotenv').config();
 const db = require('./lib/db');
 const fs = require('fs');
-const path = require('path');
-const { match } = require('assert');
 
 function isFiniteNumber(n) {
   return typeof n === 'number' && Number.isFinite(n);

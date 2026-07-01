@@ -9,8 +9,12 @@
 require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
-const { execSync } = require("child_process");
-const os = require("os");
+const { pipeline } = require("stream/promises");
+const {
+  S3Client,
+  ListObjectsV2Command,
+  GetObjectCommand
+} = require("@aws-sdk/client-s3");
 
 // Load environment variables
 const {
@@ -46,29 +50,73 @@ async function syncImages() {
       console.log(`📁 Created images directory: ${imagesDir}\n`);
     }
 
+    const endpoint = new URL(LINODE_ENDPOINT_URL);
+    const regionMatch = endpoint.hostname.match(/^([a-z0-9-]+)\.linodeobjects\.com$/);
+    const s3 = new S3Client({
+      endpoint: LINODE_ENDPOINT_URL,
+      region: regionMatch ? regionMatch[1] : (process.env.AWS_DEFAULT_REGION || 'us-east-1'),
+      credentials: {
+        accessKeyId: AWS_ACCESS_KEY_ID,
+        secretAccessKey: AWS_SECRET_ACCESS_KEY
+      }
+    });
+
     // Sync images from Linode bucket
     console.log('🔄 Syncing images from Linode Object Storage...');
-    const syncCommand = `aws s3 sync s3://${LINODE_BUCKET_NAME}/images/ "${imagesDir}/" --endpoint-url ${LINODE_ENDPOINT_URL}`;
-    
-    try {
-      execSync(syncCommand, {
-        stdio: 'inherit',
-        env: {
-          ...process.env,
-          AWS_ACCESS_KEY_ID,
-          AWS_SECRET_ACCESS_KEY
+
+    let continuationToken;
+    let downloaded = 0;
+    let skipped = 0;
+
+    do {
+      const page = await s3.send(new ListObjectsV2Command({
+        Bucket: LINODE_BUCKET_NAME,
+        Prefix: 'images/',
+        ContinuationToken: continuationToken
+      }));
+
+      for (const object of page.Contents || []) {
+        if (!object.Key || object.Key.endsWith('/')) {
+          continue;
         }
-      });
-      console.log(`\n✅ Images have been downloaded to ${imagesDir}/`);
-      console.log('===== Images Sync Process Completed =====\n');
-    } catch (error) {
-      console.error('\n❌ Failed to sync images');
-      console.error(`   Error: ${error.message}\n`);
-      console.error('💡 Make sure AWS CLI is installed and configured:');
-      console.error('   - Install: https://aws.amazon.com/cli/');
-      console.error('   - Or use: brew install awscli (macOS)');
-      console.error('   - Or use: choco install awscli (Windows)\n');
-      process.exit(1);
+
+        const relativePath = object.Key.slice('images/'.length);
+        const localPath = path.resolve(imagesDir, relativePath);
+        const imagesRoot = path.resolve(imagesDir) + path.sep;
+
+        if (!localPath.startsWith(imagesRoot)) {
+          throw new Error(`Unsafe object key: ${object.Key}`);
+        }
+
+        const existing = await fs.promises.stat(localPath).catch(() => null);
+        if (existing && existing.isFile() && existing.size === object.Size) {
+          skipped += 1;
+          continue;
+        }
+
+        await fs.promises.mkdir(path.dirname(localPath), { recursive: true });
+        const result = await s3.send(new GetObjectCommand({
+          Bucket: LINODE_BUCKET_NAME,
+          Key: object.Key
+        }));
+        const temporaryPath = `${localPath}.download`;
+
+        await pipeline(result.Body, fs.createWriteStream(temporaryPath));
+        await fs.promises.rename(temporaryPath, localPath);
+        downloaded += 1;
+      }
+
+      continuationToken = page.IsTruncated
+        ? page.NextContinuationToken
+        : undefined;
+    } while (continuationToken);
+
+    console.log(`\n✅ Images have been downloaded to ${imagesDir}/`);
+    console.log(`   Downloaded: ${downloaded}; already current: ${skipped}`);
+    console.log('===== Images Sync Process Completed =====\n');
+
+    if (typeof s3.destroy === 'function') {
+      s3.destroy();
     }
 
   } catch (error) {
@@ -79,7 +127,6 @@ async function syncImages() {
 }
 
 syncImages();
-
 
 
 

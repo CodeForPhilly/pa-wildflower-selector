@@ -31,7 +31,7 @@
     "predev:local": "node scripts/dev-setup.js",
     "dev:local": "npm run predev:local && concurrently --names \"SERVER,CLIENT\" --prefix-colors \"blue,green\" \"npm run dev:server\" \"npm run dev:client\"",
     "dev:client": "vue-cli-service serve",
-    "dev:server": "cross-env NODE_ENV=development node app.js",
+    "dev:server": "cross-env NODE_ENV=development SERVER_PORT=3000 node app.js",
     "dev:full": "concurrently --names \"SERVER,CLIENT\" --prefix-colors \"blue,green\" \"npm run dev:server\" \"npm run dev:client\""
   },
   "dependencies": {
@@ -77,6 +77,7 @@
     "@playwright/test": "^1.40.0",
     "@types/node": "^20.0.0",
     "@types/three": "^0.182.0",
+    "@typescript-eslint/parser": "^5.62.0",
     "@vue/cli-plugin-typescript": "^4.5.19",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",

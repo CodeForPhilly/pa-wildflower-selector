@@ -260,8 +260,33 @@
                 </div>
               </div>
 
-              <div class="favorites-photo-mode">
-                <div class="photo-mode-toggle" role="group" aria-label="Photos">
+              <div
+                class="favorites-photo-mode display-mode-controls"
+                :class="{ 'display-mode-controls--table': viewMode === 'table' }"
+              >
+                <div class="view-mode-toggle" role="group" aria-label="Results layout">
+                  <button
+                    type="button"
+                    class="view-mode-button"
+                    :class="{ active: viewMode === 'tiles' }"
+                    :aria-pressed="viewMode === 'tiles'"
+                    @click="setViewMode('tiles')"
+                  >
+                    <span class="material-icons" aria-hidden="true">grid_view</span>
+                    <span class="mode-label">Tiles</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="view-mode-button"
+                    :class="{ active: viewMode === 'table' }"
+                    :aria-pressed="viewMode === 'table'"
+                    @click="setViewMode('table')"
+                  >
+                    <span class="material-icons" aria-hidden="true">view_list</span>
+                    <span class="mode-label">Table</span>
+                  </button>
+                </div>
+                <div v-if="viewMode === 'tiles'" class="photo-mode-toggle" role="group" aria-label="Photos">
                   <button
                     type="button"
                     class="photo-mode-button"
@@ -269,7 +294,8 @@
                     @click="setPhotoMode('habitat')"
                     :aria-pressed="photoMode === 'habitat'"
                   >
-                    Habitat
+                    <span class="material-icons" aria-hidden="true">landscape</span>
+                    <span class="mode-label">Habitat</span>
                   </button>
                   <button
                     type="button"
@@ -278,7 +304,8 @@
                     @click="setPhotoMode('studio')"
                     :aria-pressed="photoMode === 'studio'"
                   >
-                    Studio
+                    <span class="material-icons" aria-hidden="true">filter_vintage</span>
+                    <span class="mode-label">Studio</span>
                   </button>
                 </div>
               </div>
@@ -417,8 +444,33 @@
               </div>
 
               <!-- Row 2: secondary mode -->
-              <div class="browse-toolbar-row browse-toolbar-row--mode">
-                <div class="photo-mode-toggle" role="group" aria-label="Photos">
+              <div
+                class="browse-toolbar-row browse-toolbar-row--mode display-mode-controls"
+                :class="{ 'display-mode-controls--table': viewMode === 'table' }"
+              >
+                <div class="view-mode-toggle" role="group" aria-label="Results layout">
+                  <button
+                    type="button"
+                    class="view-mode-button"
+                    :class="{ active: viewMode === 'tiles' }"
+                    :aria-pressed="viewMode === 'tiles'"
+                    @click="setViewMode('tiles')"
+                  >
+                    <span class="material-icons" aria-hidden="true">grid_view</span>
+                    <span class="mode-label">Tiles</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="view-mode-button"
+                    :class="{ active: viewMode === 'table' }"
+                    :aria-pressed="viewMode === 'table'"
+                    @click="setViewMode('table')"
+                  >
+                    <span class="material-icons" aria-hidden="true">view_list</span>
+                    <span class="mode-label">Table</span>
+                  </button>
+                </div>
+                <div v-if="viewMode === 'tiles'" class="photo-mode-toggle" role="group" aria-label="Photos">
                   <button
                     type="button"
                     class="photo-mode-button"
@@ -426,7 +478,8 @@
                     @click="setPhotoMode('habitat')"
                     :aria-pressed="photoMode === 'habitat'"
                   >
-                    Habitat
+                    <span class="material-icons" aria-hidden="true">landscape</span>
+                    <span class="mode-label">Habitat</span>
                   </button>
                   <button
                     type="button"
@@ -435,7 +488,8 @@
                     @click="setPhotoMode('studio')"
                     :aria-pressed="photoMode === 'studio'"
                   >
-                    Studio
+                    <span class="material-icons" aria-hidden="true">filter_vintage</span>
+                    <span class="mode-label">Studio</span>
                   </button>
                 </div>
               </div>
@@ -708,7 +762,7 @@
               Showing {{ results.length }} of {{ total }} plants
               <span v-if="nearDisplayLabel"> near {{ nearDisplayLabel }}</span>
             </p>
-            <article class="plants">
+            <article v-if="viewMode === 'tiles'" class="plants">
             <article
               v-for="result in results"
               :key="result._id"
@@ -776,14 +830,20 @@
               :key="extra.id"
               class="extra"
             ></article>
-            <!-- Infinite scroll sentinel: keep it anchored to the *results* column,
-                 not after <main> (desktop filters column can add large bottom space). -->
-            <div ref="next" class="infinite-scroll-sentinel" aria-hidden="true"></div>
-            <BrowseResultStates
-              v-if="showBrowseUpdating"
-              state="updating"
+            </article>
+            <PlantTable
+              v-else
+              :plants="results"
+              :favorites="$store.state.favorites"
+              :selected-columns="tableColumns"
+              @open-plant="openPlantFromTable"
+              @toggle-favorite="toggleFavorite"
+              @toggle-column="toggleTableColumn"
+              @reset-columns="resetTableColumns"
             />
-          </article>
+            <!-- Paging stays independent from the selected presentation. -->
+            <div ref="next" class="infinite-scroll-sentinel" aria-hidden="true"></div>
+            <BrowseResultStates v-if="showBrowseUpdating" state="updating" />
           </div>
         </div>
     </main>
@@ -811,6 +871,10 @@ import Menu from "./Menu.vue";
 import BulkAddFavoritesModal from "./BulkAddFavoritesModal.vue";
 import BrowseResultStates from "./BrowseResultStates.vue";
 import LocationSearchField from "./LocationSearchField.vue";
+import PlantTable, {
+  DEFAULT_PLANT_TABLE_COLUMNS,
+  PLANT_TABLE_COLUMNS,
+} from "./PlantTable.vue";
 import { Trash2 } from "lucide-vue-next";
 
 const twoUpImageCredits = [
@@ -856,6 +920,7 @@ export default {
     BulkAddFavoritesModal,
     BrowseResultStates,
     LocationSearchField,
+    PlantTable,
     Trash2,
   },
   props: {
@@ -1060,6 +1125,8 @@ export default {
       isLoadingLocation: false,
       q: "",
       activeSearch: "",
+      viewMode: "tiles",
+      tableColumns: [...DEFAULT_PLANT_TABLE_COLUMNS],
       sort: "Sort by Recommendation Score",
       previousSort: "Sort by Recommendation Score", // Store previous sort before Search Relevance
       filters,
@@ -1422,13 +1489,6 @@ export default {
       deep: true,
     },
   },
-  beforeDestroy() {
-    if (typeof window === "undefined" || typeof document === "undefined") return;
-    window.removeEventListener("keydown", this.onFiltersKeydown, true);
-    if (this._prevBodyOverflow !== undefined) {
-      document.body.style.overflow = this._prevBodyOverflow;
-    }
-  },
   // Server only
   async serverPrefetch() {
     try {
@@ -1467,6 +1527,7 @@ export default {
     this.zipCode = localStorage.getItem("zipCode") || "";
     this.manualZip = localStorage.getItem("manualZip") === "true";
     this.filterValues["States"] = [localStorage.getItem("state")];
+    this.restoreTablePreferences();
 
     // Pre-set the default zip code to ensure immediate response
     if (!this.zipCode) {
@@ -1549,6 +1610,12 @@ export default {
     this.setupInfiniteScroll();
   },
   beforeUnmount() {
+    if (typeof window !== "undefined" && typeof document !== "undefined") {
+      window.removeEventListener("keydown", this.onFiltersKeydown, true);
+      if (this._prevBodyOverflow !== undefined) {
+        document.body.style.overflow = this._prevBodyOverflow;
+      }
+    }
     this.teardownInfiniteScroll();
     if (this.submitTimeout) {
       clearTimeout(this.submitTimeout);
@@ -2725,6 +2792,9 @@ export default {
       if (evt && typeof evt.preventDefault === "function") evt.preventDefault();
       this.$router.push(this.plantLink(result));
     },
+    openPlantFromTable(result) {
+      this.$router.push(this.plantLink(result));
+    },
     imageStyle(image, preview = true) {
       const url = this.imageUrl(image, preview);
       const isStudio = this.photoMode === "studio";
@@ -2827,6 +2897,43 @@ export default {
     },
     setPhotoMode(mode) {
       this.$store.commit("setPhotoMode", mode);
+    },
+    setViewMode(mode) {
+      if (!["tiles", "table"].includes(mode)) return;
+      this.viewMode = mode;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("plantResultsView", mode);
+      }
+      this.$nextTick(() => {
+        this.teardownInfiniteScroll();
+        this.setupInfiniteScroll();
+      });
+    },
+    toggleTableColumn(key) {
+      if (!PLANT_TABLE_COLUMNS.some((column) => column.key === key)) return;
+      this.tableColumns = this.tableColumns.includes(key)
+        ? this.tableColumns.filter((columnKey) => columnKey !== key)
+        : [...this.tableColumns, key];
+      localStorage.setItem("plantTableColumns", JSON.stringify(this.tableColumns));
+    },
+    resetTableColumns() {
+      this.tableColumns = [...DEFAULT_PLANT_TABLE_COLUMNS];
+      localStorage.setItem("plantTableColumns", JSON.stringify(this.tableColumns));
+    },
+    restoreTablePreferences() {
+      const storedView = localStorage.getItem("plantResultsView");
+      if (["tiles", "table"].includes(storedView)) {
+        this.viewMode = storedView;
+      }
+      try {
+        const storedColumns = JSON.parse(localStorage.getItem("plantTableColumns") || "null");
+        const validKeys = new Set(PLANT_TABLE_COLUMNS.map((column) => column.key));
+        if (Array.isArray(storedColumns)) {
+          this.tableColumns = storedColumns.filter((key) => validKeys.has(key));
+        }
+      } catch (error) {
+        console.warn("Could not restore table columns:", error);
+      }
     },
     openFilters() {
       this.filtersOpen = true;
@@ -3378,9 +3485,6 @@ export default {
 
         this.total = data.total;
 
-        // If the sentinel is already in/near view (short result sets, or user at bottom),
-        // keep loading additional pages.
-        this.scheduleMaybeLoadMore("post-fetch");
       } catch (error) {
         if (this.activeFetchRequestId === requestId) {
           console.error("Error fetching plants:", error);
@@ -3391,6 +3495,21 @@ export default {
       } finally {
         if (this.activeFetchRequestId === requestId) {
           this.loading = false;
+          // The sentinel is rendered only after the loading state clears. On the
+          // initial request, setupInfiniteScroll() can run before it exists, so
+          // attach the observer/fallback now that the results DOM is available.
+          await this.$nextTick();
+          if (
+            !this.favorites &&
+            !this.infiniteObserver &&
+            !this.scrollFallbackHandler
+          ) {
+            this.setupInfiniteScroll();
+          } else {
+            // If the sentinel is already in/near view (short result sets, or the
+            // user is still at the bottom), keep loading additional pages.
+            this.scheduleMaybeLoadMore("post-fetch");
+          }
         }
       }
     },
@@ -4333,8 +4452,7 @@ button.text {
   }
 
   /* Flatten the internal rows so we can place controls on a single grid row */
-  .browse-toolbar-row--actions,
-  .browse-toolbar-row--mode {
+  .browse-toolbar-row--actions {
     display: contents;
   }
 
@@ -4392,14 +4510,18 @@ button.text {
     display: none !important;
   }
 
-  .browse-toolbar-row--mode .photo-mode-toggle {
+  .browse-toolbar-row--mode {
     grid-area: mode;
     width: 100%;
     margin: 0;
-    max-width: none;
-    min-width: 180px;
   }
-  .browse-toolbar-row--mode .photo-mode-button {
+  .browse-toolbar-row--mode .photo-mode-toggle,
+  .browse-toolbar-row--mode .view-mode-toggle {
+    max-width: none;
+    min-width: 0;
+  }
+  .browse-toolbar-row--mode .photo-mode-button,
+  .browse-toolbar-row--mode .view-mode-button {
     padding: 8px 8px;
     font-size: 13px;
     min-width: 0;
@@ -4428,7 +4550,8 @@ button.text {
   .browse-sort-button {
     padding: 10px 8px;
   }
-  .browse-toolbar-row--mode .photo-mode-button {
+  .browse-toolbar-row--mode .photo-mode-button,
+  .browse-toolbar-row--mode .view-mode-button {
     padding: 7px 6px;
     font-size: 12px;
   }
@@ -4494,17 +4617,83 @@ button.text {
   display: flex;
   width: 100%;
   border: 1px solid #b74d15;
-  border-radius: 999px;
+  border-radius: 9px;
   overflow: hidden;
   background: #fcf9f4;
 }
 
-.photo-mode-button {
+.display-mode-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.display-mode-controls--table {
+  grid-template-columns: minmax(160px, 220px);
+}
+
+.view-mode-toggle {
+  display: flex;
+  width: 100%;
+  border: 1px solid rgba(29, 46, 38, 0.42);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.view-mode-button {
+  display: inline-flex;
   flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 36px;
+  padding: 5px 4px;
+  color: #42534b;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font: 700 12px Roboto, sans-serif;
+  cursor: pointer;
+}
+
+.view-mode-button + .view-mode-button {
+  border-left: 1px solid rgba(29, 46, 38, 0.28);
+}
+
+.view-mode-button.active {
+  color: #fff;
+  background: #1d2e26;
+}
+
+.view-mode-button .material-icons,
+.photo-mode-button .material-icons {
+  font-size: 16px;
+}
+
+.view-mode-button:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid rgba(183, 77, 21, 0.38);
+  outline-offset: -3px;
+}
+
+.photo-mode-button {
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
   border: none;
   border-radius: 0;
-  padding: 10px 12px;
-  font-size: 16px;
+  min-height: 36px;
+  padding: 5px 4px;
+  font-size: 12px;
+  font-weight: 700;
   font-family: Roboto;
   background: transparent;
   color: #b74d15;
@@ -4801,6 +4990,20 @@ th {
 .favorites-photo-mode {
   grid-area: toggle;
   min-width: 0;
+}
+
+@media (min-width: 600px) and (max-width: 1279px) {
+  .display-mode-controls .mode-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 
 .favorites-quick-add {
