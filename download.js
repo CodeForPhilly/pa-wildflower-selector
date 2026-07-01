@@ -4,9 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
 const parse = require('csv-parse/lib/sync');
-const qs = require('qs');
 const db = require('./lib/db');
-const { RateLimiter } = require('limiter');
 // Logging function
 function log(message) {
     const timestamp = new Date().toISOString();
@@ -75,14 +73,9 @@ async function go() {
 }
 
 async function downloadMain() {
-    const limiter = new RateLimiter({ tokensPerInterval: 1, interval: "second" });
-
     log('Fetching spreadsheet data...');
     const body = await get(process.env.MASTER_CSV_URL);
     const articlesBody = await get(process.env.ARTICLES_CSV_URL);
-
-    // Initialize empty rowsByName object
-    let rowsByName = {};
 
     // Parse master CSV
     const records = parse(body, {
@@ -191,7 +184,6 @@ async function updateNurseries() {
 
     // Insert nurseries into database
     for (const record of records) {
-        const address = `${record.ADDRESS} ${record.CITY}, ${record.STATE} ${record.ZIP}`;
         record.lon = parseFloat(record.Long);
         record.lat = parseFloat(record.Lat);
         await nurseries.insertOne(record);
@@ -261,7 +253,7 @@ async function update(plants, clean) {
     }
 }
 
-async function get(url, type = 'text', tries = 1) {
+async function get(url, type = 'text') {
     let lastError;
     for (let attempt = 0; attempt < 5; attempt++) {
         try {
@@ -283,7 +275,7 @@ async function get(url, type = 'text', tries = 1) {
 }
 
 function pause() {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         setTimeout(resolve, 5000);
     });
 }
