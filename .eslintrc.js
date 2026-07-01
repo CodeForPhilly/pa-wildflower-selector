@@ -38,7 +38,9 @@ module.exports = {
       files: ['*.vue'],
       parser: 'vue-eslint-parser',
       parserOptions: {
-        parser: 'babel-eslint',
+        // Vue files include <script setup lang="ts"> blocks, so their inner
+        // scripts need a TypeScript-aware parser.
+        parser: '@typescript-eslint/parser',
         ecmaVersion: 2021,
         sourceType: 'module'
       },
@@ -51,4 +53,3 @@ module.exports = {
     }
   ]
 };
-
