@@ -25,6 +25,17 @@ The app uses Vue 3, Node.js/Express, and MongoDB. Plant data originates in share
 
 `mongosh` is useful for inspecting the database but is not required to run the app.
 
+On Windows, these can be installed with:
+
+```powershell
+winget install OpenJS.NodeJS.LTS
+winget install MongoDB.Server
+winget install MongoDB.DatabaseTools
+winget install Amazon.AWSCLI
+```
+
+After installing, open a new terminal so `node`, `mongorestore`, and `aws` are available on `PATH`.
+
 ### First-time setup
 
 ```bash
@@ -39,6 +50,7 @@ Ask in the Code for Philly `#choose-native-plants-pa` Slack channel for the priv
 ```dotenv
 DB_HOST=localhost
 DB_PORT=27017
+DB_NAME=pa-wildflower-selector
 PORT=8080
 ```
 
@@ -129,14 +141,20 @@ Never commit `.env`, downloaded images, database backups, or `node_modules`. The
 ### Client loads but data requests fail
 
 - Confirm Express is listening on port 3000.
+- Confirm the database has been restored with `npm run sync:down:db`.
 - Do not give the local client and server the same port.
 - Use `npm run dev:local`; its scripts reserve 8080 for Vue and 3000 for Express.
+- If the browser shows the app shell but plant requests return 500s, check MongoDB first. A common cause is leaving Docker defaults in `.env`, especially `DB_HOST=mongodb` or non-empty Mongo credentials when the local service has no authentication.
 
 ### Sync command is missing a program
 
 - Image sync needs Node.js and the `.env` Linode values.
 - Database sync additionally needs AWS CLI and MongoDB Database Tools on `PATH`.
 - Restart the terminal after installing Windows packages so its `PATH` refreshes.
+
+### First backend start is slow
+
+The first local backend start may generate missing plant embeddings after the database restore. Wait for the server log to finish that work and print `Listening on port 3000`; later starts should be much faster.
 
 ## Project layout
 
