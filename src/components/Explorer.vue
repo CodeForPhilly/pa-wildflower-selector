@@ -195,6 +195,16 @@
               >{{ storeLink.label }}</a
             >
           </p>
+          <p class="nursery-feedback-prompt">
+            <button
+              type="button"
+              class="nursery-feedback-prompt-button"
+              @click="openNurseryFeedback"
+            >
+              <span class="material-icons" aria-hidden="true">outlined_flag</span>
+              Suggest a nursery or report an issue
+            </button>
+          </p>
           <h3 v-if="selected.Articles.length">Mentioned in these articles:</h3>
           <p class="store-links">
             <a
@@ -260,8 +270,33 @@
                 </div>
               </div>
 
-              <div class="favorites-photo-mode">
-                <div class="photo-mode-toggle" role="group" aria-label="Photos">
+              <div
+                class="favorites-photo-mode display-mode-controls"
+                :class="{ 'display-mode-controls--table': viewMode === 'table' }"
+              >
+                <div class="view-mode-toggle" role="group" aria-label="Results layout">
+                  <button
+                    type="button"
+                    class="view-mode-button"
+                    :class="{ active: viewMode === 'tiles' }"
+                    :aria-pressed="viewMode === 'tiles'"
+                    @click="setViewMode('tiles')"
+                  >
+                    <span class="material-icons" aria-hidden="true">grid_view</span>
+                    <span class="mode-label">Tiles</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="view-mode-button"
+                    :class="{ active: viewMode === 'table' }"
+                    :aria-pressed="viewMode === 'table'"
+                    @click="setViewMode('table')"
+                  >
+                    <span class="material-icons" aria-hidden="true">view_list</span>
+                    <span class="mode-label">Table</span>
+                  </button>
+                </div>
+                <div v-if="viewMode === 'tiles'" class="photo-mode-toggle" role="group" aria-label="Photos">
                   <button
                     type="button"
                     class="photo-mode-button"
@@ -269,7 +304,8 @@
                     @click="setPhotoMode('habitat')"
                     :aria-pressed="photoMode === 'habitat'"
                   >
-                    Habitat
+                    <span class="material-icons" aria-hidden="true">landscape</span>
+                    <span class="mode-label">Habitat</span>
                   </button>
                   <button
                     type="button"
@@ -278,7 +314,8 @@
                     @click="setPhotoMode('studio')"
                     :aria-pressed="photoMode === 'studio'"
                   >
-                    Studio
+                    <span class="material-icons" aria-hidden="true">filter_vintage</span>
+                    <span class="mode-label">Studio</span>
                   </button>
                 </div>
               </div>
@@ -417,8 +454,33 @@
               </div>
 
               <!-- Row 2: secondary mode -->
-              <div class="browse-toolbar-row browse-toolbar-row--mode">
-                <div class="photo-mode-toggle" role="group" aria-label="Photos">
+              <div
+                class="browse-toolbar-row browse-toolbar-row--mode display-mode-controls"
+                :class="{ 'display-mode-controls--table': viewMode === 'table' }"
+              >
+                <div class="view-mode-toggle" role="group" aria-label="Results layout">
+                  <button
+                    type="button"
+                    class="view-mode-button"
+                    :class="{ active: viewMode === 'tiles' }"
+                    :aria-pressed="viewMode === 'tiles'"
+                    @click="setViewMode('tiles')"
+                  >
+                    <span class="material-icons" aria-hidden="true">grid_view</span>
+                    <span class="mode-label">Tiles</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="view-mode-button"
+                    :class="{ active: viewMode === 'table' }"
+                    :aria-pressed="viewMode === 'table'"
+                    @click="setViewMode('table')"
+                  >
+                    <span class="material-icons" aria-hidden="true">view_list</span>
+                    <span class="mode-label">Table</span>
+                  </button>
+                </div>
+                <div v-if="viewMode === 'tiles'" class="photo-mode-toggle" role="group" aria-label="Photos">
                   <button
                     type="button"
                     class="photo-mode-button"
@@ -426,7 +488,8 @@
                     @click="setPhotoMode('habitat')"
                     :aria-pressed="photoMode === 'habitat'"
                   >
-                    Habitat
+                    <span class="material-icons" aria-hidden="true">landscape</span>
+                    <span class="mode-label">Habitat</span>
                   </button>
                   <button
                     type="button"
@@ -435,7 +498,8 @@
                     @click="setPhotoMode('studio')"
                     :aria-pressed="photoMode === 'studio'"
                   >
-                    Studio
+                    <span class="material-icons" aria-hidden="true">filter_vintage</span>
+                    <span class="mode-label">Studio</span>
                   </button>
                 </div>
               </div>
@@ -708,7 +772,7 @@
               Showing {{ results.length }} of {{ total }} plants
               <span v-if="nearDisplayLabel"> near {{ nearDisplayLabel }}</span>
             </p>
-            <article class="plants">
+            <article v-if="viewMode === 'tiles'" class="plants">
             <article
               v-for="result in results"
               :key="result._id"
@@ -776,14 +840,20 @@
               :key="extra.id"
               class="extra"
             ></article>
-            <!-- Infinite scroll sentinel: keep it anchored to the *results* column,
-                 not after <main> (desktop filters column can add large bottom space). -->
-            <div ref="next" class="infinite-scroll-sentinel" aria-hidden="true"></div>
-            <BrowseResultStates
-              v-if="showBrowseUpdating"
-              state="updating"
+            </article>
+            <PlantTable
+              v-else
+              :plants="results"
+              :favorites="$store.state.favorites"
+              :selected-columns="tableColumns"
+              @open-plant="openPlantFromTable"
+              @toggle-favorite="toggleFavorite"
+              @toggle-column="toggleTableColumn"
+              @reset-columns="resetTableColumns"
             />
-          </article>
+            <!-- Paging stays independent from the selected presentation. -->
+            <div ref="next" class="infinite-scroll-sentinel" aria-hidden="true"></div>
+            <BrowseResultStates v-if="showBrowseUpdating" state="updating" />
           </div>
         </div>
     </main>
@@ -795,6 +865,204 @@
       @close="closeBulkAdd"
       @submit="submitBulkAdd"
     />
+    <div
+      v-if="nurseryFeedbackOpen"
+      class="nursery-feedback-overlay"
+      role="presentation"
+      @click.self="closeNurseryFeedback"
+    >
+      <form
+        class="nursery-feedback-modal"
+        @submit.prevent="submitNurseryFeedback"
+      >
+        <div class="nursery-feedback-header">
+          <h2>Nursery feedback</h2>
+          <button
+            type="button"
+            class="material-icons nursery-feedback-close"
+            aria-label="Close"
+            @click="closeNurseryFeedback"
+          >
+            close
+          </button>
+        </div>
+
+        <p class="nursery-feedback-copy">
+          We review every suggestion before updating listings. Only nurseries that
+          publish their native plants online can be added.
+        </p>
+
+        <label class="nursery-feedback-field">
+          <span>What should we take another look at?</span>
+          <select v-model="nurseryFeedback.reason" required>
+            <option>Missing nursery</option>
+            <template v-if="allStoreLinks.length">
+              <option>This nursery may not carry this plant</option>
+              <option>Nursery info is wrong</option>
+            </template>
+          </select>
+        </label>
+
+        <label
+          v-if="nurseryFeedback.reason === 'Missing nursery'"
+          class="nursery-feedback-field"
+        >
+          <span>Nursery name</span>
+          <input
+            v-model="nurseryFeedback.suggestedNurseryName"
+            type="text"
+            required
+            maxlength="160"
+            autocomplete="organization"
+          />
+        </label>
+
+        <label v-else class="nursery-feedback-field">
+          <span>Which nursery?</span>
+          <select v-model="nurseryFeedback.existingNurseryName" required>
+            <option value="" disabled>Choose a nursery…</option>
+            <option
+              v-for="storeLink in allStoreLinks"
+              :key="storeLink.url"
+              :value="storeLink.label"
+            >
+              {{ storeLink.label }}
+            </option>
+          </select>
+        </label>
+
+        <label class="nursery-feedback-honeypot">
+          Website URL
+          <input
+            v-model="nurseryFeedback.websiteUrl"
+            type="text"
+            tabindex="-1"
+            autocomplete="off"
+          />
+        </label>
+
+        <details
+          v-if="nurseryFeedback.reason === 'Missing nursery'"
+          class="nursery-feedback-optional"
+        >
+          <summary>Optional details</summary>
+          <p>
+            These details are not required, but they help us review suggestions
+            faster.
+          </p>
+
+          <label class="nursery-feedback-field">
+            <span>Website</span>
+            <input
+              v-model="nurseryFeedback.website"
+              type="text"
+              maxlength="500"
+              autocomplete="url"
+            />
+          </label>
+
+          <label class="nursery-feedback-field">
+            <span>Plant catalog URL(s)</span>
+            <textarea
+              v-model="nurseryFeedback.plantUrls"
+              rows="3"
+              maxlength="1500"
+            ></textarea>
+          </label>
+
+          <label class="nursery-feedback-field">
+            <span>Physical address</span>
+            <input
+              v-model="nurseryFeedback.address"
+              type="text"
+              maxlength="300"
+              autocomplete="street-address"
+            />
+          </label>
+
+          <div class="nursery-feedback-grid">
+            <label class="nursery-feedback-field">
+              <span>Nursery email</span>
+              <input
+                v-model="nurseryFeedback.email"
+                type="email"
+                maxlength="180"
+                pattern="[^@\s]+@[^@\s]+\.[^@\s]+"
+                title="Enter an email like name@example.com"
+                placeholder="name@example.com"
+              />
+            </label>
+
+            <label class="nursery-feedback-field">
+              <span>Nursery phone</span>
+              <input
+                v-model="nurseryFeedback.phone"
+                type="tel"
+                maxlength="80"
+                pattern="(\+?1[ .\-]?)?(\(?\d{3}\)?[ .\-]?)?\d{3}[ .\-]?\d{4}"
+                title="Enter a US phone number like (555) 123-4567"
+                placeholder="(555) 123-4567"
+              />
+            </label>
+          </div>
+
+          <label class="nursery-feedback-field">
+            <span>Notes</span>
+            <textarea
+              v-model="nurseryFeedback.notes"
+              rows="3"
+              maxlength="1000"
+            ></textarea>
+          </label>
+        </details>
+
+        <label v-else class="nursery-feedback-field">
+          <span>Anything else we should know? (optional)</span>
+          <textarea
+            v-model="nurseryFeedback.notes"
+            rows="3"
+            maxlength="1000"
+          ></textarea>
+        </label>
+
+        <label class="nursery-feedback-field">
+          <span>Your email (optional)</span>
+          <input
+            v-model="nurseryFeedback.contactEmail"
+            type="email"
+            maxlength="180"
+            pattern="[^@\s]+@[^@\s]+\.[^@\s]+"
+            title="Enter an email like name@example.com"
+            placeholder="name@example.com"
+            autocomplete="email"
+          />
+          <small class="nursery-feedback-hint">
+            Add your email if you'd like to hear the outcome of your suggestion.
+          </small>
+        </label>
+
+        <p v-if="nurseryFeedbackError" class="nursery-feedback-error">
+          {{ nurseryFeedbackError }}
+        </p>
+
+        <div class="nursery-feedback-footer">
+          <button
+            type="button"
+            class="nursery-feedback-cancel"
+            @click="closeNurseryFeedback"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="nursery-feedback-submit"
+            :disabled="nurseryFeedbackLoading"
+          >
+            {{ nurseryFeedbackLoading ? "Sending..." : "Send feedback" }}
+          </button>
+        </div>
+      </form>
+    </div>
     <div v-if="toastMessage" class="toast" role="status" aria-live="polite">
       {{ toastMessage }}
     </div>
@@ -811,6 +1079,10 @@ import Menu from "./Menu.vue";
 import BulkAddFavoritesModal from "./BulkAddFavoritesModal.vue";
 import BrowseResultStates from "./BrowseResultStates.vue";
 import LocationSearchField from "./LocationSearchField.vue";
+import PlantTable, {
+  DEFAULT_PLANT_TABLE_COLUMNS,
+  PLANT_TABLE_COLUMNS,
+} from "./PlantTable.vue";
 import { Trash2 } from "lucide-vue-next";
 
 const twoUpImageCredits = [
@@ -856,6 +1128,7 @@ export default {
     BulkAddFavoritesModal,
     BrowseResultStates,
     LocationSearchField,
+    PlantTable,
     Trash2,
   },
   props: {
@@ -1060,6 +1333,8 @@ export default {
       isLoadingLocation: false,
       q: "",
       activeSearch: "",
+      viewMode: "tiles",
+      tableColumns: [...DEFAULT_PLANT_TABLE_COLUMNS],
       sort: "Sort by Recommendation Score",
       previousSort: "Sort by Recommendation Score", // Store previous sort before Search Relevance
       filters,
@@ -1087,6 +1362,10 @@ export default {
       bulkAddText: "",
       bulkAddLoading: false,
       bulkAddResult: null,
+      nurseryFeedbackOpen: false,
+      nurseryFeedbackLoading: false,
+      nurseryFeedbackError: "",
+      nurseryFeedback: defaultNurseryFeedbackState(),
       toastMessage: "",
       toastTimeout: null,
       recentlyAddedIds: [],
@@ -1206,7 +1485,10 @@ export default {
       // })
     },
     onlineStoreLinks() {
-      return this.selected["Online Stores"];
+      return this.selected?.["Online Stores"] || [];
+    },
+    allStoreLinks() {
+      return [...(this.localStoreLinks || []), ...this.onlineStoreLinks];
     },
     favoritesAvailable() {
       return this.favoritesCount > 0;
@@ -1460,6 +1742,7 @@ export default {
     this.zipCode = localStorage.getItem("zipCode") || "";
     this.manualZip = localStorage.getItem("manualZip") === "true";
     this.filterValues["States"] = [localStorage.getItem("state")];
+    this.restoreTablePreferences();
 
     // Pre-set the default zip code to ensure immediate response
     if (!this.zipCode) {
@@ -2724,6 +3007,9 @@ export default {
       if (evt && typeof evt.preventDefault === "function") evt.preventDefault();
       this.$router.push(this.plantLink(result));
     },
+    openPlantFromTable(result) {
+      this.$router.push(this.plantLink(result));
+    },
     imageStyle(image, preview = true) {
       const url = this.imageUrl(image, preview);
       const isStudio = this.photoMode === "studio";
@@ -2826,6 +3112,43 @@ export default {
     },
     setPhotoMode(mode) {
       this.$store.commit("setPhotoMode", mode);
+    },
+    setViewMode(mode) {
+      if (!["tiles", "table"].includes(mode)) return;
+      this.viewMode = mode;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("plantResultsView", mode);
+      }
+      this.$nextTick(() => {
+        this.teardownInfiniteScroll();
+        this.setupInfiniteScroll();
+      });
+    },
+    toggleTableColumn(key) {
+      if (!PLANT_TABLE_COLUMNS.some((column) => column.key === key)) return;
+      this.tableColumns = this.tableColumns.includes(key)
+        ? this.tableColumns.filter((columnKey) => columnKey !== key)
+        : [...this.tableColumns, key];
+      localStorage.setItem("plantTableColumns", JSON.stringify(this.tableColumns));
+    },
+    resetTableColumns() {
+      this.tableColumns = [...DEFAULT_PLANT_TABLE_COLUMNS];
+      localStorage.setItem("plantTableColumns", JSON.stringify(this.tableColumns));
+    },
+    restoreTablePreferences() {
+      const storedView = localStorage.getItem("plantResultsView");
+      if (["tiles", "table"].includes(storedView)) {
+        this.viewMode = storedView;
+      }
+      try {
+        const storedColumns = JSON.parse(localStorage.getItem("plantTableColumns") || "null");
+        const validKeys = new Set(PLANT_TABLE_COLUMNS.map((column) => column.key));
+        if (Array.isArray(storedColumns)) {
+          this.tableColumns = storedColumns.filter((key) => validKeys.has(key));
+        }
+      } catch (error) {
+        console.warn("Could not restore table columns:", error);
+      }
     },
     openFilters() {
       this.filtersOpen = true;
@@ -3377,9 +3700,6 @@ export default {
 
         this.total = data.total;
 
-        // If the sentinel is already in/near view (short result sets, or user at bottom),
-        // keep loading additional pages.
-        this.scheduleMaybeLoadMore("post-fetch");
       } catch (error) {
         if (this.activeFetchRequestId === requestId) {
           console.error("Error fetching plants:", error);
@@ -3390,6 +3710,21 @@ export default {
       } finally {
         if (this.activeFetchRequestId === requestId) {
           this.loading = false;
+          // The sentinel is rendered only after the loading state clears. On the
+          // initial request, setupInfiniteScroll() can run before it exists, so
+          // attach the observer/fallback now that the results DOM is available.
+          await this.$nextTick();
+          if (
+            !this.favorites &&
+            !this.infiniteObserver &&
+            !this.scrollFallbackHandler
+          ) {
+            this.setupInfiniteScroll();
+          } else {
+            // If the sentinel is already in/near view (short result sets, or the
+            // user is still at the bottom), keep loading additional pages.
+            this.scheduleMaybeLoadMore("post-fetch");
+          }
         }
       }
     },
@@ -3768,6 +4103,80 @@ export default {
     closeBulkAdd() {
       this.bulkAddOpen = false;
     },
+    defaultNurseryFeedback() {
+      return defaultNurseryFeedbackState();
+    },
+    openNurseryFeedback() {
+      this.nurseryFeedback = this.defaultNurseryFeedback();
+      this.nurseryFeedbackError = "";
+      this.nurseryFeedbackOpen = true;
+    },
+    closeNurseryFeedback() {
+      if (this.nurseryFeedbackLoading) return;
+      this.nurseryFeedbackOpen = false;
+      this.nurseryFeedbackError = "";
+    },
+    async submitNurseryFeedback() {
+      if (this.nurseryFeedbackLoading) return;
+
+      const feedback = this.nurseryFeedback;
+      const missing = feedback.reason === "Missing nursery";
+      const existingNurseryName = missing
+        ? ""
+        : String(feedback.existingNurseryName || "").trim();
+      const suggestedNurseryName = missing
+        ? String(feedback.suggestedNurseryName || "").trim()
+        : "";
+      if (!feedback.reason || !(existingNurseryName || suggestedNurseryName)) {
+        this.nurseryFeedbackError = missing
+          ? "Please add the nursery name."
+          : "Please choose a nursery.";
+        return;
+      }
+      const pickedStore = this.allStoreLinks.find(
+        (storeLink) => storeLink.label === existingNurseryName
+      );
+
+      this.nurseryFeedbackLoading = true;
+      this.nurseryFeedbackError = "";
+      try {
+        const payload = {
+          ...feedback,
+          existingNurseryName,
+          existingNurseryUrl: pickedStore?.url || "",
+          suggestedNurseryName,
+          website: missing ? feedback.website : "",
+          plantUrls: missing ? feedback.plantUrls : "",
+          address: missing ? feedback.address : "",
+          email: missing ? feedback.email : "",
+          phone: missing ? feedback.phone : "",
+          plantId: this.selected?._id || "",
+          commonName: this.selected?.["Common Name"] || "",
+          scientificName: this.selected?.["Scientific Name"] || "",
+          zipCode: this.zipCode || "",
+          displayLocation: this.displayLocation || "",
+          pageUrl: typeof window !== "undefined" ? window.location.href : "",
+        };
+
+        const response = await fetch("/api/v1/feedback/nursery", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+          throw new Error("Could not send that right now. Please try again.");
+        }
+
+        this.nurseryFeedbackOpen = false;
+        this.nurseryFeedback = this.defaultNurseryFeedback();
+        this.showToast("Thanks, we'll take another look.");
+      } catch (e) {
+        console.error("Nursery feedback error:", e);
+        this.nurseryFeedbackError = "Could not send that right now. Please try again.";
+      } finally {
+        this.nurseryFeedbackLoading = false;
+      }
+    },
     showToast(message) {
       this.toastMessage = message;
       if (this.toastTimeout) {
@@ -4121,6 +4530,23 @@ function getDefaultFilterValues(filters) {
     })
   );
 }
+
+function defaultNurseryFeedbackState() {
+  return {
+    reason: "Missing nursery",
+    existingNurseryName: "",
+    existingNurseryUrl: "",
+    suggestedNurseryName: "",
+    website: "",
+    plantUrls: "",
+    address: "",
+    email: "",
+    phone: "",
+    notes: "",
+    contactEmail: "",
+    websiteUrl: "",
+  };
+}
 </script>
 
 <style scoped>
@@ -4332,8 +4758,7 @@ button.text {
   }
 
   /* Flatten the internal rows so we can place controls on a single grid row */
-  .browse-toolbar-row--actions,
-  .browse-toolbar-row--mode {
+  .browse-toolbar-row--actions {
     display: contents;
   }
 
@@ -4391,14 +4816,18 @@ button.text {
     display: none !important;
   }
 
-  .browse-toolbar-row--mode .photo-mode-toggle {
+  .browse-toolbar-row--mode {
     grid-area: mode;
     width: 100%;
     margin: 0;
-    max-width: none;
-    min-width: 180px;
   }
-  .browse-toolbar-row--mode .photo-mode-button {
+  .browse-toolbar-row--mode .photo-mode-toggle,
+  .browse-toolbar-row--mode .view-mode-toggle {
+    max-width: none;
+    min-width: 0;
+  }
+  .browse-toolbar-row--mode .photo-mode-button,
+  .browse-toolbar-row--mode .view-mode-button {
     padding: 8px 8px;
     font-size: 13px;
     min-width: 0;
@@ -4427,7 +4856,8 @@ button.text {
   .browse-sort-button {
     padding: 10px 8px;
   }
-  .browse-toolbar-row--mode .photo-mode-button {
+  .browse-toolbar-row--mode .photo-mode-button,
+  .browse-toolbar-row--mode .view-mode-button {
     padding: 7px 6px;
     font-size: 12px;
   }
@@ -4493,17 +4923,83 @@ button.text {
   display: flex;
   width: 100%;
   border: 1px solid #b74d15;
-  border-radius: 999px;
+  border-radius: 9px;
   overflow: hidden;
   background: #fcf9f4;
 }
 
-.photo-mode-button {
+.display-mode-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.display-mode-controls--table {
+  grid-template-columns: minmax(160px, 220px);
+}
+
+.view-mode-toggle {
+  display: flex;
+  width: 100%;
+  border: 1px solid rgba(29, 46, 38, 0.42);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.view-mode-button {
+  display: inline-flex;
   flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 36px;
+  padding: 5px 4px;
+  color: #42534b;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font: 700 12px Roboto, sans-serif;
+  cursor: pointer;
+}
+
+.view-mode-button + .view-mode-button {
+  border-left: 1px solid rgba(29, 46, 38, 0.28);
+}
+
+.view-mode-button.active {
+  color: #fff;
+  background: #1d2e26;
+}
+
+.view-mode-button .material-icons,
+.photo-mode-button .material-icons {
+  font-size: 16px;
+}
+
+.view-mode-button:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid rgba(183, 77, 21, 0.38);
+  outline-offset: -3px;
+}
+
+.photo-mode-button {
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
   border: none;
   border-radius: 0;
-  padding: 10px 12px;
-  font-size: 16px;
+  min-height: 36px;
+  padding: 5px 4px;
+  font-size: 12px;
+  font-weight: 700;
   font-family: Roboto;
   background: transparent;
   color: #b74d15;
@@ -4800,6 +5296,20 @@ th {
 .favorites-photo-mode {
   grid-area: toggle;
   min-width: 0;
+}
+
+@media (min-width: 600px) and (max-width: 1279px) {
+  .display-mode-controls .mode-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 
 .favorites-quick-add {
@@ -5759,7 +6269,223 @@ th {
   color: #b74d15;
   text-decoration: underline;
   margin-right: 24px;
-  padding: 20px 0;
+  padding: 8px 0;
+}
+
+.nursery-feedback-prompt {
+  margin: 12px 0 24px;
+}
+
+.nursery-feedback-prompt-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: Roboto;
+  font-size: 14px;
+  line-height: 1.2;
+  color: #b74d15;
+  background: transparent;
+  border: 1px solid rgba(183, 77, 21, 0.45);
+  border-radius: 999px;
+  padding: 8px 14px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.nursery-feedback-prompt-button .material-icons {
+  font-size: 18px;
+}
+
+.nursery-feedback-prompt-button:hover,
+.nursery-feedback-prompt-button:focus-visible {
+  border-color: #b74d15;
+  background: rgba(183, 77, 21, 0.08);
+}
+
+.nursery-feedback-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  background: rgba(29, 46, 38, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.nursery-feedback-modal {
+  width: min(560px, 100%);
+  max-height: min(92vh, 760px);
+  overflow: auto;
+  background: #fcf9f4;
+  border: 1px solid rgba(29, 46, 38, 0.24);
+  border-radius: 8px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  padding: 20px;
+  color: #1d2e26;
+}
+
+.nursery-feedback-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.nursery-feedback-header h2 {
+  margin: 0;
+  font-family: Arvo;
+  font-size: 22px;
+  font-weight: 400;
+  color: #1d2e26;
+}
+
+.nursery-feedback-close {
+  border: 0;
+  background: transparent;
+  color: #1d2e26;
+  font-size: 26px;
+  line-height: 1;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.nursery-feedback-copy,
+.nursery-feedback-optional p,
+.nursery-feedback-error {
+  font-family: Roboto;
+  font-size: 14px;
+  line-height: 1.4;
+  margin: 0 0 12px;
+  color: rgba(29, 46, 38, 0.82);
+}
+
+.nursery-feedback-error {
+  color: #9c2f12;
+  font-weight: 700;
+}
+
+.nursery-feedback-field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+  font-family: Roboto;
+  font-size: 14px;
+  color: #1d2e26;
+}
+
+.nursery-feedback-field input,
+.nursery-feedback-field select,
+.nursery-feedback-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(29, 46, 38, 0.24);
+  border-radius: 4px;
+  background: #fff;
+  color: #1d2e26;
+  font-family: Roboto;
+  font-size: 16px;
+  line-height: 1.3;
+  padding: 10px;
+}
+
+.nursery-feedback-field textarea {
+  resize: vertical;
+}
+
+.nursery-feedback-honeypot {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.nursery-feedback-optional {
+  border: 1px solid rgba(29, 46, 38, 0.18);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 4px 0 16px;
+}
+
+.nursery-feedback-optional summary {
+  cursor: pointer;
+  font-family: Roboto;
+  font-size: 14px;
+  font-weight: 700;
+  color: #b74d15;
+}
+
+.nursery-feedback-optional[open] summary {
+  margin-bottom: 10px;
+}
+
+.nursery-feedback-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+  margin-bottom: 14px;
+}
+
+.nursery-feedback-grid .nursery-feedback-field {
+  margin-bottom: 0;
+}
+
+.nursery-feedback-hint {
+  font-family: Roboto;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(29, 46, 38, 0.68);
+}
+
+.nursery-feedback-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nursery-feedback-cancel,
+.nursery-feedback-submit {
+  border: 1px solid #b74d15;
+  border-radius: 4px;
+  font-family: Roboto;
+  font-size: 14px;
+  line-height: 1.2;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.nursery-feedback-cancel {
+  background: transparent;
+  color: #b74d15;
+}
+
+.nursery-feedback-submit {
+  background: #b74d15;
+  color: #fff;
+}
+
+.nursery-feedback-submit:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+@media all and (max-width: 640px) {
+  .nursery-feedback-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .nursery-feedback-footer {
+    flex-direction: column-reverse;
+  }
+
+  .nursery-feedback-cancel,
+  .nursery-feedback-submit {
+    width: 100%;
+  }
 }
 
 .favorite-regular {
