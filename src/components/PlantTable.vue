@@ -33,7 +33,18 @@
       </div>
     </div>
 
-    <div class="plant-table-scroll" tabindex="0">
+    <div class="mobile-table-header" aria-hidden="true">
+      <div ref="mobileHeaderRow" class="mobile-table-header-row">
+        <div class="favorite-column"></div>
+        <div class="common-name-column">Common name</div>
+        <div class="scientific-name-column">Scientific name</div>
+        <div v-for="column in visibleColumns" :key="column.key" :class="`${column.key}-column`">
+          {{ column.label }}
+        </div>
+      </div>
+    </div>
+
+    <div class="plant-table-scroll" tabindex="0" @scroll="handleTableScroll">
       <table class="plant-table">
         <thead>
           <tr>
@@ -111,7 +122,18 @@ export default {
   },
   emits: ["open-plant", "toggle-favorite", "toggle-column", "reset-columns"],
   data() {
-    return { columnsOpen: false };
+    return {
+      columnsOpen: false,
+    };
+  },
+  created() {
+    this.tableScrollFrame = null;
+    this.pendingTableScrollLeft = 0;
+  },
+  beforeUnmount() {
+    if (this.tableScrollFrame) {
+      window.cancelAnimationFrame(this.tableScrollFrame);
+    }
   },
   computed: {
     optionalColumns() {
@@ -137,6 +159,18 @@ export default {
       if (!field) return "—";
       const value = this.displayValue(plant[field]);
       return value === "—" || !column.suffix ? value : `${value}${column.suffix}`;
+    },
+    handleTableScroll(event) {
+      this.pendingTableScrollLeft = event.target.scrollLeft;
+      if (this.tableScrollFrame) return;
+
+      this.tableScrollFrame = window.requestAnimationFrame(() => {
+        const headerRow = this.$refs.mobileHeaderRow;
+        if (headerRow) {
+          headerRow.style.transform = `translateX(-${this.pendingTableScrollLeft}px)`;
+        }
+        this.tableScrollFrame = null;
+      });
     },
   },
 };
@@ -235,6 +269,37 @@ export default {
   outline: 3px solid rgba(183, 77, 21, 0.28);
   outline-offset: 2px;
 }
+.mobile-table-header {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  color: #42534b;
+  background: #f3f1eb;
+  border: 1px solid rgba(29, 46, 38, 0.18);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.mobile-table-header-row {
+  display: flex;
+  width: 720px;
+  min-width: 720px;
+  will-change: transform;
+}
+.mobile-table-header-row > div {
+  flex: 0 0 auto;
+  padding: 12px;
+  border-bottom: 1px solid rgba(29, 46, 38, 0.11);
+}
+.mobile-table-header-row > .favorite-column {
+  display: block;
+  background: #f3f1eb;
+}
 .plant-table {
   width: 100%;
   min-width: 720px;
@@ -260,6 +325,23 @@ export default {
   background: #f3f1eb;
   font-size: 12px;
   white-space: nowrap;
+}
+@media (max-width: 899px) {
+  .plant-table-scroll {
+    border-top: 0;
+    border-radius: 0 0 12px 12px;
+  }
+  .plant-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 .plant-table tbody tr:last-child td {
   border-bottom: 0;
@@ -358,6 +440,12 @@ th.favorite-column {
   border: 0;
 }
 @media (min-width: 900px) {
+  .mobile-table-header {
+    display: none;
+  }
+  .plant-table-scroll {
+    overflow: visible;
+  }
   .table-options > p {
     visibility: hidden;
   }

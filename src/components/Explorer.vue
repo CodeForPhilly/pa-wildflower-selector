@@ -195,6 +195,16 @@
               >{{ storeLink.label }}</a
             >
           </p>
+          <p class="nursery-feedback-prompt">
+            <button
+              type="button"
+              class="nursery-feedback-prompt-button"
+              @click="openNurseryFeedback"
+            >
+              <span class="material-icons" aria-hidden="true">outlined_flag</span>
+              Suggest a nursery or report an issue
+            </button>
+          </p>
           <h3 v-if="selected.Articles.length">Mentioned in these articles:</h3>
           <p class="store-links">
             <a
@@ -855,6 +865,204 @@
       @close="closeBulkAdd"
       @submit="submitBulkAdd"
     />
+    <div
+      v-if="nurseryFeedbackOpen"
+      class="nursery-feedback-overlay"
+      role="presentation"
+      @click.self="closeNurseryFeedback"
+    >
+      <form
+        class="nursery-feedback-modal"
+        @submit.prevent="submitNurseryFeedback"
+      >
+        <div class="nursery-feedback-header">
+          <h2>Nursery feedback</h2>
+          <button
+            type="button"
+            class="material-icons nursery-feedback-close"
+            aria-label="Close"
+            @click="closeNurseryFeedback"
+          >
+            close
+          </button>
+        </div>
+
+        <p class="nursery-feedback-copy">
+          We review every suggestion before updating listings. Only nurseries that
+          publish their native plants online can be added.
+        </p>
+
+        <label class="nursery-feedback-field">
+          <span>What should we take another look at?</span>
+          <select v-model="nurseryFeedback.reason" required>
+            <option>Missing nursery</option>
+            <template v-if="allStoreLinks.length">
+              <option>This nursery may not carry this plant</option>
+              <option>Nursery info is wrong</option>
+            </template>
+          </select>
+        </label>
+
+        <label
+          v-if="nurseryFeedback.reason === 'Missing nursery'"
+          class="nursery-feedback-field"
+        >
+          <span>Nursery name</span>
+          <input
+            v-model="nurseryFeedback.suggestedNurseryName"
+            type="text"
+            required
+            maxlength="160"
+            autocomplete="organization"
+          />
+        </label>
+
+        <label v-else class="nursery-feedback-field">
+          <span>Which nursery?</span>
+          <select v-model="nurseryFeedback.existingNurseryName" required>
+            <option value="" disabled>Choose a nursery…</option>
+            <option
+              v-for="storeLink in allStoreLinks"
+              :key="storeLink.url"
+              :value="storeLink.label"
+            >
+              {{ storeLink.label }}
+            </option>
+          </select>
+        </label>
+
+        <label class="nursery-feedback-honeypot">
+          Website URL
+          <input
+            v-model="nurseryFeedback.websiteUrl"
+            type="text"
+            tabindex="-1"
+            autocomplete="off"
+          />
+        </label>
+
+        <details
+          v-if="nurseryFeedback.reason === 'Missing nursery'"
+          class="nursery-feedback-optional"
+        >
+          <summary>Optional details</summary>
+          <p>
+            These details are not required, but they help us review suggestions
+            faster.
+          </p>
+
+          <label class="nursery-feedback-field">
+            <span>Website</span>
+            <input
+              v-model="nurseryFeedback.website"
+              type="text"
+              maxlength="500"
+              autocomplete="url"
+            />
+          </label>
+
+          <label class="nursery-feedback-field">
+            <span>Plant catalog URL(s)</span>
+            <textarea
+              v-model="nurseryFeedback.plantUrls"
+              rows="3"
+              maxlength="1500"
+            ></textarea>
+          </label>
+
+          <label class="nursery-feedback-field">
+            <span>Physical address</span>
+            <input
+              v-model="nurseryFeedback.address"
+              type="text"
+              maxlength="300"
+              autocomplete="street-address"
+            />
+          </label>
+
+          <div class="nursery-feedback-grid">
+            <label class="nursery-feedback-field">
+              <span>Nursery email</span>
+              <input
+                v-model="nurseryFeedback.email"
+                type="email"
+                maxlength="180"
+                pattern="[^@\s]+@[^@\s]+\.[^@\s]+"
+                title="Enter an email like name@example.com"
+                placeholder="name@example.com"
+              />
+            </label>
+
+            <label class="nursery-feedback-field">
+              <span>Nursery phone</span>
+              <input
+                v-model="nurseryFeedback.phone"
+                type="tel"
+                maxlength="80"
+                pattern="(\+?1[ .\-]?)?(\(?\d{3}\)?[ .\-]?)?\d{3}[ .\-]?\d{4}"
+                title="Enter a US phone number like (555) 123-4567"
+                placeholder="(555) 123-4567"
+              />
+            </label>
+          </div>
+
+          <label class="nursery-feedback-field">
+            <span>Notes</span>
+            <textarea
+              v-model="nurseryFeedback.notes"
+              rows="3"
+              maxlength="1000"
+            ></textarea>
+          </label>
+        </details>
+
+        <label v-else class="nursery-feedback-field">
+          <span>Anything else we should know? (optional)</span>
+          <textarea
+            v-model="nurseryFeedback.notes"
+            rows="3"
+            maxlength="1000"
+          ></textarea>
+        </label>
+
+        <label class="nursery-feedback-field">
+          <span>Your email (optional)</span>
+          <input
+            v-model="nurseryFeedback.contactEmail"
+            type="email"
+            maxlength="180"
+            pattern="[^@\s]+@[^@\s]+\.[^@\s]+"
+            title="Enter an email like name@example.com"
+            placeholder="name@example.com"
+            autocomplete="email"
+          />
+          <small class="nursery-feedback-hint">
+            Add your email if you'd like to hear the outcome of your suggestion.
+          </small>
+        </label>
+
+        <p v-if="nurseryFeedbackError" class="nursery-feedback-error">
+          {{ nurseryFeedbackError }}
+        </p>
+
+        <div class="nursery-feedback-footer">
+          <button
+            type="button"
+            class="nursery-feedback-cancel"
+            @click="closeNurseryFeedback"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="nursery-feedback-submit"
+            :disabled="nurseryFeedbackLoading"
+          >
+            {{ nurseryFeedbackLoading ? "Sending..." : "Send feedback" }}
+          </button>
+        </div>
+      </form>
+    </div>
     <div v-if="toastMessage" class="toast" role="status" aria-live="polite">
       {{ toastMessage }}
     </div>
@@ -1154,6 +1362,10 @@ export default {
       bulkAddText: "",
       bulkAddLoading: false,
       bulkAddResult: null,
+      nurseryFeedbackOpen: false,
+      nurseryFeedbackLoading: false,
+      nurseryFeedbackError: "",
+      nurseryFeedback: defaultNurseryFeedbackState(),
       toastMessage: "",
       toastTimeout: null,
       recentlyAddedIds: [],
@@ -1273,7 +1485,10 @@ export default {
       // })
     },
     onlineStoreLinks() {
-      return this.selected["Online Stores"];
+      return this.selected?.["Online Stores"] || [];
+    },
+    allStoreLinks() {
+      return [...(this.localStoreLinks || []), ...this.onlineStoreLinks];
     },
     favoritesAvailable() {
       return this.favoritesCount > 0;
@@ -3888,6 +4103,80 @@ export default {
     closeBulkAdd() {
       this.bulkAddOpen = false;
     },
+    defaultNurseryFeedback() {
+      return defaultNurseryFeedbackState();
+    },
+    openNurseryFeedback() {
+      this.nurseryFeedback = this.defaultNurseryFeedback();
+      this.nurseryFeedbackError = "";
+      this.nurseryFeedbackOpen = true;
+    },
+    closeNurseryFeedback() {
+      if (this.nurseryFeedbackLoading) return;
+      this.nurseryFeedbackOpen = false;
+      this.nurseryFeedbackError = "";
+    },
+    async submitNurseryFeedback() {
+      if (this.nurseryFeedbackLoading) return;
+
+      const feedback = this.nurseryFeedback;
+      const missing = feedback.reason === "Missing nursery";
+      const existingNurseryName = missing
+        ? ""
+        : String(feedback.existingNurseryName || "").trim();
+      const suggestedNurseryName = missing
+        ? String(feedback.suggestedNurseryName || "").trim()
+        : "";
+      if (!feedback.reason || !(existingNurseryName || suggestedNurseryName)) {
+        this.nurseryFeedbackError = missing
+          ? "Please add the nursery name."
+          : "Please choose a nursery.";
+        return;
+      }
+      const pickedStore = this.allStoreLinks.find(
+        (storeLink) => storeLink.label === existingNurseryName
+      );
+
+      this.nurseryFeedbackLoading = true;
+      this.nurseryFeedbackError = "";
+      try {
+        const payload = {
+          ...feedback,
+          existingNurseryName,
+          existingNurseryUrl: pickedStore?.url || "",
+          suggestedNurseryName,
+          website: missing ? feedback.website : "",
+          plantUrls: missing ? feedback.plantUrls : "",
+          address: missing ? feedback.address : "",
+          email: missing ? feedback.email : "",
+          phone: missing ? feedback.phone : "",
+          plantId: this.selected?._id || "",
+          commonName: this.selected?.["Common Name"] || "",
+          scientificName: this.selected?.["Scientific Name"] || "",
+          zipCode: this.zipCode || "",
+          displayLocation: this.displayLocation || "",
+          pageUrl: typeof window !== "undefined" ? window.location.href : "",
+        };
+
+        const response = await fetch("/api/v1/feedback/nursery", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+          throw new Error("Could not send that right now. Please try again.");
+        }
+
+        this.nurseryFeedbackOpen = false;
+        this.nurseryFeedback = this.defaultNurseryFeedback();
+        this.showToast("Thanks, we'll take another look.");
+      } catch (e) {
+        console.error("Nursery feedback error:", e);
+        this.nurseryFeedbackError = "Could not send that right now. Please try again.";
+      } finally {
+        this.nurseryFeedbackLoading = false;
+      }
+    },
     showToast(message) {
       this.toastMessage = message;
       if (this.toastTimeout) {
@@ -4240,6 +4529,23 @@ function getDefaultFilterValues(filters) {
       return value;
     })
   );
+}
+
+function defaultNurseryFeedbackState() {
+  return {
+    reason: "Missing nursery",
+    existingNurseryName: "",
+    existingNurseryUrl: "",
+    suggestedNurseryName: "",
+    website: "",
+    plantUrls: "",
+    address: "",
+    email: "",
+    phone: "",
+    notes: "",
+    contactEmail: "",
+    websiteUrl: "",
+  };
 }
 </script>
 
@@ -5963,7 +6269,223 @@ th {
   color: #b74d15;
   text-decoration: underline;
   margin-right: 24px;
-  padding: 20px 0;
+  padding: 8px 0;
+}
+
+.nursery-feedback-prompt {
+  margin: 12px 0 24px;
+}
+
+.nursery-feedback-prompt-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: Roboto;
+  font-size: 14px;
+  line-height: 1.2;
+  color: #b74d15;
+  background: transparent;
+  border: 1px solid rgba(183, 77, 21, 0.45);
+  border-radius: 999px;
+  padding: 8px 14px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.nursery-feedback-prompt-button .material-icons {
+  font-size: 18px;
+}
+
+.nursery-feedback-prompt-button:hover,
+.nursery-feedback-prompt-button:focus-visible {
+  border-color: #b74d15;
+  background: rgba(183, 77, 21, 0.08);
+}
+
+.nursery-feedback-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  background: rgba(29, 46, 38, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.nursery-feedback-modal {
+  width: min(560px, 100%);
+  max-height: min(92vh, 760px);
+  overflow: auto;
+  background: #fcf9f4;
+  border: 1px solid rgba(29, 46, 38, 0.24);
+  border-radius: 8px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  padding: 20px;
+  color: #1d2e26;
+}
+
+.nursery-feedback-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.nursery-feedback-header h2 {
+  margin: 0;
+  font-family: Arvo;
+  font-size: 22px;
+  font-weight: 400;
+  color: #1d2e26;
+}
+
+.nursery-feedback-close {
+  border: 0;
+  background: transparent;
+  color: #1d2e26;
+  font-size: 26px;
+  line-height: 1;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.nursery-feedback-copy,
+.nursery-feedback-optional p,
+.nursery-feedback-error {
+  font-family: Roboto;
+  font-size: 14px;
+  line-height: 1.4;
+  margin: 0 0 12px;
+  color: rgba(29, 46, 38, 0.82);
+}
+
+.nursery-feedback-error {
+  color: #9c2f12;
+  font-weight: 700;
+}
+
+.nursery-feedback-field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+  font-family: Roboto;
+  font-size: 14px;
+  color: #1d2e26;
+}
+
+.nursery-feedback-field input,
+.nursery-feedback-field select,
+.nursery-feedback-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(29, 46, 38, 0.24);
+  border-radius: 4px;
+  background: #fff;
+  color: #1d2e26;
+  font-family: Roboto;
+  font-size: 16px;
+  line-height: 1.3;
+  padding: 10px;
+}
+
+.nursery-feedback-field textarea {
+  resize: vertical;
+}
+
+.nursery-feedback-honeypot {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.nursery-feedback-optional {
+  border: 1px solid rgba(29, 46, 38, 0.18);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 4px 0 16px;
+}
+
+.nursery-feedback-optional summary {
+  cursor: pointer;
+  font-family: Roboto;
+  font-size: 14px;
+  font-weight: 700;
+  color: #b74d15;
+}
+
+.nursery-feedback-optional[open] summary {
+  margin-bottom: 10px;
+}
+
+.nursery-feedback-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+  margin-bottom: 14px;
+}
+
+.nursery-feedback-grid .nursery-feedback-field {
+  margin-bottom: 0;
+}
+
+.nursery-feedback-hint {
+  font-family: Roboto;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(29, 46, 38, 0.68);
+}
+
+.nursery-feedback-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nursery-feedback-cancel,
+.nursery-feedback-submit {
+  border: 1px solid #b74d15;
+  border-radius: 4px;
+  font-family: Roboto;
+  font-size: 14px;
+  line-height: 1.2;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.nursery-feedback-cancel {
+  background: transparent;
+  color: #b74d15;
+}
+
+.nursery-feedback-submit {
+  background: #b74d15;
+  color: #fff;
+}
+
+.nursery-feedback-submit:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+@media all and (max-width: 640px) {
+  .nursery-feedback-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .nursery-feedback-footer {
+    flex-direction: column-reverse;
+  }
+
+  .nursery-feedback-cancel,
+  .nursery-feedback-submit {
+    width: 100%;
+  }
 }
 
 .favorite-regular {

@@ -28,6 +28,7 @@ SEMANTIC_SEARCH.md
 TODO.MD
 
 settings.local.json
+.codex-*.log
 
 git@.gitignore
 
