@@ -9,7 +9,7 @@
       :large-h1="false"
     >
     </Header>
-    <div class="explorer-column">
+    <div class="explorer-column" :class="{ 'explorer-column--browse': !favorites }">
       <div v-if="!favorites" class="compact-utility-header">
         <div class="utility-content">
           <div class="location-section">
@@ -4879,7 +4879,7 @@ button.text {
 
 /* Mobile/tablet spacing: keep sort + photo toggle closer together */
 @media all and (max-width: 1279px) {
-  .explorer-column {
+  .explorer-column--browse {
     /* Shared alignment column for location + toolbar + chips + results */
     --results-max-width: 1120px;
     max-width: min(100%, var(--results-max-width));
@@ -5146,7 +5146,7 @@ button.favorites[disabled], button.copy-button[disabled] {
 }
 
 .chips {
-  margin-bottom: 32px;
+  margin-bottom: 12px;
   text-align: left;
   line-height: 1.5;
   white-space: nowrap;
@@ -5155,10 +5155,33 @@ button.favorites[disabled], button.copy-button[disabled] {
   min-width: 0;
 }
 
+.chips-and-plants > .chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.chips-and-plants > .chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chips-and-plants > .chips .chip,
+.chips-and-plants > .chips .clear {
+  flex: 0 0 auto;
+}
+
+.chips-and-plants > .chips .chip {
+  margin: 0;
+}
+
 .chip {
   display: inline-block;
   border-radius: 30px;
-  margin: 0px 8px 16px 0;
+  margin: 0 8px 8px 0;
   letter-spacing: 0.1em;
 }
 
@@ -6003,7 +6026,7 @@ th {
 }
 
 .browse-result-count {
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   font-family: Roboto, sans-serif;
   font-size: 14px;
   line-height: 1.4;
@@ -6510,6 +6533,28 @@ th {
 }
 
 @media all and (min-width: 1280px) {
+  .explorer-column {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    grid-template-areas:
+      "utility search"
+      "main main";
+    column-gap: 32px;
+    align-items: center;
+  }
+
+  .compact-utility-header {
+    grid-area: utility;
+  }
+
+  .search-desktop-parent {
+    grid-area: search;
+  }
+
+  main {
+    grid-area: main;
+  }
+
   .sort-and-favorites {
     margin-bottom: 0;
     display: block;
@@ -6612,12 +6657,12 @@ th {
   .search-desktop-parent {
     display: flex;
     justify-content: right;
-    padding: 16px 32px;
+    padding: 12px 0 10px;
   }
   .search-desktop {
     display: flex;
     min-width: 400px;
-    padding: 16px;
+    padding: 12px 14px;
     border-radius: 8px;
     border: 1px solid #1d2e26;
   }
@@ -6882,6 +6927,20 @@ th {
     white-space: normal;
     overflow: visible;
     height: auto;
+    margin-bottom: 10px;
+  }
+  .chips-and-plants > .chips {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+  .chip {
+    margin-bottom: 8px;
+  }
+  .chips-and-plants > .chips .chip {
+    margin: 0;
+  }
+  .browse-result-count {
+    margin-bottom: 8px;
   }
   .next-back {
     flex-direction: row;
@@ -6955,10 +7014,10 @@ th {
 
 @media all and (min-width: 1280px) {
   .compact-utility-header {
-    background-color: #f5f5f5;
-    border-bottom: 1px solid #e0e0e0;
-    padding: 12px 40px 8px;
-    margin-bottom: 8px;
+    background-color: transparent;
+    border-bottom: 0;
+    padding: 12px 0 10px;
+    margin-bottom: 0;
   }
 
   .utility-content {
