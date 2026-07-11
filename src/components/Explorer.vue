@@ -19,7 +19,10 @@
               :applied-zip="zipCode"
               :applied-display-location="displayLocation"
               :commit-handler="commitLocationZip"
+              :use-current-location-handler="useCurrentLocation"
               :external-loading="isLoadingLocation"
+              :external-error="locationError"
+              @drafted="clearLocationError"
               @cleared="clearLocation"
             />
           </div>
@@ -168,11 +171,25 @@
           <h3 v-if="localStoreLinks.length || onlineStoreLinks.length">
             Nurseries that carry this native plant:
           </h3>
-          <h4 class="enter-location" v-if="!this.zipCode">
-            <button type="button" class="text enter-location-link" @click="focusLocationField">
-              Enter your location in order to see nearby stores
-            </button>
-          </h4>
+          <section class="plant-profile-location" v-if="!this.zipCode">
+            <h4 class="plant-profile-location-title">Nearby Nurseries</h4>
+            <p class="plant-profile-location-copy">
+              Add a ZIP code to show physical nurseries near you that carry this plant.
+              Online stores are listed below.
+            </p>
+            <LocationSearchField
+              ref="locationInline"
+              variant="inline"
+              :applied-zip="zipCode"
+              :applied-display-location="displayLocation"
+              :commit-handler="commitLocationZip"
+              :use-current-location-handler="useCurrentLocation"
+              :external-loading="isLoadingLocation"
+              :external-error="locationError"
+              @drafted="clearLocationError"
+              @cleared="clearLocation"
+            />
+          </section>
           <h4 v-if="this.zipCode && localStoreLinks.length">Local Nurseries</h4>
           <p class="store-links">
             <a
@@ -405,7 +422,10 @@
                   :applied-zip="zipCode"
                   :applied-display-location="displayLocation"
                   :commit-handler="commitLocationZip"
+                  :use-current-location-handler="useCurrentLocation"
                   :external-loading="isLoadingLocation"
+                  :external-error="locationError"
+                  @drafted="clearLocationError"
                   @cleared="clearLocation"
                 />
 
@@ -544,7 +564,10 @@
                 :applied-zip="zipCode"
                 :applied-display-location="displayLocation"
                 :commit-handler="commitLocationZip"
+                :use-current-location-handler="useCurrentLocation"
                 :external-loading="isLoadingLocation"
+                :external-error="locationError"
+                @drafted="clearLocationError"
                 @cleared="clearLocation"
               />
               <div class="search-mobile-wrapper">
@@ -771,6 +794,13 @@
             >
               Showing {{ results.length }} of {{ total }} plants
               <span v-if="nearDisplayLabel"> near {{ nearDisplayLabel }}</span>
+            </p>
+            <p
+              v-if="!favorites && total > 0 && !zipCode"
+              class="browse-location-nudge"
+            >
+              No ZIP set: showing native plants from all states. Enter a ZIP code
+              to narrow results to your area and show nearby nurseries.
             </p>
             <article v-if="viewMode === 'tiles'" class="plants">
             <article
@@ -1349,7 +1379,7 @@ export default {
       filtersOpen: false,
       zipCode: "",
       displayLocation: "",
-      manualZip: false,
+      locationError: "",
       updatingCounts: false,
       selected: null,
       localStoreLinks: [],
@@ -1545,7 +1575,7 @@ export default {
       return this.chips.filter((chip) => chip.name !== "Search").length;
     },
     browseLoadingMessage() {
-      if (this.isLoadingLocation && !this.manualZip) {
+      if (this.isLoadingLocation) {
         return "Finding plants near you…";
       }
       return "Loading native plants…";
@@ -1740,85 +1770,12 @@ export default {
 
     this.displayLocation = localStorage.getItem("displayLocation") || "";
     this.zipCode = localStorage.getItem("zipCode") || "";
-    this.manualZip = localStorage.getItem("manualZip") === "true";
-    this.filterValues["States"] = [localStorage.getItem("state")];
+    const storedState = localStorage.getItem("state");
+    if (storedState) {
+      this.filterValues["States"] = [storedState];
+    }
+    localStorage.removeItem("manualZip");
     this.restoreTablePreferences();
-
-    // Pre-set the default zip code to ensure immediate response
-    if (!this.zipCode) {
-      this.zipCode = "19355";
-    }
-    
-    if (!this.manualZip && "geolocation" in navigator) {
-      // Set loading state
-      this.isLoadingLocation = true;
-      
-      // Use a timeout to limit how long we wait for geolocation
-      const geolocationTimeout = setTimeout(() => {
-        if (this.isLoadingLocation) {
-          // If still loading after timeout, use default
-          this.isLoadingLocation = false;
-          this.setDefaultZipCode();
-        }
-      }, 2000); // 2 second timeout
-      
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          clearTimeout(geolocationTimeout);
-          
-          const data = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          };
-
-          try {
-            const response = await fetch("/get-zip", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(data),
-            });
-            
-            if (!response.ok) {
-              throw new Error('Network response was not ok');
-            }
-            
-            let json = await response.json();
-            this.zipCode = json.code;
-            this.filterValues["States"] = [json.state];
-            this.displayLocation = `${json.city}, ${json.state}`;
-
-            localStorage.setItem("zipCode", this.zipCode);
-            localStorage.setItem("state", json.state);
-            localStorage.setItem("displayLocation", this.displayLocation);
-            localStorage.removeItem("manualZip");
-            
-            // Retry getting vendors if a plant is already selected
-            if (this.selected) {
-              this.getVendors();
-            }
-          } catch (error) {
-            console.error("Error fetching zip code:", error);
-            this.setDefaultZipCode();
-          } finally {
-            this.isLoadingLocation = false;
-          }
-        },
-        (error) => {
-          clearTimeout(geolocationTimeout);
-          console.error("Geolocation error:", error);
-          this.isLoadingLocation = false;
-          
-          // Use default zip code if geolocation fails
-          this.setDefaultZipCode();
-        },
-        { timeout: 3000, maximumAge: 60000 } // 3s timeout, cache for 1 minute
-      );
-    } else if (!this.displayLocation) {
-      // Geolocation not available or user chose manual zip
-      this.setDefaultZipCode();
-    }
 
     await this.determineFilterCountsAndSubmit();
     await this.fetchSelectedIfNeeded();
@@ -1902,41 +1859,94 @@ export default {
       }
       return cleanedParams;
     },
-    setDefaultZipCode() {
-      // Set default zip code to 19355 (Malvern, PA)
-      this.zipCode = "19355";
-      
-      // Get city and state info for this zip code
-      fetch("/get-city", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ zipCode: this.zipCode }),
-      })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+    applyLocationResult(zip, location) {
+      this.zipCode = zip;
+      this.filterValues["States"] = [location.state];
+      this.displayLocation = `${location.city}, ${location.state}`;
+      this.locationError = "";
+      localStorage.setItem("displayLocation", this.displayLocation);
+      localStorage.setItem("zipCode", this.zipCode);
+      localStorage.setItem("state", location.state);
+      localStorage.removeItem("manualZip");
+
+      if (this.selected) {
+        this.getVendors();
+      }
+      this.submit();
+    },
+    async useCurrentLocation() {
+      if (this.isLoadingLocation) return;
+      this.locationError = "";
+      const hostname = window.location.hostname;
+      const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+      if (window.isSecureContext === false && !isLocalhost) {
+        this.locationError = "Use my location needs HTTPS. Enter a ZIP code instead.";
+        return;
+      }
+      if (!("geolocation" in navigator)) {
+        this.locationError = "Your browser cannot detect your location. Enter a ZIP code instead.";
+        return;
+      }
+      if (navigator.permissions && typeof navigator.permissions.query === "function") {
+        try {
+          const permission = await navigator.permissions.query({ name: "geolocation" });
+          if (permission && permission.state === "denied") {
+            this.locationError = "Location is blocked for this site. Enable it in browser settings or enter a ZIP code.";
+            return;
           }
-          return response.json();
-        })
-        .then(json => {
-          this.filterValues["States"] = [json.state];
-          this.displayLocation = `${json.city}, ${json.state}`;
-          
-          // Save to localStorage
-          localStorage.setItem("zipCode", this.zipCode);
-          localStorage.setItem("state", json.state);
-          localStorage.setItem("displayLocation", this.displayLocation);
-          
-          // Retry getting vendors if a plant is already selected
-          if (this.selected) {
-            this.getVendors();
-          }
-        })
-        .catch(error => {
-          console.error("Error fetching city data:", error);
+        } catch (error) {
+          // Some browsers do not support querying geolocation permission.
+        }
+      }
+
+      this.isLoadingLocation = true;
+      try {
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            timeout: 10000,
+            maximumAge: 60000,
+          });
         });
+        const data = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+        const response = await fetch("/get-zip", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        });
+        if (!response.ok) {
+          throw new Error("Could not find a ZIP code for your location.");
+        }
+        const json = await response.json();
+        if (!json || !json.code || !json.city || !json.state) {
+          throw new Error("Could not find a ZIP code for your location.");
+        }
+        this.applyLocationResult(json.code, json);
+      } catch (error) {
+        console.error("Geolocation error:", error);
+        if (error && typeof error.code === "number") {
+          if (error.code === 1) {
+            this.locationError = "Location is blocked for this site. Enable it in browser settings or enter a ZIP code.";
+          } else if (error.code === 2) {
+            this.locationError = "Your location could not be detected. Enter a ZIP code instead.";
+          } else if (error.code === 3) {
+            this.locationError = "Location lookup timed out. Enter a ZIP code instead.";
+          } else {
+            this.locationError = "Could not use your location. Enter a ZIP code instead.";
+          }
+        } else {
+          this.locationError = "Could not turn your location into a ZIP code. Enter a ZIP code instead.";
+        }
+      } finally {
+        this.isLoadingLocation = false;
+      }
+    },
+    clearLocationError() {
+      this.locationError = "";
     },
     
     forceUpdate() {
@@ -1959,6 +1969,7 @@ export default {
       }
     },
     async commitLocationZip(zip) {
+      this.locationError = "";
       const response = await fetch("/get-city", {
         method: "POST",
         headers: {
@@ -1970,24 +1981,12 @@ export default {
         throw new Error("Could not find that ZIP code. Please try again.");
       }
       const json = await response.json();
-      this.zipCode = zip;
-      this.filterValues["States"] = [json.state];
-      this.displayLocation = `${json.city}, ${json.state}`;
-      localStorage.setItem("displayLocation", this.displayLocation);
-      localStorage.setItem("zipCode", this.zipCode);
-      localStorage.setItem("state", json.state);
-      this.manualZip = true;
-      localStorage.setItem("manualZip", "true");
-
-      if (this.selected) {
-        this.getVendors();
-      }
-      this.submit();
+      this.applyLocationResult(zip, json);
     },
     clearLocation() {
       this.zipCode = "";
       this.displayLocation = "";
-      this.manualZip = false;
+      this.locationError = "";
       this.filterValues["States"] = this.defaultFilterValues["States"];
       localStorage.removeItem("zipCode");
       localStorage.removeItem("displayLocation");
@@ -2000,6 +1999,7 @@ export default {
     },
     focusLocationField() {
       const refs = [
+        this.$refs.locationInline,
         this.$refs.locationBar,
         this.$refs.locationToolbar,
         this.$refs.locationDrawer,
@@ -2014,7 +2014,7 @@ export default {
     async getVendors() {
       if (!this.selected) return [];
       if (!this.zipCode) {
-        // Don't fetch vendors if zipCode isn't set yet (common on mobile during geolocation)
+        // Nearby nurseries are shown only after the user chooses a ZIP/location.
         console.log("Skipping getVendors - zipCode not set yet");
         return;
       }
@@ -4607,23 +4607,24 @@ button.text {
   padding: 5px;
   border-radius: 0;
 }
-.enter-location {
-  font-style: italic;
-  text-align: center;
-  padding: 5px;
+.plant-profile-location {
+  max-width: 420px;
+  margin: 8px 0 18px;
 }
-.enter-location-link {
-  color: #b74d15;
-  text-decoration: underline;
-  font: inherit;
-  font-style: italic;
-  padding: 0;
-  border: none;
-  background: transparent;
-  cursor: pointer;
+.plant-profile-location-title {
+  margin: 0 0 6px;
+  font-family: Roboto, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
 }
-.enter-location-link:hover {
-  color: #8f3d11;
+.plant-profile-location-copy {
+  margin: 0 0 10px;
+  max-width: 36rem;
+  font-family: Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.4;
+  color: rgba(29, 46, 38, 0.78);
 }
 .filters-drawer-location {
   padding: 0 16px;
@@ -6031,6 +6032,15 @@ th {
   font-size: 14px;
   line-height: 1.4;
   color: rgba(0, 0, 0, 0.68);
+}
+
+.browse-location-nudge {
+  margin: -2px 0 14px;
+  max-width: 44rem;
+  font-family: Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  color: rgba(29, 46, 38, 0.78);
 }
 
 .browse-results {

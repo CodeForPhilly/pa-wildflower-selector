@@ -21,8 +21,8 @@
           :placeholder="placeholder"
           :disabled="disabled || resolving || externalLoading"
           :aria-label="ariaLabel"
-          :aria-invalid="!!error"
-          :aria-describedby="error ? errorId : undefined"
+          :aria-invalid="!!displayError"
+          :aria-describedby="displayError ? errorId : undefined"
           autocomplete="postal-code"
           @input="onInput"
           @focus="onFocus"
@@ -42,6 +42,17 @@
         </button>
       </div>
       <button
+        v-if="useCurrentLocationHandler && !resolving"
+        type="button"
+        class="location-field-locate"
+        aria-label="Use my location"
+        title="Use my location"
+        :disabled="disabled || externalLoading"
+        @click.stop.prevent="onUseCurrentLocation"
+      >
+        <span class="material-icons" aria-hidden="true">my_location</span>
+      </button>
+      <button
         v-if="appliedZip && !resolving && !externalLoading"
         type="button"
         class="location-field-clear"
@@ -56,8 +67,8 @@
         aria-hidden="true"
       ></span>
     </div>
-    <p v-if="error" :id="errorId" class="location-field-error" role="alert">
-      {{ error }}
+    <p v-if="displayError" :id="errorId" class="location-field-error" role="alert">
+      {{ displayError }}
     </p>
   </div>
 </template>
@@ -87,6 +98,14 @@ export default {
       type: Function,
       required: true,
     },
+    useCurrentLocationHandler: {
+      type: Function,
+      default: null,
+    },
+    externalError: {
+      type: String,
+      default: "",
+    },
     externalLoading: {
       type: Boolean,
       default: false,
@@ -100,7 +119,7 @@ export default {
       default: false,
     },
   },
-  emits: ["cleared"],
+  emits: ["cleared", "drafted"],
   data() {
     const fieldId = `location-field-${++nextFieldId}`;
     return {
@@ -143,6 +162,9 @@ export default {
     showSummaryOverlay() {
       return !this.editing && !!this.summaryText && !this.error;
     },
+    displayError() {
+      return this.error || this.externalError || "";
+    },
   },
   watch: {
     appliedZip(next) {
@@ -184,6 +206,7 @@ export default {
       const digits = String(event.target.value || "").replace(/\D/g, "").slice(0, 5);
       this.draft = digits;
       this.error = null;
+      this.$emit("drafted");
       this.editing = true;
       if (event.target.value !== digits) {
         event.target.value = digits;
@@ -236,9 +259,20 @@ export default {
       this.draft = "";
       this.editing = true;
       this.error = null;
+      this.$emit("drafted");
       this.$emit("cleared");
       await this.$nextTick();
       this.focus();
+    },
+    async onUseCurrentLocation() {
+      this.blurSuppressUntil = Date.now() + 250;
+      this.clearAutoCommitTimer();
+      this.error = null;
+      this.editing = false;
+      this.$emit("drafted");
+      if (this.useCurrentLocationHandler) {
+        await this.useCurrentLocationHandler();
+      }
     },
     async tryCommit() {
       const zip = (this.draft || "").trim();
@@ -332,7 +366,7 @@ export default {
   outline: none;
   background: transparent;
   font-family: Roboto, sans-serif;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.4;
   color: #1d2e26;
   padding: 10px 0;
@@ -360,7 +394,7 @@ export default {
   border: none;
   background: #fff;
   font-family: Roboto, sans-serif;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.3;
   color: #1d2e26;
   text-align: left;
@@ -370,6 +404,7 @@ export default {
   cursor: text;
 }
 
+.location-field-locate,
 .location-field-clear {
   flex: 0 0 auto;
   display: inline-flex;
@@ -385,16 +420,24 @@ export default {
   cursor: pointer;
 }
 
+.location-field-locate:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.location-field-locate:not(:disabled):hover,
 .location-field-clear:hover {
   background: rgba(0, 0, 0, 0.06);
   color: rgba(0, 0, 0, 0.78);
 }
 
+.location-field-locate:focus-visible,
 .location-field-clear:focus-visible {
   outline: 2px solid rgba(183, 77, 21, 0.45);
   outline-offset: 2px;
 }
 
+.location-field-locate .material-icons,
 .location-field-clear .material-icons {
   font-size: 18px;
 }
@@ -423,7 +466,7 @@ export default {
 
 .location-field--toolbar .location-field-summary,
 .location-field--toolbar .location-field-input {
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .location-field--inline {
