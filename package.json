@@ -7,6 +7,7 @@
     "dev": "PORT=3001 node app & vue-cli-service serve",
     "ssr-dev": "npm run build && node app",
     "lint": "vue-cli-service lint",
+    "test:plantagents": "node --test test/plantagents-data.test.js",
     "build-browser": "node scripts/build-browser.js",
     "build-ssr": "node scripts/build-ssr.js",
     "build": "npm run build-ssr && npm run build-browser",
@@ -26,6 +27,7 @@
     "sync:up": "node scripts/sync-up.js",
     "sync:up:db": "node scripts/sync-up.js --skip-images",
     "sync:up:images": "node scripts/sync-up.js --images-only",
+    "sync:plantagents": "node scripts/sync-plantagents.js",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
     "predev:local": "node scripts/dev-setup.js",
@@ -62,6 +64,7 @@
     "mongodb": "^3.6.7",
     "mongodb-mcp-server": "^1.2.0",
     "node-fetch": "^2.6.1",
+    "pg": "^8.22.0",
     "qs": "^6.10.2",
     "regexp-quote": "0.0.0",
     "sluggo": "^0.3.1",
@@ -71,7 +74,8 @@
     "vuex": "^4.0.2",
     "webpack-manifest-plugin": "^4.0.2",
     "webpack-node-externals": "^3.0.0",
-    "yaml": "^2.0.1"
+    "yaml": "^2.0.1",
+    "zipcodes": "^8.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",

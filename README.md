@@ -109,6 +109,8 @@ The Compose stack pins MongoDB 5.0.6. Local development is often more convenient
 | `npm run dev:server` | Run only Express on port 3000 |
 | `npm run sync-images` | Download Linode images |
 | `npm run sync:down:db` | Download and restore the latest database backup |
+| `npm run sync:plantagents -- --dry-run` | Validate PlantAgents Neon data without publishing |
+| `npm run sync:plantagents` | Publish PlantAgents vendors, availability, and ZIP data to MongoDB |
 | `npm run fast-update-data` | Refresh plant data from the source sheets |
 | `npm run lint` | Run lint checks |
 | `npm run build` | Build SSR and browser bundles |
@@ -128,6 +130,38 @@ Run `npm run` to see the complete script list, including schema, index, embeddin
 | MongoDB host port | `27017` | Value of `MONGODB_LOCAL_PORT` |
 
 Never commit `.env`, downloaded images, database backups, or `node_modules`. They are already covered by `.gitignore`.
+
+## PlantAgents nursery data sync
+
+Choose Native Plants serves nursery availability and location lookups from MongoDB. The sync job is the only component that connects to PlantAgents PostgreSQL; normal web requests never contact Neon or the legacy PlantAgents API.
+
+Set `PLANTAGENTS_DATABASE_URL` in `.env` to a Neon role with read-only access to `vendors`, `plants`, `vendor_current_plant_offerings`, and `zip_code_geographies`. Validate and publish with:
+
+Create the Neon role as an administrator, substitute a generated password, and keep the password out of source control:
+
+```sql
+CREATE ROLE choose_native_plants_sync LOGIN PASSWORD '<generated-password>';
+GRANT CONNECT ON DATABASE neondb TO choose_native_plants_sync;
+GRANT USAGE ON SCHEMA public TO choose_native_plants_sync;
+GRANT SELECT ON TABLE public.vendors,
+  public.plants,
+  public.vendor_current_plant_offerings,
+  public.zip_code_geographies
+TO choose_native_plants_sync;
+```
+
+Do not grant membership in the crawler role or write privileges. If the PlantAgents views are recreated by a migration, reapply their `SELECT` grants as part of that migration.
+
+```bash
+npm run sync:plantagents -- --dry-run
+npm run sync:plantagents
+```
+
+The command stages a complete snapshot, validates counts and plant-name matches, then atomically selects it as active. Neon currently provides ZIP centroids but not city/state labels, so the sync fills missing labels from the bundled BSD-licensed `zipcodes` dataset and records that provenance on each MongoDB row. More than a 20% source-count drop or a high unmatched-plant ratio fails without changing live data. Use `--force` only after reviewing an intentional upstream change. The previous successful snapshot is retained for rollback; restore it by updating the `plantagents-active` document's `activeSnapshotId` in `plantagents_sync_state`.
+
+The final output line is JSON suitable for job logs. `/api/v1/plantagents-sync-status` reports freshness and counts without exposing credentials.
+
+In Kubernetes, create a `plantagents-postgres` SealedSecret containing `PLANTAGENTS_DATABASE_URL`, run the CronJob once manually, then set `plantagentsSync.enabled: true`. The default `0 7 * * 0` schedule is Sunday 07:00 UTC (3:00 AM EDT / 2:00 AM EST). Rotate the credential by resealing that secret; no application configuration changes are required.
 
 ## Troubleshooting
 
