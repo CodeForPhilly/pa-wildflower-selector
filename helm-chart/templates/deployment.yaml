@@ -42,9 +42,6 @@ spec:
         - name: {{ $.Chart.Name }}-db
           image: "{{ .image.repository }}:{{ .image.tag | default $.Chart.AppVersion }}"
           imagePullPolicy: {{ .image.pullPolicy }}
-          envFrom:
-          - secretRef:
-              name: pac-api
           env:
             - name: MONGO_INITDB_ROOT_USERNAME
               valueFrom:
@@ -110,29 +107,11 @@ spec:
                   name: app
                   key: IMAGE_URLS_SHEET_ID
                   optional: false
-            - name: PAC_API_BASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: pac-api
-                  key: PAC_API_BASE_URL
-                  optional: false
-            - name: PAC_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: pac-api
-                  key: PAC_API_KEY
-                  optional: false
             - name: SUPERPLANTS_CSV_URL
               valueFrom:
                 secretKeyRef:
                   name: app
                   key: SUPERPLANTS_CSV_URL
-                  optional: false
-            - name: LOCAL_MAP_CSV_URL
-              valueFrom:
-                secretKeyRef:
-                  name: app
-                  key: LOCAL_MAP_CSV_URL
                   optional: false
             - name: CONTACT_SHEET_ID
               valueFrom:
@@ -145,12 +124,6 @@ spec:
                 secretKeyRef:
                   name: app
                   key: CONTACT_FILES_FOLDER_ID
-                  optional: false
-            - name: ONLINE_STORES_CSV_URL
-              valueFrom:
-                secretKeyRef:
-                  name: app
-                  key: ONLINE_STORES_CSV_URL
                   optional: false
             - name: SERVICE_ACCOUNT
               valueFrom:

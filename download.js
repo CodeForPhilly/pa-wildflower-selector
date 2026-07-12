@@ -29,9 +29,7 @@ log(`Running download.js version ${VERSION}`);
 // Ensure required environment variables are set
 const requiredEnvVars = [
     'MASTER_CSV_URL',
-    'ARTICLES_CSV_URL',
-    'LOCAL_MAP_CSV_URL',
-    'ONLINE_STORES_CSV_URL'
+    'ARTICLES_CSV_URL'
 ];
 
 requiredEnvVars.forEach((envVar) => {
@@ -45,14 +43,12 @@ requiredEnvVars.forEach((envVar) => {
 go();
 
 let plants = null;
-let nurseries = null;
 let close = null;
 
 async function go() {
     try {
         const info = await db();
         plants = info.plants;
-        nurseries = info.nurseries;
         close = info.close;
 
         // Get initial count
@@ -165,70 +161,6 @@ async function downloadMain() {
         // Update the plant in the database
         await update(plants, merged);
     }
-
-    // Update nurseries and online stores
-    await updateNurseries();
-    await updateOnlineStores();
-}
-
-async function updateNurseries() {
-    // Remove all existing nurseries
-    await nurseries.deleteMany({});
-
-    // Fetch and parse nursery data
-    const body = await get(process.env.LOCAL_MAP_CSV_URL);
-    const records = parse(body, {
-        columns: true,
-        skip_empty_lines: true
-    });
-
-    // Insert nurseries into database
-    for (const record of records) {
-        record.lon = parseFloat(record.Long);
-        record.lat = parseFloat(record.Lat);
-        await nurseries.insertOne(record);
-    }
-
-    log(`Added ${records.length} nurseries to database`);
-}
-
-async function updateOnlineStores() {
-    // Fetch and parse online store data
-    const body = await get(process.env.ONLINE_STORES_CSV_URL);
-    const records = parse(body, {
-        columns: true,
-        skip_empty_lines: true
-    });
-
-    // Remove existing online stores data
-    await plants.updateMany({},
-        {
-            $unset: {
-                'Online Stores': 1
-            }
-        }
-    );
-
-    // Add online stores to plants
-    let updateCount = 0;
-    for (const record of records) {
-        const result = await plants.updateOne({
-            'Scientific Name': record['Scientific Name']
-        }, {
-            $push: {
-                'Online Stores': {
-                    url: `${record.Web.trim()}`,
-                    label: record.Root.trim()
-                }
-            }
-        });
-
-        if (result.modifiedCount > 0) {
-            updateCount++;
-        }
-    }
-
-    log(`Updated ${updateCount} plants with online store information`);
 }
 
 async function update(plants, clean) {

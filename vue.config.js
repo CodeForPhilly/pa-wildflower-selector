@@ -22,7 +22,7 @@ module.exports = {
         // Backend JSON API
         "^/api(/.*)?": { target, changeOrigin: true },
         // Backend utility endpoints
-        "^/get-(vendors|city|zip)$": { target, changeOrigin: true },
+        "^/get-(vendors|online-vendors|city|zip)$": { target, changeOrigin: true },
         // Optional: images are served by the backend in dev
         "^/images(/.*)?": { target, changeOrigin: true },
       };

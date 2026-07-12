@@ -52,6 +52,7 @@
             v-if="showAutocomplete && autocompleteResults.sections.length > 0 && isDesktop()" 
             class="autocomplete-dropdown"
             ref="autocompleteDropdown"
+            aria-label="Plant and filter suggestions"
           >
             <div 
               v-for="section in autocompleteResults.sections" 
@@ -67,11 +68,14 @@
                 />
                 <span class="section-label">{{ section.label }}</span>
               </div>
-              <div 
+              <button
                 v-for="item in section.items" 
                 :key="item.value || item.plantId"
+                type="button"
                 class="autocomplete-item"
-                @mousedown.prevent="handleAutocompleteSelect(item)"
+                @pointerdown.prevent="handleAutocompleteSelect(item)"
+                @keydown.enter.prevent="handleAutocompleteSelect(item)"
+                @keydown.space.prevent="handleAutocompleteSelect(item)"
               >
                 <!-- For filter items -->
                 <template v-if="item.action === 'applyFilter'">
@@ -92,12 +96,10 @@
                         <span>{{ highlightMatch(item.commonName, q).before }}</span><strong>{{ highlightMatch(item.commonName, q).match }}</strong><span>{{ highlightMatch(item.commonName, q).after }}</span>
                       </template>
                       <span v-else>{{ item.commonName }}</span>
-                      <span class="autocomplete-item-subtitle">(
-                        <template v-if="highlightMatch(item.scientificName, q).match">
+                      <span class="autocomplete-item-subtitle">{{ " (" }}<template v-if="highlightMatch(item.scientificName, q).match">
                           <span>{{ highlightMatch(item.scientificName, q).before }}</span><strong>{{ highlightMatch(item.scientificName, q).match }}</strong><span>{{ highlightMatch(item.scientificName, q).after }}</span>
                         </template>
-                        <span v-else>{{ item.scientificName }}</span>
-                      )</span>
+                        <span v-else>{{ item.scientificName }}</span>{{ ")" }}</span>
                     </template>
                     <template v-else>
                       <strong>{{ item.displayText }}</strong>
@@ -105,7 +107,7 @@
                     </template>
                   </span>
                 </template>
-              </div>
+              </button>
             </div>
           </div>
         </div>
@@ -113,10 +115,20 @@
     <h1 class="large favorites" v-if="favorites">
       Favorites <span class="favorites-title-count" v-if="favoritesCount">({{ favoritesCount }})</span>
     </h1>
-    <article v-if="selected" class="selected">
+    <article
+      v-if="selected"
+      ref="selectedProfile"
+      class="selected"
+      @touchstart="onSimpleProfileTouchStart"
+      @touchend="onSimpleProfileTouchEnd"
+      @touchcancel="resetSimpleProfileGesture"
+      @pointerdown="onSimpleProfilePointerStart"
+      @pointerup="onSimpleProfilePointerEnd"
+      @pointercancel="resetSimpleProfileGesture"
+    >
       <div class="modal-bar">
         <span class="title">More Info</span>
-        <router-link to="/" class="material-icons router-button close-nav"
+        <router-link to="/" class="material-icons router-button close-nav" :class="{ 'close-nav--hint': closeHintPulse }"
           >close</router-link
         >
       </div>
@@ -171,6 +183,10 @@
           <h3 v-if="localStoreLinks.length || onlineStoreLinks.length">
             Nurseries that carry this native plant:
           </h3>
+          <p v-if="hasDirectPlantLinks" class="direct-plant-link-help">
+            <span class="direct-plant-link-badge">Plant page</span>
+            links go directly to this plant’s nursery listing, where available.
+          </p>
           <section class="plant-profile-location" v-if="!this.zipCode">
             <h4 class="plant-profile-location-title">Nearby Nurseries</h4>
             <p class="plant-profile-location-copy">
@@ -198,7 +214,8 @@
               target="_blank"
               :href="storeLink.url"
               class="store-link"
-              >{{ storeLink.label }} [{{ storeLink.distance }} miles]</a
+              >{{ storeLink.label }} [{{ storeLink.distance }} miles]
+              <span v-if="storeLink.isDirectPlantLink" class="direct-plant-link-badge">Plant page</span></a
             >
           </p>
           <h4 v-if="onlineStoreLinks.length">Online Stores</h4>
@@ -209,7 +226,8 @@
               target="_blank"
               :href="storeLink.url"
               class="store-link"
-              >{{ storeLink.label }}</a
+              >{{ storeLink.label }}
+              <span v-if="storeLink.isDirectPlantLink" class="direct-plant-link-badge">Plant page</span></a
             >
           </p>
           <p class="nursery-feedback-prompt">
@@ -592,6 +610,7 @@
                   v-if="showAutocomplete && autocompleteResults.sections.length > 0 && !isDesktop()" 
                   class="autocomplete-dropdown autocomplete-dropdown-mobile"
                   ref="autocompleteDropdownMobile"
+                  aria-label="Plant and filter suggestions"
                 >
                   <div 
                     v-for="section in autocompleteResults.sections" 
@@ -607,11 +626,14 @@
                       />
                       <span class="section-label">{{ section.label }}</span>
                     </div>
-                    <div 
+                    <button
                       v-for="item in section.items" 
                       :key="item.value || item.plantId"
+                      type="button"
                       class="autocomplete-item"
-                      @mousedown.prevent="handleAutocompleteSelect(item)"
+                      @pointerdown.prevent="handleAutocompleteSelect(item)"
+                      @keydown.enter.prevent="handleAutocompleteSelect(item)"
+                      @keydown.space.prevent="handleAutocompleteSelect(item)"
                     >
                       <!-- For filter items -->
                       <template v-if="item.action === 'applyFilter'">
@@ -632,12 +654,10 @@
                               <span>{{ highlightMatch(item.commonName, q).before }}</span><strong>{{ highlightMatch(item.commonName, q).match }}</strong><span>{{ highlightMatch(item.commonName, q).after }}</span>
                             </template>
                             <span v-else>{{ item.commonName }}</span>
-                            <span class="autocomplete-item-subtitle">(
-                              <template v-if="highlightMatch(item.scientificName, q).match">
+                            <span class="autocomplete-item-subtitle">{{ " (" }}<template v-if="highlightMatch(item.scientificName, q).match">
                                 <span>{{ highlightMatch(item.scientificName, q).before }}</span><strong>{{ highlightMatch(item.scientificName, q).match }}</strong><span>{{ highlightMatch(item.scientificName, q).after }}</span>
                               </template>
-                              <span v-else>{{ item.scientificName }}</span>
-                            )</span>
+                              <span v-else>{{ item.scientificName }}</span>{{ ")" }}</span>
                           </template>
                           <template v-else>
                             <strong>{{ item.displayText }}</strong>
@@ -645,7 +665,7 @@
                           </template>
                         </span>
                       </template>
-                    </div>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1382,7 +1402,11 @@ export default {
       locationError: "",
       updatingCounts: false,
       selected: null,
+      simpleProfileGesture: null,
+      closeHintPulse: false,
+      closeHintTimeout: null,
       localStoreLinks: [],
+      syncedOnlineStoreLinks: [],
       baseSorts,
       sortIsOpen: false,
       monthIsOpen: false,
@@ -1413,6 +1437,17 @@ export default {
   computed: {
     selectedName() {
       return this.$route.params.name;
+    },
+    selectedResultIndex() {
+      if (!this.selected) return -1;
+      return this.results.findIndex((plant) => plant._id === this.selected._id);
+    },
+    previousProfilePlant() {
+      return this.selectedResultIndex > 0 ? this.results[this.selectedResultIndex - 1] : null;
+    },
+    nextProfilePlant() {
+      const index = this.selectedResultIndex;
+      return index >= 0 && index < this.results.length - 1 ? this.results[index + 1] : null;
     },
     filtersForPane() {
       return (this.filters || []).filter((f) => !f.hideInFilterPane);
@@ -1515,10 +1550,13 @@ export default {
       // })
     },
     onlineStoreLinks() {
-      return this.selected?.["Online Stores"] || [];
+      return this.syncedOnlineStoreLinks;
     },
     allStoreLinks() {
       return [...(this.localStoreLinks || []), ...this.onlineStoreLinks];
+    },
+    hasDirectPlantLinks() {
+      return this.allStoreLinks.some((link) => link.isDirectPlantLink);
     },
     favoritesAvailable() {
       return this.favoritesCount > 0;
@@ -1616,8 +1654,9 @@ export default {
     },
   },
   watch: {
-    selectedName() {
-      this.fetchSelectedIfNeeded();
+    async selectedName() {
+      this.resetSimpleProfileGesture();
+      await this.fetchSelectedIfNeeded();
     },
     favorites() {
       this.determineFilterCountsAndSubmit();
@@ -1800,6 +1839,10 @@ export default {
     if (this.autocompleteTimeout) {
       clearTimeout(this.autocompleteTimeout);
       this.autocompleteTimeout = null;
+    }
+    if (this.closeHintTimeout) {
+      clearTimeout(this.closeHintTimeout);
+      this.closeHintTimeout = null;
     }
     if (this.maybeLoadMoreRaf) {
       cancelAnimationFrame(this.maybeLoadMoreRaf);
@@ -2013,13 +2056,35 @@ export default {
     },
     async getVendors() {
       if (!this.selected) return [];
+      const plantName = this.selected._id;
+      this.localStoreLinks = [];
+      this.syncedOnlineStoreLinks = [];
+      try {
+        const onlineResponse = await fetch("/get-online-vendors", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plantName }),
+        });
+        if (!onlineResponse.ok) throw new Error(`HTTP error! status: ${onlineResponse.status}`);
+        const onlineVendors = await onlineResponse.json();
+        if (this.selected?._id === plantName) {
+          this.syncedOnlineStoreLinks = onlineVendors.map((vendor) => ({
+            label: vendor.storeName,
+            url: vendor.storeUrl,
+            isDirectPlantLink: vendor.isDirectPlantLink,
+          }));
+        }
+      } catch (error) {
+        console.error("Error fetching online vendors:", error);
+        this.syncedOnlineStoreLinks = [];
+      }
       if (!this.zipCode) {
         // Nearby nurseries are shown only after the user chooses a ZIP/location.
         console.log("Skipping getVendors - zipCode not set yet");
         return;
       }
       const data = {
-        plantName: this.selected._id,
+        plantName,
         zipCode: this.zipCode,
         radius: 1000,
         limit: 5,
@@ -2036,11 +2101,13 @@ export default {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         let vendors = await response.json();
+        if (this.selected?._id !== plantName) return;
         this.localStoreLinks = vendors.map((v) => {
           return {
             label: v.storeName,
             url: v.storeUrl,
             distance: v.distance.toFixed(1),
+            isDirectPlantLink: v.isDirectPlantLink,
           };
         });
       } catch (error) {
@@ -3156,6 +3223,240 @@ export default {
     closeFilters() {
       this.filtersOpen = false;
     },
+    beginSimpleProfileGesture(clientX, clientY, target) {
+      if (this.isDesktop()) return;
+      if (target instanceof Element && target.closest("a, button, input, textarea, select, label")) return;
+      this.simpleProfileGesture = {
+        x: clientX,
+        y: clientY,
+        startedAtTop: (this.$refs.selectedProfile?.scrollTop || 0) <= 0,
+      };
+    },
+    finishSimpleProfileGesture(clientX, clientY) {
+      const start = this.simpleProfileGesture;
+      this.simpleProfileGesture = null;
+      if (!start) return;
+      const deltaX = clientX - start.x;
+      const deltaY = clientY - start.y;
+      if (Math.abs(deltaX) >= 64 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
+        const destination = deltaX < 0 ? this.nextProfilePlant : this.previousProfilePlant;
+        if (destination?._id) this.$router.push(`/plants/${destination._id}`);
+        return;
+      }
+      if (start.startedAtTop && deltaY >= 80 && Math.abs(deltaY) > Math.abs(deltaX) * 1.25) {
+        this.pulseCloseHint();
+      }
+    },
+    onSimpleProfileTouchStart(event) {
+      if (event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      this.beginSimpleProfileGesture(touch.clientX, touch.clientY, event.target);
+    },
+    onSimpleProfileTouchEnd(event) {
+      const touch = event.changedTouches?.[0];
+      if (touch) this.finishSimpleProfileGesture(touch.clientX, touch.clientY);
+    },
+    onSimpleProfilePointerStart(event) {
+      if (event.pointerType === "touch" || event.button !== 0) return;
+      this.beginSimpleProfileGesture(event.clientX, event.clientY, event.target);
+    },
+    onSimpleProfilePointerEnd(event) {
+      if (event.pointerType === "touch") return;
+      this.finishSimpleProfileGesture(event.clientX, event.clientY);
+    },
+    resetSimpleProfileGesture() {
+      this.simpleProfileGesture = null;
+    },
+    pulseCloseHint() {
+      this.closeHintPulse = false;
+      if (this.closeHintTimeout) clearTimeout(this.closeHintTimeout);
+      this.$nextTick(() => {
+        this.closeHintPulse = true;
+        this.closeHintTimeout = setTimeout(() => {
+          this.closeHintPulse = false;
+          this.closeHintTimeout = null;
+        }, 900);
+      });
+    },
+    resetProfileGesture(clearOverlay = false) {
+      this.profileGesture.active = false;
+      this.profileGesture.axis = null;
+      this.profileGesture.startX = 0;
+      this.profileGesture.startY = 0;
+      this.profileGesture.x = 0;
+      this.profileGesture.y = 0;
+      this.profileGesture.canPullDown = false;
+      this.profileGesture.transitioning = false;
+      if (clearOverlay) {
+        this.profileGesture.overlayPlant = null;
+        this.profileGesture.overlayDirection = null;
+        this.profileGesture.handoff = false;
+      }
+    },
+    settleCompletedProfileGesture() {
+      this.profileGesture.active = false;
+      this.profileGesture.axis = null;
+      this.profileGesture.x = 0;
+      this.profileGesture.y = 0;
+      this.profileGesture.canPullDown = false;
+      this.$nextTick(() => {
+        if (this.$refs.selectedProfile) this.$refs.selectedProfile.scrollTop = 0;
+        const paint = typeof requestAnimationFrame === "function"
+          ? requestAnimationFrame
+          : (callback) => setTimeout(callback, 0);
+        paint(() => paint(() => {
+          this.profileGesture.overlayPlant = null;
+          this.profileGesture.overlayDirection = null;
+          this.profileGesture.handoff = false;
+          this.profileGesture.transitioning = false;
+        }));
+      });
+    },
+    onProfileTouchStart(event) {
+      if (this.isDesktop() || this.profileGesture.transitioning || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      this.beginProfileGesture(touch.clientX, touch.clientY, event.target);
+    },
+    prefetchAdjacentProfiles() {
+      [this.previousProfilePlant, this.nextProfilePlant].filter(Boolean).forEach(async (plant) => {
+        try {
+          if (!this.profilePreviewCache[plant._id]) {
+            const response = await fetch(`/api/v1/plants/${encodeURIComponent(plant._id)}`);
+            if (response.ok) {
+              const fullPlant = await response.json();
+              if (fullPlant?._id) this.profilePreviewCache[plant._id] = fullPlant;
+            }
+          }
+          if (!this.profileVendorPreviewCache[plant._id]) {
+            const onlineRequest = fetch("/get-online-vendors", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ plantName: plant._id }),
+            }).then((response) => response.ok ? response.json() : []);
+            const localRequest = this.zipCode
+              ? fetch("/get-vendors", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ plantName: plant._id, zipCode: this.zipCode, radius: 1000, limit: 5 }),
+              }).then((response) => response.ok ? response.json() : [])
+              : Promise.resolve([]);
+            const [online, local] = await Promise.all([onlineRequest, localRequest]);
+            this.profileVendorPreviewCache[plant._id] = {
+              online,
+              local,
+              hasDirect: [...online, ...local].some((vendor) => vendor.isDirectPlantLink),
+            };
+          }
+        } catch (error) {
+          console.warn("Could not preload adjacent plant profile:", error);
+        }
+      });
+    },
+    profilePlantGenus(plant) {
+      if (plant?.Genus) return plant.Genus;
+      return (plant?.["Scientific Name"] || "").trim().split(/\s+/)[0] || "";
+    },
+    profilePlantSpecies(plant) {
+      if (plant?.Species) return plant.Species;
+      return (plant?.["Scientific Name"] || "").trim().split(/\s+/).slice(1).join(" ");
+    },
+    profilePlantFamily(plant) {
+      return plant?.Family || plant?.["Plant Family"] || "";
+    },
+    onProfilePointerStart(event) {
+      if (event.pointerType === "touch" || event.button !== 0) return;
+      this.beginProfileGesture(event.clientX, event.clientY, event.target);
+      if (this.profileGesture.active && event.currentTarget?.setPointerCapture) {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
+    },
+    beginProfileGesture(clientX, clientY, target) {
+      if (this.isDesktop() || this.profileGesture.transitioning) return;
+      if (target instanceof Element && target.closest("a, button, input, textarea, select, label")) return;
+      this.profileGesture.active = true;
+      this.profileGesture.axis = null;
+      this.profileGesture.startX = clientX;
+      this.profileGesture.startY = clientY;
+      this.profileGesture.x = 0;
+      this.profileGesture.y = 0;
+      this.profileGesture.canPullDown = (this.$refs.selectedProfile?.scrollTop || 0) <= 0;
+    },
+    onProfileTouchMove(event) {
+      if (!this.profileGesture.active || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      this.moveProfileGesture(touch.clientX, touch.clientY, event);
+    },
+    onProfilePointerMove(event) {
+      if (event.pointerType === "touch" || !this.profileGesture.active) return;
+      this.moveProfileGesture(event.clientX, event.clientY, event);
+    },
+    moveProfileGesture(clientX, clientY, event) {
+      const deltaX = clientX - this.profileGesture.startX;
+      const deltaY = clientY - this.profileGesture.startY;
+      const absX = Math.abs(deltaX);
+      const absY = Math.abs(deltaY);
+
+      if (!this.profileGesture.axis) {
+        if (Math.max(absX, absY) < 10) return;
+        if (absX > absY * 1.15) {
+          this.profileGesture.axis = "horizontal";
+        } else if (deltaY > 0 && absY > absX * 1.15 && this.profileGesture.canPullDown) {
+          this.profileGesture.axis = "vertical";
+        } else {
+          this.profileGesture.active = false;
+          return;
+        }
+      }
+
+      if (this.profileGesture.axis === "horizontal") {
+        event.preventDefault();
+        const hasDestination = deltaX < 0 ? Boolean(this.nextProfilePlant) : Boolean(this.previousProfilePlant);
+        this.profileGesture.x = hasDestination ? deltaX : deltaX * 0.14;
+        this.profileGesture.y = 0;
+      } else if (this.profileGesture.axis === "vertical") {
+        event.preventDefault();
+        this.profileGesture.y = Math.max(0, deltaY);
+        this.profileGesture.x = 0;
+      }
+    },
+    onProfileTouchEnd() {
+      if (!this.profileGesture.active) return;
+      const width = typeof window === "undefined" ? 390 : window.innerWidth;
+      const height = typeof window === "undefined" ? 844 : window.innerHeight;
+      const horizontalThreshold = Math.max(72, width * 0.22);
+      const verticalThreshold = Math.max(110, height * 0.18);
+
+      if (this.profileGesture.axis === "horizontal") {
+        const destination = this.profileGesture.x < 0 ? this.nextProfilePlant : this.previousProfilePlant;
+        if (destination && Math.abs(this.profileGesture.x) >= horizontalThreshold) {
+          this.profileGesture.overlayPlant = destination;
+          this.profileGesture.overlayDirection = this.profileGesture.x < 0 ? "next" : "previous";
+          this.profileGesture.handoff = false;
+          this.profileGesture.transitioning = true;
+          this.profileGesture.x = this.profileGesture.x < 0 ? -width : width;
+          setTimeout(() => this.$router.push(`/plants/${destination._id}`), 300);
+          return;
+        }
+      }
+      if (this.profileGesture.axis === "vertical" && this.profileGesture.y >= verticalThreshold) {
+        this.profileGesture.transitioning = true;
+        this.profileGesture.y = height;
+        setTimeout(() => this.$router.push("/"), 300);
+        return;
+      }
+      this.cancelProfileGesture();
+    },
+    onProfilePointerEnd(event) {
+      if (event.pointerType === "touch" || !this.profileGesture.active) return;
+      this.onProfileTouchEnd();
+    },
+    cancelProfileGesture() {
+      if (!this.profileGesture.active && !this.profileGesture.axis) return;
+      this.profileGesture.transitioning = true;
+      this.profileGesture.x = 0;
+      this.profileGesture.y = 0;
+      setTimeout(() => this.resetProfileGesture(false), 300);
+    },
     applyDrawerFilters() {
       // Match desktop behavior: if user typed trigger words / search text, confirm it on Apply.
       const queryText = (this.q || "").trim();
@@ -3286,6 +3587,16 @@ export default {
         try {
           const response = await fetch(`/api/v1/autocomplete?q=${encodeURIComponent(this.q)}`);
           const data = await response.json();
+          data.sections = (data.sections || []).map((section) => ({
+            ...section,
+            items: (section.items || []).map((item) => ({
+              ...item,
+              commonName: typeof item.commonName === "string" ? item.commonName.trim() : item.commonName,
+              scientificName: typeof item.scientificName === "string" ? item.scientificName.trim() : item.scientificName,
+              displayText: typeof item.displayText === "string" ? item.displayText.trim() : item.displayText,
+              subtitle: typeof item.subtitle === "string" ? item.subtitle.trim() : item.subtitle,
+            })),
+          }));
           this.autocompleteResults = data;
           // Only show if we have results
           if (data.sections && data.sections.length > 0) {
@@ -3320,9 +3631,14 @@ export default {
         this.showAutocomplete = false;
         this.submit();
       } else if (item.action === "navigateToPlant") {
-        // Navigate to plant detail page
-        this.$router.push(`/plants/${item.plantId}`);
+        // A plant result is a direct destination, not a filter. Clear the
+        // transient search UI and reveal the selected plant profile.
+        this.q = "";
         this.showAutocomplete = false;
+        if (!this.isDesktop()) {
+          this.closeFilters();
+        }
+        this.$router.push(`/plants/${item.plantId}`);
       }
     },
     applyGenusFilter(genus) {
@@ -4801,7 +5117,7 @@ button.text {
     display: inline-block;
     max-width: 100%;
     white-space: nowrap;
-    overflow: hidden;
+    overflow: scroll;
     text-overflow: ellipsis;
   }
 
@@ -5840,7 +6156,7 @@ th {
 }
 .search-mobile-box {
   display: flex;
-  height: 32px;
+  min-height: 48px;
   margin-bottom: 8px;
   width: 100%;
   border-bottom: 1px solid rgb(192, 192, 192);
@@ -5864,10 +6180,68 @@ th {
   border: 1px solid #1d2e26;
   border-radius: 8px;
   margin-top: 4px;
-  max-height: 300px;
+  max-height: min(46vh, 360px);
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   z-index: 1000;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.autocomplete-dropdown-mobile .autocomplete-section {
+  border-bottom: 1px solid #d7ddd9;
+}
+.autocomplete-dropdown-mobile .autocomplete-section:last-child {
+  border-bottom: 0;
+}
+.autocomplete-dropdown-mobile .autocomplete-section-header {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 14px;
+  color: #1d2e26;
+  background: #f1f4f2;
+  font-family: Lato;
+  font-size: 14px;
+  font-weight: 700;
+}
+.autocomplete-dropdown-mobile .section-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+}
+.autocomplete-dropdown-mobile .autocomplete-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 14px;
+  color: #1d2e26;
+  background: #fff;
+  border: 0;
+  border-bottom: 1px solid #e5e9e6;
+  border-radius: 0;
+  font-family: Roboto;
+  font-size: 16px;
+  line-height: 1.35;
+  text-align: left;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(183, 77, 21, 0.14);
+}
+.autocomplete-dropdown-mobile .autocomplete-item:last-child {
+  border-bottom: 0;
+}
+.autocomplete-dropdown-mobile .autocomplete-item:active,
+.autocomplete-dropdown-mobile .autocomplete-item:focus-visible {
+  background: #fbecd0;
+  outline: 3px solid #2f80b7;
+  outline-offset: -3px;
+}
+.autocomplete-dropdown-mobile .autocomplete-item-text {
+  min-width: 0;
+}
+.autocomplete-dropdown-mobile .autocomplete-item-subtitle {
+  color: #526158;
+  font-style: italic;
 }
 .search-desktop-parent {
   display: none;
@@ -6071,6 +6445,16 @@ th {
   color: black;
 }
 
+.close-nav--hint {
+  animation: close-nav-hint 900ms ease-out;
+}
+
+@keyframes close-nav-hint {
+  0%, 100% { transform: scale(1); color: black; }
+  35% { transform: scale(1.28); color: #b74d15; text-shadow: 0 0 14px rgba(183, 77, 21, 0.45); }
+  65% { transform: scale(1.08); color: #b74d15; }
+}
+
 .selected {
   position: fixed;
   top: 0px;
@@ -6080,6 +6464,142 @@ th {
   background-color: #fcf9f4;
   z-index: 1100;
   overflow: scroll;
+}
+
+.profile-swipe-preview {
+  display: none;
+}
+
+@media all and (max-width: 640px) {
+  .selected {
+    will-change: transform;
+    overscroll-behavior: contain;
+    transform-origin: 50% 112%;
+    border-radius: 24px;
+    width: 100vw;
+    max-width: 100vw;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: auto;
+  }
+
+  .selected--dragging {
+    box-shadow: 0 18px 50px rgba(20, 35, 28, 0.28);
+    border-radius: 24px;
+    overflow: hidden auto;
+  }
+
+  .selected--dragging-down {
+    border-radius: 26px 26px 0 0;
+    overflow: hidden auto;
+  }
+
+  .selected--transitioning {
+    transition: transform 300ms cubic-bezier(.16, .82, .24, 1), border-radius 300ms ease;
+  }
+
+  .profile-swipe-preview {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 1101;
+    flex-direction: column;
+    background: #fcf9f4;
+    box-shadow: 0 18px 50px rgba(20, 35, 28, 0.2);
+    will-change: transform;
+    transform-origin: 50% 110%;
+    border-radius: 24px;
+    width: 100vw;
+    max-width: 100vw;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: auto;
+    pointer-events: none;
+  }
+
+  .selected,
+  .profile-swipe-preview {
+    scrollbar-width: none;
+  }
+
+  .selected::-webkit-scrollbar,
+  .profile-swipe-preview::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
+  .profile-swipe-preview-header {
+    width: 100%;
+    flex: 0 0 56px;
+  }
+
+  .profile-swipe-preview .two-up {
+    width: 100%;
+    flex: 0 0 calc(100vh - 96px);
+    height: calc(100vh - 96px);
+    flex-direction: column;
+  }
+
+  .profile-swipe-preview .two-up > * {
+    height: auto;
+    color: black;
+    background-color: #fcf9f4;
+  }
+
+  .profile-swipe-preview .two-up-image {
+    height: 40vh;
+    min-height: 40vh;
+    flex: 0 0 40vh;
+  }
+
+  .selected .two-up .two-up-image {
+    height: 40vh;
+    min-height: 40vh;
+    flex: 0 0 40vh;
+  }
+
+  .profile-swipe-preview .two-up h1 {
+    margin: 16px 0 4px;
+    font-family: Arvo;
+    font-size: 24px;
+    font-weight: 400;
+    text-align: left;
+  }
+
+  .selected .modal-bar .title {
+    display: none;
+  }
+
+  .profile-dismiss-cue {
+    position: fixed;
+    left: 50%;
+    top: 16px;
+    z-index: 3;
+    transform: translateX(-50%);
+    padding: 8px 13px;
+    color: #315c43;
+    background: #e4f1e8;
+    border: 1px solid #9dc3a8;
+    border-radius: 999px;
+    box-shadow: 0 4px 14px rgba(20, 35, 28, 0.18);
+    font-family: Roboto;
+    font-size: 13px;
+    font-weight: 700;
+    pointer-events: none;
+  }
+
+  .profile-dismiss-cue--ready {
+    color: white;
+    background: #315c43;
+    border-color: #315c43;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .selected--transitioning,
+  .profile-swipe-preview {
+    transition-duration: 1ms !important;
+  }
 }
 
 .favorite-selected > * {
@@ -6303,6 +6823,34 @@ th {
   text-decoration: underline;
   margin-right: 24px;
   padding: 8px 0;
+}
+
+.direct-plant-link-help {
+  color: #4b5d52;
+  font-size: 13px;
+  line-height: 1.4;
+  margin: -2px 0 8px;
+}
+
+.direct-plant-link-badge {
+  display: inline-block;
+  color: #315c43;
+  background: #e4f1e8;
+  border: 1px solid #9dc3a8;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 6px;
+  padding: 3px 6px;
+  text-decoration: none;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+
+.direct-plant-link-help .direct-plant-link-badge {
+  margin-left: 0;
+  margin-right: 4px;
 }
 
 .nursery-feedback-prompt {
@@ -6743,7 +7291,12 @@ th {
   .autocomplete-item {
     display: flex;
     align-items: center;
+    width: 100%;
     padding: 12px 16px;
+    color: inherit;
+    background: white;
+    border: 0;
+    text-align: left;
     cursor: pointer;
     transition: background-color 0.2s;
   }

@@ -13,9 +13,7 @@ const { execSync } = require("child_process");
 // Check for required environment variables
 const requiredEnvVars = [
   'MASTER_CSV_URL',
-  'ARTICLES_CSV_URL',
-  'LOCAL_MAP_CSV_URL',
-  'ONLINE_STORES_CSV_URL'
+  'ARTICLES_CSV_URL'
 ];
 
 // MongoDB connection variables
@@ -110,7 +108,6 @@ if (hasErrors) {
   console.log('   You can now run: npm run dev:local\n');
   process.exit(0);
 }
-
 
 
 
