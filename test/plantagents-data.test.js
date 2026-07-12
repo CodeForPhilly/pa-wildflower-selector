@@ -5,6 +5,8 @@ const {
   haversineMiles,
   legacyNurseryResult,
   normalizeScientificName,
+  onlineVendorResult,
+  vendorStoreResult,
   validCoordinates,
 } = require("../lib/plantagents-data");
 
@@ -42,4 +44,51 @@ test("adapts a synced vendor to the existing nursery map response", () => {
     PHONE: "555", URL: "https://example.com", ADDRESS: "1 Main St",
     STATE: "PA", EMAIL: "plants@example.com",
   });
+});
+
+test("online vendors prefer a plant-specific URL and fall back to the vendor site", () => {
+  const vendor = { name: "Prairie Moon", websiteUrl: "https://example.com" };
+  assert.deepEqual(onlineVendorResult(vendor, {
+    productUrl: "https://example.com/plants/acorus-americanus",
+    productUrlType: "plant_profile",
+  }, "Acorus americanus"), {
+    storeName: "Prairie Moon",
+    storeUrl: "https://example.com/plants/acorus-americanus",
+    productUrlType: "plant_profile",
+    isDirectPlantLink: true,
+    linkDestination: "plant_page",
+  });
+  assert.equal(onlineVendorResult(vendor, null, "Acorus americanus").storeUrl, "https://example.com");
+  assert.equal(onlineVendorResult(vendor, null, "Acorus americanus").isDirectPlantLink, false);
+});
+
+test("physical vendors also prefer direct plant pages and identify root-site fallbacks", () => {
+  const vendor = { name: "Local Nursery", websiteUrl: "https://example.com" };
+  assert.deepEqual(vendorStoreResult(vendor, {
+    productUrl: "https://example.com/native-plants/asclepias-tuberosa",
+    productUrlType: "product_page",
+  }, { plantName: "Asclepias tuberosa" }), {
+    storeName: "Local Nursery",
+    storeUrl: "https://example.com/native-plants/asclepias-tuberosa",
+    productUrlType: "product_page",
+    isDirectPlantLink: true,
+    linkDestination: "plant_page",
+  });
+  assert.equal(vendorStoreResult(vendor, { productUrl: null }).linkDestination, "vendor_website");
+  assert.equal(vendorStoreResult(vendor, {
+    productUrl: "https://example.com/native-plants/asclepias-tuberosa",
+    productUrlType: "plant_profile",
+  }, { plantName: "Asclepias tuberosa" }).isDirectPlantLink, true);
+  assert.equal(vendorStoreResult(vendor, {
+    productUrl: "https://example.com/perennial-power/",
+    productUrlType: "plant_profile",
+  }, { plantName: "Asclepias tuberosa" }).isDirectPlantLink, false);
+  assert.equal(vendorStoreResult(vendor, {
+    productUrl: "https://example.com/plant-catalog/blue-wildrye/",
+    productUrlType: "plant_profile",
+  }, { plantName: "Elymus glaucus" }).isDirectPlantLink, true);
+  assert.equal(vendorStoreResult(vendor, {
+    productUrl: "https://example.com/Plant-Category/Natives",
+    productUrlType: "plant_profile",
+  }, { plantName: "Elymus glaucus" }).isDirectPlantLink, false);
 });
