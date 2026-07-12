@@ -42,9 +42,6 @@ spec:
         - name: {{ $.Chart.Name }}-db
           image: "{{ .image.repository }}:{{ .image.tag | default $.Chart.AppVersion }}"
           imagePullPolicy: {{ .image.pullPolicy }}
-          envFrom:
-          - secretRef:
-              name: pac-api
           env:
             - name: MONGO_INITDB_ROOT_USERNAME
               valueFrom:
@@ -109,18 +106,6 @@ spec:
                 secretKeyRef:
                   name: app
                   key: IMAGE_URLS_SHEET_ID
-                  optional: false
-            - name: PAC_API_BASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: pac-api
-                  key: PAC_API_BASE_URL
-                  optional: false
-            - name: PAC_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: pac-api
-                  key: PAC_API_KEY
                   optional: false
             - name: SUPERPLANTS_CSV_URL
               valueFrom:

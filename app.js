@@ -5,7 +5,8 @@ const { generateEmbeddings } = require('./scripts/generate-embeddings');
 run();
 
 async function run() {
-  const { plants, nurseries, close } = await db();
+  const dbConnection = await db();
+  const { plants } = dbConnection;
   
   // Check if embeddings exist
   const embeddingCount = await plants.countDocuments({ 
@@ -18,7 +19,7 @@ async function run() {
     
     try {
       // Close the current connection since generateEmbeddings will create its own
-      await close();
+      await dbConnection.close();
       
       // Generate embeddings (this will create its own DB connection)
       await generateEmbeddings();
@@ -27,19 +28,19 @@ async function run() {
       console.log('🔄 Reconnecting to database...\n');
       
       // Reconnect to database
-      const dbConnection = await db();
-      await server({ plants: dbConnection.plants, nurseries: dbConnection.nurseries });
+      const refreshedConnection = await db();
+      await server(refreshedConnection);
     } catch (error) {
       console.error('\n❌ Error generating embeddings:', error);
       console.error('⚠️  Server will start without embeddings. Semantic search will not work.');
       console.error('💡 Run manually: npm run generate-embeddings\n');
       
       // Start server anyway (without embeddings)
-      const dbConnection = await db();
-      await server({ plants: dbConnection.plants, nurseries: dbConnection.nurseries });
+      const refreshedConnection = await db();
+      await server(refreshedConnection);
     }
   } else {
     console.log(`✅ Found ${embeddingCount} plants with embeddings.`);
-    await server({ plants, nurseries });
+    await server(dbConnection);
   }
 }
