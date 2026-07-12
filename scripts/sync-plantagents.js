@@ -38,7 +38,8 @@ async function querySource() {
     state_or_region, latitude, longitude, sales_model, updated_at FROM vendors`);
   const plants = await postgres.query(`SELECT id, scientific_name, common_name FROM plants`);
   const offerings = await postgres.query(`SELECT vendor_id, nursery_snapshot_id, plant_id, snapshot_status,
-    published_at, approved_at, snapshot_created_at FROM vendor_current_plant_offerings`);
+    published_at, approved_at, snapshot_created_at, preferred_product_url,
+    preferred_product_url_type FROM vendor_current_plant_offerings`);
   const zipCodes = await postgres.query(`SELECT zip_code, city, state_or_region, latitude, longitude, updated_at
     FROM zip_code_geographies`);
   return { vendors: vendors.rows, plants: plants.rows, offerings: offerings.rows, zipCodes: zipCodes.rows };
@@ -119,6 +120,8 @@ async function buildDocuments(source) {
       localPlantId, nurserySnapshotId: String(row.nursery_snapshot_id),
       snapshotStatus: row.snapshot_status, publishedAt: row.published_at,
       approvedAt: row.approved_at, snapshotCreatedAt: row.snapshot_created_at,
+      productUrl: row.preferred_product_url || null,
+      productUrlType: row.preferred_product_url_type || null,
     });
   }
   const nurseryOfferings = [...nurseryOfferingsByKey.values()];

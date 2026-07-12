@@ -133,7 +133,7 @@ Never commit `.env`, downloaded images, database backups, or `node_modules`. The
 
 ## PlantAgents nursery data sync
 
-Choose Native Plants serves nursery availability and location lookups from MongoDB. The sync job is the only component that connects to PlantAgents PostgreSQL; normal web requests never contact Neon or the legacy PlantAgents API.
+Choose Native Plants serves local and online nursery availability and location lookups from MongoDB. Online stores are vendors classified as `mail_order` in PlantAgents; links use the current offering's product page or plant profile when available and fall back to the vendor website. The sync job is the only component that connects to PlantAgents PostgreSQL; normal web requests never contact Neon, the legacy PlantAgents API, or the former vendor Google Sheets.
 
 Set `PLANTAGENTS_DATABASE_URL` in `.env` to a Neon role with read-only access to `vendors`, `plants`, `vendor_current_plant_offerings`, and `zip_code_geographies`. Validate and publish with:
 
