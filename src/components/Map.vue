@@ -73,8 +73,8 @@ export default {
         accessToken: 'pk.eyJ1IjoidGJvdXRlbGwiLCJhIjoiY2wwcGl6eXZvMDdodjNrbml5ZjRoa3VsbCJ9.ShbnljPojsq-ymys2ortkw'
     }).addTo(this.map);
     for (const nursery of this.nurseries) {
-      if (nursery.lat !== undefined) {
-        const marker = L.marker([ nursery.lat, nursery.lon ]).addTo(this.map);
+      if (hasCoordinates(nursery)) {
+        const marker = L.marker([ Number(nursery.lat), Number(nursery.lon) ]).addTo(this.map);
         const name = esc(nursery.SOURCE);
         const address = `${esc(nursery.ADDRESS)}`;
         const phone = esc(nursery.PHONE);
@@ -136,8 +136,9 @@ export default {
       return response.json();
     },
     setFocusedNursery(nursery) {
+      if (!nursery || !nursery.marker || !hasCoordinates(nursery)) return;
       this.focused = nursery;
-      this.map.panTo([ nursery.lat, nursery.lon ]);
+      this.map.panTo([ Number(nursery.lat), Number(nursery.lon) ]);
       this.$refs.map.scrollIntoView();
       nursery.marker.openPopup();
     },
@@ -152,7 +153,17 @@ export default {
 };
 
 function esc(text) {
-  return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;');
+  return String(text ?? "").replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g, '&quot;');
+}
+
+function hasCoordinates(nursery) {
+  return nursery
+    && nursery.lat !== null
+    && nursery.lat !== undefined
+    && nursery.lon !== null
+    && nursery.lon !== undefined
+    && Number.isFinite(Number(nursery.lat))
+    && Number.isFinite(Number(nursery.lon));
 }
 
 </script>

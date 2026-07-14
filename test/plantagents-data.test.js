@@ -4,6 +4,7 @@ const {
   assertPlausibleCounts,
   haversineMiles,
   legacyNurseryResult,
+  normalizeNurseryStateFilter,
   normalizeScientificName,
   onlineVendorResult,
   vendorStoreResult,
@@ -44,6 +45,13 @@ test("adapts a synced vendor to the existing nursery map response", () => {
     PHONE: "555", URL: "https://example.com", ADDRESS: "1 Main St",
     STATE: "PA", EMAIL: "plants@example.com",
   });
+});
+
+test("treats the map's ALL state as no nursery filter", () => {
+  assert.equal(normalizeNurseryStateFilter("ALL"), null);
+  assert.equal(normalizeNurseryStateFilter(" all "), null);
+  assert.equal(normalizeNurseryStateFilter(""), null);
+  assert.equal(normalizeNurseryStateFilter(" PA "), "PA");
 });
 
 test("online vendors prefer a plant-specific URL and fall back to the vendor site", () => {
